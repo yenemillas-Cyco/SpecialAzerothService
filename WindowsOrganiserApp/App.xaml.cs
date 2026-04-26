@@ -1,8 +1,10 @@
-﻿using System.Windows;
+﻿using System.Diagnostics;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Text.Json.Serialization;
+using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
-using Velopack;
-using Velopack.Sources;
 using WindowsOrganiserApp.Services;
 using WindowsOrganiserApp.ViewModels;
 
@@ -11,12 +13,11 @@ namespace WindowsOrganiserApp;
 public partial class App : Application
 {
     private ServiceProvider? _serviceProvider;
+    private static readonly Version CurrentVersion = new("1.0.1");
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-
-        VelopackApp.Build().Run();
 
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Fatal()
@@ -41,28 +42,30 @@ public partial class App : Application
     {
         try
         {
-            var source = new GithubSource("https://github.com/yenemillas-Cyco/SpecialAzerothService", null, false);
-            var mgr = new UpdateManager(source);
+            using var http = new HttpClient();
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("SpecialAzerothService");
+            http.Timeout = TimeSpan.FromSeconds(10);
 
-            if (!mgr.IsInstalled) return;
+            var release = await http.GetFromJsonAsync<GitHubRelease>(
+                "https://api.github.com/repos/yenemillas-Cyco/SpecialAzerothService/releases/latest");
 
-            var newVersion = await mgr.CheckForUpdatesAsync();
-            if (newVersion == null) return;
+            if (release?.TagName == null) return;
 
-            await mgr.DownloadUpdatesAsync(newVersion);
+            var remoteVer = new Version(release.TagName.TrimStart('v'));
+            if (remoteVer <= CurrentVersion) return;
 
             var result = MessageBox.Show(
-                $"Une nouvelle version ({newVersion.TargetFullRelease.Version}) est disponible.\nRedémarrer maintenant ?",
-                "Mise à jour",
+                $"Une nouvelle version (v{remoteVer}) est disponible !\n\nVoulez-vous ouvrir la page de téléchargement ?",
+                "Mise à jour disponible",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Information);
 
             if (result == MessageBoxResult.Yes)
-                mgr.ApplyUpdatesAndRestart(newVersion);
+                Process.Start(new ProcessStartInfo(release.HtmlUrl) { UseShellExecute = true });
         }
         catch
         {
-            // Silently ignore update errors (no internet, repo not found, etc.)
+            // Pas d'internet ou erreur → on ignore silencieusement
         }
     }
 
@@ -73,3 +76,7 @@ public partial class App : Application
         base.OnExit(e);
     }
 }
+
+file record GitHubRelease(
+    [property: JsonPropertyName("tag_name")] string? TagName,
+    [property: JsonPropertyName("html_url")] string HtmlUrl);
