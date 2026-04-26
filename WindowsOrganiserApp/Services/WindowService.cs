@@ -1,0 +1,138 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text;
+using Serilog;
+using WindowsOrganiserApp.Helpers;
+using WindowsOrganiserApp.Models;
+
+namespace WindowsOrganiserApp.Services;
+
+public class WindowService : IWindowService
+{
+    private readonly ILogger _logger;
+
+    public IntPtr OwnHandle { get; set; }
+
+    public WindowService(ILogger logger)
+    {
+        _logger = logger;
+    }
+
+    public List<WindowInfo> GetOpenWindows()
+    {
+        var windows = new List<WindowInfo>();
+        var shellWindow = NativeMethods.GetShellWindow();
+
+        NativeMethods.EnumWindows((hWnd, _) =>
+        {
+            if (hWnd == shellWindow) return true;
+            if (hWnd == OwnHandle) return true;
+            if (!NativeMethods.IsWindowVisible(hWnd)) return true;
+
+            var length = NativeMethods.GetWindowTextLength(hWnd);
+            if (length == 0) return true;
+
+            var exStyle = NativeMethods.GetWindowLongA(hWnd, NativeMethods.GWL_EXSTYLE);
+            if ((exStyle & (int)NativeMethods.WS_EX_TOOLWINDOW) != 0)
+                return true;
+
+            var sb = new StringBuilder(length + 1);
+            NativeMethods.GetWindowText(hWnd, sb, sb.Capacity);
+            var title = sb.ToString();
+
+            if (string.IsNullOrWhiteSpace(title)) return true;
+
+            var (processName, processId, startTime) = GetProcessInfo(hWnd);
+
+            // Uniquement les fenêtres World of Warcraft
+            var allowed = new[] { "Wow", "WowClassic", "WowT", "WowB" };
+            if (!allowed.Any(a => processName.Equals(a, StringComparison.OrdinalIgnoreCase)))
+                return true;
+
+            windows.Add(new WindowInfo
+            {
+                Handle = hWnd,
+                Title = title,
+                ProcessName = processName,
+                ProcessId = processId,
+                StartTime = startTime
+            });
+
+            return true;
+        }, IntPtr.Zero);
+
+        // Trier par ordre de lancement et assigner le numéro
+        windows = windows.OrderBy(w => w.StartTime).ToList();
+        for (var i = 0; i < windows.Count; i++)
+            windows[i].LaunchOrder = i + 1;
+
+        _logger.Information("Enumerated {Count} WoW windows", windows.Count);
+        return windows;
+    }
+
+    public void MoveAndResize(IntPtr handle, WindowRect rect)
+    {
+        if (!NativeMethods.IsWindow(handle))
+        {
+            _logger.Warning("Handle {Handle} is no longer valid, skipping", handle);
+            return;
+        }
+
+        _logger.Information("Moving window {Handle} to ({X},{Y}) size ({W}x{H})",
+            handle, rect.X, rect.Y, rect.Width, rect.Height);
+
+        // Retirer le style WS_MAXIMIZE s'il est présent (fenêtre snappée ou maximisée)
+        var style = NativeMethods.GetWindowLongA(handle, NativeMethods.GWL_STYLE);
+        if ((style & (int)NativeMethods.WS_MAXIMIZE) != 0)
+        {
+            NativeMethods.SetWindowLongA(handle, NativeMethods.GWL_STYLE,
+                style & ~(int)NativeMethods.WS_MAXIMIZE);
+            _logger.Information("Removed WS_MAXIMIZE from window {Handle}", handle);
+        }
+
+        // Forcer l'état normal (ni minimisé, ni maximisé)
+        NativeMethods.ShowWindow(handle, NativeMethods.SW_SHOWNORMAL);
+        Thread.Sleep(50);
+
+        // Déplacer et redimensionner
+        var ok = NativeMethods.SetWindowPos(
+            handle,
+            NativeMethods.HWND_TOP,
+            rect.X, rect.Y, rect.Width, rect.Height,
+            NativeMethods.SWP_FRAMECHANGED | NativeMethods.SWP_SHOWWINDOW);
+
+        if (!ok)
+        {
+            var error = Marshal.GetLastWin32Error();
+            _logger.Error("SetWindowPos failed for {Handle}, Win32 error={Error}", handle, error);
+
+            // Fallback avec MoveWindow
+            _logger.Information("Trying MoveWindow fallback for {Handle}", handle);
+            NativeMethods.MoveWindow(handle, rect.X, rect.Y, rect.Width, rect.Height, true);
+        }
+
+        NativeMethods.SetForegroundWindow(handle);
+    }
+
+    public WindowRect GetWorkArea()
+    {
+        var rect = new NativeMethods.RECT();
+        NativeMethods.SystemParametersInfo(NativeMethods.SPI_GETWORKAREA, 0, ref rect, 0);
+
+        return new WindowRect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
+    }
+
+    private static (string Name, uint Pid, DateTime StartTime) GetProcessInfo(IntPtr hWnd)
+    {
+        try
+        {
+            NativeMethods.GetWindowThreadProcessId(hWnd, out var processId);
+            var process = Process.GetProcessById((int)processId);
+            return (process.ProcessName, processId, process.StartTime);
+        }
+        catch
+        {
+            return ("Unknown", 0, DateTime.MaxValue);
+        }
+    }
+}
