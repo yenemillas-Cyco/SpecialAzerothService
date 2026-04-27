@@ -13,7 +13,8 @@ namespace WindowsOrganiserApp;
 public partial class App : Application
 {
     private ServiceProvider? _serviceProvider;
-    private static readonly Version CurrentVersion = new("1.0.1");
+    private static readonly Version CurrentVersion =
+        typeof(App).Assembly.GetName().Version ?? new Version("1.0.0");
 
     protected override async void OnStartup(StartupEventArgs e)
     {
