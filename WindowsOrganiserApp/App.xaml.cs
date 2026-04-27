@@ -82,20 +82,24 @@ public partial class App : Application
             if (newExe == null) return;
 
             var currentExe = Environment.ProcessPath!;
+            var currentPid = Environment.ProcessId;
             var batPath = Path.Combine(Path.GetTempPath(), "SAS_updater.bat");
             var bat = $"""
                 @echo off
                 echo Mise a jour en cours...
+                taskkill /PID {currentPid} /F >nul 2>&1
+                :retry
                 timeout /t 2 /nobreak >nul
-                copy /y "{newExe}" "{currentExe}"
-                del "{tempZip}"
-                rmdir /s /q "{tempDir}"
+                copy /y "{newExe}" "{currentExe}" >nul 2>&1
+                if errorlevel 1 goto retry
+                del "{tempZip}" >nul 2>&1
+                rmdir /s /q "{tempDir}" >nul 2>&1
                 start "" "{currentExe}"
                 del "%~f0"
                 """;
             File.WriteAllText(batPath, bat);
 
-            Process.Start(new ProcessStartInfo(batPath) { CreateNoWindow = true, UseShellExecute = false });
+            Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"{batPath}\"") { CreateNoWindow = true, UseShellExecute = false });
             Current.Shutdown();
         }
         catch
