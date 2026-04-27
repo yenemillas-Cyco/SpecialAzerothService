@@ -47,7 +47,7 @@ public partial class App : Application
         {
             using var http = new HttpClient();
             http.DefaultRequestHeaders.UserAgent.ParseAdd("SpecialAzerothService");
-            http.Timeout = TimeSpan.FromSeconds(10);
+            http.Timeout = TimeSpan.FromMinutes(5);
 
             var release = await http.GetFromJsonAsync<GitHubRelease>(
                 "https://api.github.com/repos/yenemillas-Cyco/SpecialAzerothService/releases/latest");
@@ -68,7 +68,6 @@ public partial class App : Application
 
             if (result != MessageBoxResult.Yes) return;
 
-            http.Timeout = TimeSpan.FromMinutes(5);
             var tempZip = Path.Combine(Path.GetTempPath(), "SAS_update.zip");
             var tempDir = Path.Combine(Path.GetTempPath(), "SAS_update");
 
