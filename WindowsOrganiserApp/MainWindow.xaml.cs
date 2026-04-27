@@ -166,8 +166,29 @@ public partial class MainWindow : Window
             Text = "Contact : yenemillas@gmail.com",
             FontSize = 11, Foreground = subtext,
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 14)
+            Margin = new Thickness(0, 0, 0, 8)
         });
+
+        var linkBlock = new TextBlock
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 14)
+        };
+        var hyperlink = new System.Windows.Documents.Hyperlink(
+            new System.Windows.Documents.Run("Téléchargements & mises à jour"))
+        {
+            NavigateUri = new Uri("https://github.com/yenemillas-Cyco/SpecialAzerothService/releases"),
+            Foreground = new System.Windows.Media.SolidColorBrush(
+                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4FC3F7")),
+            FontSize = 11
+        };
+        hyperlink.RequestNavigate += (_, e) =>
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+            e.Handled = true;
+        };
+        linkBlock.Inlines.Add(hyperlink);
+        stack.Children.Add(linkBlock);
 
         var sep2 = new Border
         {
