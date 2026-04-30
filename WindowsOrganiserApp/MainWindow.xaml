@@ -626,34 +626,11 @@
                                                     <TextBlock FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"
                                                                Foreground="{StaticResource BrightGoldBrush}" Margin="0,0,0,4"
                                                                Text="{Binding Monitor.DisplayLabel, StringFormat='⚙ {0}'}"/>
-                                                    <Grid HorizontalAlignment="Stretch" Margin="8,0">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="50"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <Grid.RowDefinitions>
-                                                            <RowDefinition Height="26"/>
-                                                            <RowDefinition Height="26"/>
-                                                            <RowDefinition Height="26"/>
-                                                            <RowDefinition Height="26"/>
-                                                            <RowDefinition Height="26"/>
-                                                        </Grid.RowDefinitions>
-
-                                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Mode" FontSize="10"
-                                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,0,6,0"/>
-                                                        <WrapPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                            <RadioButton Content="Principal" Style="{StaticResource WowPill}" FontSize="10"
-                                                                         IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Main}"/>
-                                                            <RadioButton Content="Fractionné" Style="{StaticResource WowPill}" FontSize="10"
-                                                                         IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}"/>
-                                                        </WrapPanel>
-
-                                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Taille" FontSize="10"
-                                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
+                                                    <Grid HorizontalAlignment="Stretch" Margin="8,0" MinHeight="120">
+                                                        <!-- Grille mode Principal -->
+                                                        <Grid>
+                                                            <Grid.Style>
+                                                                <Style TargetType="Grid">
                                                                     <Setter Property="Visibility" Value="Visible"/>
                                                                     <Style.Triggers>
                                                                         <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
@@ -661,32 +638,71 @@
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
                                                                 </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                        <WrapPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
-                                                            <WrapPanel.Style>
-                                                                <Style TargetType="WrapPanel">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </WrapPanel.Style>
-                                                            <RadioButton Content="G" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Grand"
-                                                                         IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Grand}"/>
-                                                            <RadioButton Content="M" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Moyen"
-                                                                         IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Moyen}"/>
-                                                            <RadioButton Content="P" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Petit"
-                                                                         IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Petit}"/>
-                                                        </WrapPanel>
+                                                            </Grid.Style>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="50"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
 
-                                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Orient." FontSize="10"
-                                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Mode" FontSize="10"
+                                                                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                                       Foreground="{StaticResource SubtextBrush}" Margin="0,0,6,0"/>
+                                                            <WrapPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                <RadioButton Content="Principal" Style="{StaticResource WowPill}" FontSize="10"
+                                                                             IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Main}"/>
+                                                                <RadioButton Content="Fractionné" Style="{StaticResource WowPill}" FontSize="10"
+                                                                             IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}"/>
+                                                            </WrapPanel>
+
+                                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Taille" FontSize="10"
+                                                                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                                       Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0"/>
+                                                            <WrapPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
+                                                                <RadioButton Content="G" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Grand"
+                                                                             IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Grand}"/>
+                                                                <RadioButton Content="M" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Moyen"
+                                                                             IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Moyen}"/>
+                                                                <RadioButton Content="P" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Petit"
+                                                                             IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Petit}"/>
+                                                            </WrapPanel>
+
+                                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Pos" FontSize="10"
+                                                                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                                       Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0"/>
+                                                            <WrapPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
+                                                                <RadioButton Content="↖" Style="{StaticResource WowPill}" FontSize="10"
+                                                                             IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=TopLeft}"/>
+                                                                <RadioButton Content="↗" Style="{StaticResource WowPill}" FontSize="10"
+                                                                             IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=TopRight}"/>
+                                                                <RadioButton Content="↘" Style="{StaticResource WowPill}" FontSize="10"
+                                                                             IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=BottomRight}"/>
+                                                                <RadioButton Content="↙" Style="{StaticResource WowPill}" FontSize="10"
+                                                                             IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=BottomLeft}"/>
+                                                            </WrapPanel>
+
+                                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Zones" FontSize="10"
+                                                                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                                       Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0"/>
+                                                            <WrapPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
+                                                                <CheckBox Content="Latéral" IsChecked="{Binding HasLateral}"
+                                                                          Foreground="{StaticResource GoldBrush}" FontSize="10"
+                                                                          VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                                <CheckBox Content="Bandeau" IsChecked="{Binding HasBandeau}"
+                                                                          Foreground="{StaticResource GoldBrush}" FontSize="10"
+                                                                          VerticalAlignment="Center"/>
+                                                            </WrapPanel>
+                                                        </Grid>
+
+                                                        <!-- Grille mode Fractionné -->
+                                                        <Grid>
+                                                            <Grid.Style>
+                                                                <Style TargetType="Grid">
                                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                                     <Style.Triggers>
                                                                         <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
@@ -694,92 +710,36 @@
                                                                         </DataTrigger>
                                                                     </Style.Triggers>
                                                                 </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                        <WrapPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
-                                                            <WrapPanel.Style>
-                                                                <Style TargetType="WrapPanel">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </WrapPanel.Style>
-                                                            <RadioButton Content="▥" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Côte à côte"
-                                                                         IsChecked="{Binding SplitOrientation, Converter={StaticResource EnumToBool}, ConverterParameter=Horizontal}"/>
-                                                            <RadioButton Content="▤" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Empilé"
-                                                                         IsChecked="{Binding SplitOrientation, Converter={StaticResource EnumToBool}, ConverterParameter=Vertical}"/>
-                                                        </WrapPanel>
+                                                            </Grid.Style>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="50"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
 
-                                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Pos" FontSize="10"
-                                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                        <WrapPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
-                                                            <WrapPanel.Style>
-                                                                <Style TargetType="WrapPanel">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </WrapPanel.Style>
-                                                            <RadioButton Content="↖" Style="{StaticResource WowPill}" FontSize="10"
-                                                                         IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=TopLeft}"/>
-                                                            <RadioButton Content="↗" Style="{StaticResource WowPill}" FontSize="10"
-                                                                         IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=TopRight}"/>
-                                                            <RadioButton Content="↘" Style="{StaticResource WowPill}" FontSize="10"
-                                                                         IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=BottomRight}"/>
-                                                            <RadioButton Content="↙" Style="{StaticResource WowPill}" FontSize="10"
-                                                                         IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=BottomLeft}"/>
-                                                        </WrapPanel>
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Mode" FontSize="10"
+                                                                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                                       Foreground="{StaticResource SubtextBrush}" Margin="0,0,6,0"/>
+                                                            <WrapPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                <RadioButton Content="Principal" Style="{StaticResource WowPill}" FontSize="10"
+                                                                             IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Main}"/>
+                                                                <RadioButton Content="Fractionné" Style="{StaticResource WowPill}" FontSize="10"
+                                                                             IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}"/>
+                                                            </WrapPanel>
 
-                                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Zones" FontSize="10"
-                                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                        <WrapPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
-                                                            <WrapPanel.Style>
-                                                                <Style TargetType="WrapPanel">
-                                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </WrapPanel.Style>
-                                                            <CheckBox Content="Latéral" IsChecked="{Binding HasLateral}"
-                                                                      Foreground="{StaticResource GoldBrush}" FontSize="10"
-                                                                      VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                            <CheckBox Content="Bandeau" IsChecked="{Binding HasBandeau}"
-                                                                      Foreground="{StaticResource GoldBrush}" FontSize="10"
-                                                                      VerticalAlignment="Center"/>
-                                                        </WrapPanel>
+                                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Orient." FontSize="10"
+                                                                       HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                                       Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0"/>
+                                                            <WrapPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
+                                                                <RadioButton Content="▥" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Côte à côte"
+                                                                             IsChecked="{Binding SplitOrientation, Converter={StaticResource EnumToBool}, ConverterParameter=Horizontal}"/>
+                                                                <RadioButton Content="▤" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Empilé"
+                                                                             IsChecked="{Binding SplitOrientation, Converter={StaticResource EnumToBool}, ConverterParameter=Vertical}"/>
+                                                            </WrapPanel>
+                                                        </Grid>
                                                     </Grid>
                                                     <Border Background="#CC050508" CornerRadius="4" ClipToBounds="True"
                                                             Height="140" Margin="0,6,0,0"
