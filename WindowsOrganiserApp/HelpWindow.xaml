@@ -9,33 +9,27 @@
         AllowsTransparency="True"
         Background="Transparent"
         ResizeMode="CanResizeWithGrip"
-        Foreground="#E8D5A3"
+        Foreground="{DynamicResource TextBrush}"
         FontFamily="Segoe UI">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="GoldBrush" Color="#C9A44A"/>
-        <SolidColorBrush x:Key="BrightGoldBrush" Color="#FFD100"/>
-        <SolidColorBrush x:Key="TextBrush" Color="#E8D5A3"/>
-        <SolidColorBrush x:Key="SubtextBrush" Color="#9B8B6E"/>
-        <SolidColorBrush x:Key="SepBrush" Color="#443D2A"/>
-
         <Style x:Key="SectionTitle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Foreground" Value="#FFD100"/>
+            <Setter Property="Foreground" Value="{DynamicResource BrightGoldBrush}"/>
             <Setter Property="Margin" Value="0,18,0,6"/>
         </Style>
 
         <Style x:Key="SubTitle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#C9A44A"/>
+            <Setter Property="Foreground" Value="{DynamicResource GoldBrush}"/>
             <Setter Property="Margin" Value="8,10,0,4"/>
         </Style>
 
         <Style x:Key="Body" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#E8D5A3"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Margin" Value="12,2,0,2"/>
             <Setter Property="LineHeight" Value="20"/>
@@ -43,7 +37,7 @@
 
         <Style x:Key="Bullet" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#E8D5A3"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Margin" Value="20,1,0,1"/>
             <Setter Property="LineHeight" Value="20"/>
@@ -51,18 +45,13 @@
 
         <Style x:Key="Sep" TargetType="Border">
             <Setter Property="Height" Value="1"/>
-            <Setter Property="Background" Value="#443D2A"/>
+            <Setter Property="Background" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="Margin" Value="0,10,0,4"/>
         </Style>
     </Window.Resources>
 
-    <Border CornerRadius="8" BorderThickness="2" BorderBrush="#6B5A33">
-        <Border.Background>
-            <RadialGradientBrush>
-                <GradientStop Color="#1A1525" Offset="0"/>
-                <GradientStop Color="#0A0A12" Offset="1"/>
-            </RadialGradientBrush>
-        </Border.Background>
+    <Border CornerRadius="8" BorderThickness="2" BorderBrush="{DynamicResource AccentBorderBrush}"
+            Background="{DynamicResource WindowBgBrush}">
 
         <Grid>
             <Grid.RowDefinitions>
@@ -75,23 +64,15 @@
             <Border Grid.Row="0" Padding="16,10" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
                     <TextBlock Text="📖  Guide d'utilisation" FontSize="16" FontWeight="Bold"
-                               Foreground="{StaticResource BrightGoldBrush}" VerticalAlignment="Center"/>
+                               Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
                     <Button Content="✕" HorizontalAlignment="Right" VerticalAlignment="Center"
-                            FontSize="14" Foreground="#9B8B6E" Background="Transparent" BorderThickness="0"
+                            FontSize="14" Foreground="{DynamicResource SubtextBrush}" Background="Transparent" BorderThickness="0"
                             Cursor="Hand" Click="Close_Click" Padding="6,2"/>
                 </Grid>
             </Border>
 
-            <Border Grid.Row="0" VerticalAlignment="Bottom" Height="2" Margin="20,0">
-                <Border.Background>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                        <GradientStop Color="Transparent" Offset="0"/>
-                        <GradientStop Color="#C9A44A" Offset="0.3"/>
-                        <GradientStop Color="#C9A44A" Offset="0.7"/>
-                        <GradientStop Color="Transparent" Offset="1"/>
-                    </LinearGradientBrush>
-                </Border.Background>
-            </Border>
+            <Border Grid.Row="0" VerticalAlignment="Bottom" Height="2" Margin="20,0"
+                    Background="{DynamicResource GoldSepBrush}"/>
 
             <!-- Content -->
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20,0,20,10">
@@ -164,11 +145,11 @@
                     <Border Style="{StaticResource Sep}"/>
 
                     <!-- APPLIQUER -->
-                    <TextBlock Style="{StaticResource SectionTitle}" Text="⚔  Appliquer"/>
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="⚔  Appliquer le layout"/>
                     <TextBlock Style="{StaticResource Body}"
                                Text="Cliquer sur « ⚔ Appliquer » pour déplacer et redimensionner toutes les fenêtres sélectionnées selon la configuration définie. Chaque écran applique sa propre disposition indépendamment."/>
 
-                    <TextBlock Style="{StaticResource Body}" Margin="12,16,0,4" Foreground="#9B8B6E" FontStyle="Italic"
+                    <TextBlock Style="{StaticResource Body}" Margin="12,16,0,4" Foreground="{DynamicResource SubtextBrush}" FontStyle="Italic"
                                Text="Développé par Cyco — yenemillas@gmail.com"/>
                 </StackPanel>
             </ScrollViewer>
@@ -176,29 +157,9 @@
             <!-- Footer -->
             <Border Grid.Row="2" Padding="16,8">
                 <Button Content="Fermer" HorizontalAlignment="Center"
-                        FontSize="13" FontWeight="Bold" Foreground="#FFD100" Cursor="Hand"
-                        Padding="24,8" Click="Close_Click">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="Bd" CornerRadius="4" Padding="{TemplateBinding Padding}"
-                                    BorderThickness="2" BorderBrush="#8B6914">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                        <GradientStop Color="#8B1A1A" Offset="0"/>
-                                        <GradientStop Color="#5C0E0E" Offset="0.5"/>
-                                        <GradientStop Color="#3D0808" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </Border.Background>
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#FFD100"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Button.Template>
-                </Button>
+                        Style="{DynamicResource WowButton}"
+                        FontSize="13" FontWeight="Bold" Cursor="Hand"
+                        Padding="24,8" Click="Close_Click"/>
             </Border>
         </Grid>
     </Border>

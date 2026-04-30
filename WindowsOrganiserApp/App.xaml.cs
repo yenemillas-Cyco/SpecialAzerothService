@@ -30,7 +30,9 @@ public partial class App : Application
         services.AddSingleton<ILogger>(Log.Logger);
         services.AddSingleton<IWindowService, WindowService>();
         services.AddSingleton<ILayoutService, LayoutService>();
-        services.AddTransient<MainViewModel>();
+        services.AddSingleton<ISettingsService, SettingsService>();
+        services.AddSingleton<IThemeService, ThemeService>();
+        services.AddSingleton<MainViewModel>();
         services.AddTransient<MainWindow>();
 
         _serviceProvider = services.BuildServiceProvider();

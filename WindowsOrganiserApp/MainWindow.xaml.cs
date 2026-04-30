@@ -15,16 +15,46 @@ public partial class MainWindow : Window
     private Point _dragStartPoint;
     private DropIndicatorAdorner? _dropAdorner;
 
-    public MainWindow(MainViewModel viewModel, IWindowService windowService)
+    private readonly MainViewModel _viewModel;
+    private readonly ISettingsService _settingsService;
+
+    public MainWindow(MainViewModel viewModel, IWindowService windowService, ISettingsService settingsService)
     {
         InitializeComponent();
+        _viewModel = viewModel;
+        _settingsService = settingsService;
         DataContext = viewModel;
 
         Loaded += (_, _) =>
         {
             windowService.OwnHandle = new WindowInteropHelper(this).Handle;
+            RestoreWindowPosition();
             viewModel.RefreshWindowsCommand.Execute(null);
         };
+
+        Closing += (_, _) => SaveAllSettings();
+    }
+
+    private void RestoreWindowPosition()
+    {
+        var settings = _settingsService.Load();
+        Width = settings.WindowWidth;
+        Height = settings.WindowHeight;
+        if (!double.IsNaN(settings.WindowLeft) && !double.IsNaN(settings.WindowTop))
+        {
+            Left = settings.WindowLeft;
+            Top = settings.WindowTop;
+        }
+    }
+
+    private void SaveAllSettings()
+    {
+        var settings = _viewModel.GetCurrentSettings();
+        settings.WindowWidth = Width;
+        settings.WindowHeight = Height;
+        settings.WindowLeft = Left;
+        settings.WindowTop = Top;
+        _settingsService.Save(settings);
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

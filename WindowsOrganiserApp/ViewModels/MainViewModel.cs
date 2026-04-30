@@ -11,14 +11,64 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly IWindowService _windowService;
     private readonly ILayoutService _layoutService;
+    private readonly ISettingsService _settingsService;
+    private readonly IThemeService _themeService;
     private readonly ILogger _logger;
+    private AppSettings? _loadedSettings;
 
-    public MainViewModel(IWindowService windowService, ILayoutService layoutService, ILogger logger)
+    public MainViewModel(IWindowService windowService, ILayoutService layoutService,
+                         ISettingsService settingsService, IThemeService themeService, ILogger logger)
     {
         _windowService = windowService;
         _layoutService = layoutService;
+        _settingsService = settingsService;
+        _themeService = themeService;
         _logger = logger;
+        _loadedSettings = _settingsService.Load();
+
+        if (!string.IsNullOrEmpty(_loadedSettings.Theme))
+            _themeService.ApplyTheme(_loadedSettings.Theme);
+
+        _currentThemeLabel = _themeService.CurrentTheme;
         RefreshMonitors();
+    }
+
+    public string[] AvailableThemes => _themeService.AvailableThemes;
+
+    [ObservableProperty]
+    private string _currentThemeLabel;
+
+    partial void OnCurrentThemeLabelChanged(string value)
+    {
+        if (!string.IsNullOrEmpty(value) && value != _themeService.CurrentTheme)
+            _themeService.ApplyTheme(value);
+    }
+
+    public AppSettings GetCurrentSettings()
+    {
+        var settings = new AppSettings { Theme = _themeService.CurrentTheme };
+
+        settings.MonitorConfigs = MonitorConfigs.Select(c => new MonitorConfigSettings
+        {
+            DeviceName = c.Monitor.DeviceName,
+            Mode = c.Mode.ToString(),
+            Size = c.Size.ToString(),
+            Position = c.Position.ToString(),
+            HasLateral = c.HasLateral,
+            HasBandeau = c.HasBandeau,
+            SplitOrientation = c.SplitOrientation.ToString()
+        }).ToList();
+
+        settings.Windows = AvailableWindows.Select(w => new WindowSettings
+        {
+            LaunchOrder = w.LaunchOrder,
+            CustomName = w.CustomName,
+            AssignedMonitorDeviceName = w.AssignedMonitor?.DeviceName,
+            IsMainWindow = w.IsMainWindow,
+            IsSelected = w.IsSelected
+        }).ToList();
+
+        return settings;
     }
 
     public ObservableCollection<WindowInfo> AvailableWindows { get; } = [];
@@ -67,6 +117,19 @@ public partial class MainViewModel : ObservableObject
             Monitors.Add(indexed);
 
             var config = new MonitorLayoutConfig { Monitor = indexed };
+
+            var saved = _loadedSettings?.MonitorConfigs
+                .FirstOrDefault(s => s.DeviceName == indexed.DeviceName);
+            if (saved is not null)
+            {
+                if (Enum.TryParse<LayoutMode>(saved.Mode, out var mode)) config.Mode = mode;
+                if (Enum.TryParse<MainSize>(saved.Size, out var size)) config.Size = size;
+                if (Enum.TryParse<MainPosition>(saved.Position, out var pos)) config.Position = pos;
+                config.HasLateral = saved.HasLateral;
+                config.HasBandeau = saved.HasBandeau;
+                if (Enum.TryParse<SplitOrientation>(saved.SplitOrientation, out var ori)) config.SplitOrientation = ori;
+            }
+
             config.PropertyChanged += (_, _) => UpdatePreview();
             MonitorConfigs.Add(config);
         }
@@ -118,6 +181,25 @@ public partial class MainViewModel : ObservableObject
                 w.AssignedMonitor = defaultMonitor;
             if (savedMains.Contains(w.ProcessId))
                 w.IsMainWindow = true;
+
+            // First launch: apply persisted settings by LaunchOrder
+            if (savedNames.Count == 0 && _loadedSettings?.Windows is { Count: > 0 } savedWindows)
+            {
+                var sw = savedWindows.FirstOrDefault(s => s.LaunchOrder == w.LaunchOrder);
+                if (sw is not null)
+                {
+                    if (!string.IsNullOrWhiteSpace(sw.CustomName))
+                        w.CustomName = sw.CustomName;
+                    w.IsMainWindow = sw.IsMainWindow;
+                    w.IsSelected = sw.IsSelected;
+                    if (sw.AssignedMonitorDeviceName is not null)
+                    {
+                        var monitor = Monitors.FirstOrDefault(m => m.DeviceName == sw.AssignedMonitorDeviceName);
+                        if (monitor is not null)
+                            w.AssignedMonitor = monitor;
+                    }
+                }
+            }
 
             w.PropertyChanged += (_, e) =>
             {

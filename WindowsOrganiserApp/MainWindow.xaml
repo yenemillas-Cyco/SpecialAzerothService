@@ -22,368 +22,21 @@
         <conv:EnumToBoolConverter x:Key="EnumToBool"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
-        <!-- WoW Classic Color Palette -->
-        <SolidColorBrush x:Key="GoldBrush" Color="#C9A44A"/>
-        <SolidColorBrush x:Key="BrightGoldBrush" Color="#FFD100"/>
-        <SolidColorBrush x:Key="PanelBg" Color="#CC0E0E1A"/>
-        <SolidColorBrush x:Key="PanelBg2" Color="#DD151525"/>
-        <SolidColorBrush x:Key="PanelBorder" Color="#886B5A33"/>
-        <SolidColorBrush x:Key="TextBrush" Color="#E8D5A3"/>
-        <SolidColorBrush x:Key="SubtextBrush" Color="#9B8B6E"/>
-        <SolidColorBrush x:Key="EpicBrush" Color="#A335EE"/>
-
-        <!-- WoW Red Button (Connexion style) -->
-        <Style x:Key="WowButton" TargetType="Button">
-            <Setter Property="Foreground" Value="#FFD100"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Padding" Value="24,10"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" CornerRadius="4" Padding="{TemplateBinding Padding}"
-                                BorderThickness="2" BorderBrush="#8B6914">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                    <GradientStop Color="#8B1A1A" Offset="0"/>
-                                    <GradientStop Color="#5C0E0E" Offset="0.5"/>
-                                    <GradientStop Color="#3D0808" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.Background>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#FFD100"/>
-                                <Setter TargetName="Bd" Property="Background">
-                                    <Setter.Value>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                            <GradientStop Color="#A52222" Offset="0"/>
-                                            <GradientStop Color="#7A1414" Offset="0.5"/>
-                                            <GradientStop Color="#5C0E0E" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Bd" Property="Background">
-                                    <Setter.Value>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                            <GradientStop Color="#4A0A0A" Offset="0"/>
-                                            <GradientStop Color="#3D0808" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Secondary stone button -->
-        <Style x:Key="StoneButton" TargetType="Button">
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" CornerRadius="3" Padding="{TemplateBinding Padding}"
-                                BorderThickness="1" BorderBrush="#6B5A33">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                    <GradientStop Color="#2A2535" Offset="0"/>
-                                    <GradientStop Color="#1A1525" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.Background>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Tab pill WoW style -->
-        <Style x:Key="WowPill" TargetType="RadioButton">
-            <Setter Property="Foreground" Value="{StaticResource SubtextBrush}"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Margin" Value="0,0,4,0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="Bd" CornerRadius="3" Padding="16,7"
-                                BorderThickness="1" BorderBrush="#443D2A">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                    <GradientStop Color="#1E1A28" Offset="0"/>
-                                    <GradientStop Color="#141020" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.Background>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
-                                <Setter Property="Foreground" Value="{StaticResource BrightGoldBrush}"/>
-                                <Setter TargetName="Bd" Property="Background">
-                                    <Setter.Value>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                            <GradientStop Color="#2E2840" Offset="0"/>
-                                            <GradientStop Color="#1E1830" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#6B5A33"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{StaticResource SubtextBrush}"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,0,4,0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="CheckBox">
-                        <Border x:Name="Bd" CornerRadius="3" Padding="10,5"
-                                BorderThickness="1" BorderBrush="#443D2A">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                    <GradientStop Color="#1E1A28" Offset="0"/>
-                                    <GradientStop Color="#141020" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.Background>
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
-                                <Setter Property="Foreground" Value="{StaticResource BrightGoldBrush}"/>
-                                <Setter TargetName="Bd" Property="Background">
-                                    <Setter.Value>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                            <GradientStop Color="#2E2840" Offset="0"/>
-                                            <GradientStop Color="#1E1830" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="#6B5A33"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style TargetType="ComboBox">
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="Background">
-                <Setter.Value>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Color="#1E1A28" Offset="0"/>
-                        <GradientStop Color="#141020" Offset="1"/>
-                    </LinearGradientBrush>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="BorderBrush" Value="#6B5A33"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="6,3"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBox">
-                        <Grid>
-                            <ToggleButton x:Name="ToggleBtn" Focusable="False"
-                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
-                                          ClickMode="Press">
-                                <ToggleButton.Template>
-                                    <ControlTemplate TargetType="ToggleButton">
-                                        <Border x:Name="Border" CornerRadius="3"
-                                                BorderThickness="1" BorderBrush="#6B5A33"
-                                                Background="{TemplateBinding Background}">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="16"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="1" Text="▾" FontSize="10"
-                                                           Foreground="{StaticResource GoldBrush}"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Grid>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </ToggleButton.Template>
-                                <ToggleButton.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                        <GradientStop Color="#1E1A28" Offset="0"/>
-                                        <GradientStop Color="#141020" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </ToggleButton.Background>
-                            </ToggleButton>
-                            <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
-                                              Content="{TemplateBinding SelectionBoxItem}"
-                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                              Margin="6,3,20,3" VerticalAlignment="Center"
-                                              HorizontalAlignment="Left"/>
-                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
-                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
-                                <Border x:Name="DropDown" CornerRadius="3" Margin="0,2,0,0"
-                                        MinWidth="{TemplateBinding ActualWidth}" MaxHeight="200"
-                                        BorderThickness="1" BorderBrush="#6B5A33">
-                                    <Border.Background>
-                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                            <GradientStop Color="#1E1A28" Offset="0"/>
-                                            <GradientStop Color="#0E0A14" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Border.Background>
-                                    <ScrollViewer>
-                                        <StackPanel IsItemsHost="True"/>
-                                    </ScrollViewer>
-                                </Border>
-                            </Popup>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style TargetType="ComboBoxItem">
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-            <Setter Property="Padding" Value="6,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBoxItem">
-                        <Border x:Name="Bd" Padding="{TemplateBinding Padding}" Background="Transparent">
-                            <ContentPresenter/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#33C9A44A"/>
-                                <Setter Property="Foreground" Value="{StaticResource BrightGoldBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="SelectionCheck" TargetType="CheckBox">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="CheckBox">
-                        <Border x:Name="Bd" Width="18" Height="18" CornerRadius="3"
-                                BorderThickness="1.5" BorderBrush="#6B5A33"
-                                Background="#1A1208">
-                            <TextBlock x:Name="Check" Text="✓" FontSize="12" FontWeight="Bold"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="Transparent"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#2A6B2A"/>
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
-                                <Setter TargetName="Check" Property="Foreground" Value="{StaticResource BrightGoldBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BrightGoldBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Window control buttons (close, minimize) -->
-        <Style x:Key="WinCtrlBtn" TargetType="Button">
-            <Setter Property="Width" Value="32"/>
-            <Setter Property="Height" Value="26"/>
-            <Setter Property="Foreground" Value="{StaticResource SubtextBrush}"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="Transparent" CornerRadius="3">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#33C9A44A"/>
-                                <Setter Property="Foreground" Value="{StaticResource BrightGoldBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="WinCloseBtn" TargetType="Button" BasedOn="{StaticResource WinCtrlBtn}">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="Transparent" CornerRadius="3"
-                                Width="32" Height="26">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#CC8B1A1A"/>
-                                <Setter Property="Foreground" Value="#FFD100"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </Window.Resources>
 
     <!-- Background image + overlay -->
-    <Border CornerRadius="6" ClipToBounds="True">
-        <Border.Background>
-            <RadialGradientBrush Center="0.5,0.3" RadiusX="0.8" RadiusY="0.9">
-                <GradientStop Color="#2A1F14" Offset="0"/>
-                <GradientStop Color="#1A1208" Offset="0.5"/>
-                <GradientStop Color="#0D0A06" Offset="1"/>
-            </RadialGradientBrush>
-        </Border.Background>
+    <Border CornerRadius="6" ClipToBounds="True"
+            Background="{DynamicResource WindowBgBrush}">
 
         <Grid>
-            <Border Background="#BB080810" CornerRadius="6"/>
+            <Border Background="{DynamicResource OverlayBrush}" CornerRadius="6"/>
 
             <!-- Cadre doré extérieur -->
             <Border BorderThickness="3" CornerRadius="6"
-                    BorderBrush="{StaticResource GoldBrush}">
+                    BorderBrush="{DynamicResource GoldBrush}">
                 <!-- Cadre intérieur fin -->
                 <Border BorderThickness="1" CornerRadius="4" Margin="2"
-                        BorderBrush="#443D2A">
+                        BorderBrush="{DynamicResource InnerBorderBrush}">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -391,22 +44,17 @@
                         </Grid.RowDefinitions>
 
                         <!-- Custom title bar (draggable) -->
-                        <Border Grid.Row="0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" Cursor="Arrow">
-                            <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                    <GradientStop Color="#22C9A44A" Offset="0"/>
-                                    <GradientStop Color="Transparent" Offset="1"/>
-                                </LinearGradientBrush>
-                            </Border.Background>
+                        <Border Grid.Row="0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" Cursor="Arrow"
+                                Background="{DynamicResource TitleBarBgBrush}">
                             <DockPanel Margin="12,6,6,2">
                                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
                                            Text="Special Azeroth Service" FontSize="11"
-                                           Foreground="{StaticResource SubtextBrush}"/>
+                                           Foreground="{DynamicResource SubtextBrush}"/>
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
                                             HorizontalAlignment="Right">
-                                    <Button Content="—" Style="{StaticResource WinCtrlBtn}"
+                                    <Button Content="—" Style="{DynamicResource WinCtrlBtn}"
                                             Click="Minimize_Click"/>
-                                    <Button Content="✕" Style="{StaticResource WinCloseBtn}"
+                                    <Button Content="✕" Style="{DynamicResource WinCloseBtn}"
                                             Click="Close_Click" Margin="2,0,0,0"/>
                                 </StackPanel>
                             </DockPanel>
@@ -432,37 +80,27 @@
                         <Image Grid.Column="0" Source="Assets/wow_logo.png" Height="42"
                                RenderOptions.BitmapScalingMode="HighQuality" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" FontSize="17" FontWeight="Bold"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock.Foreground>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                    <GradientStop Color="#FFD100" Offset="0"/>
-                                    <GradientStop Color="#FF8C00" Offset="0.5"/>
-                                    <GradientStop Color="#FFD100" Offset="1"/>
-                                </LinearGradientBrush>
-                            </TextBlock.Foreground>
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TitleTextBrush}">
                             <Run Text="&lt;Special Azeroth Service&gt;"/>
                         </TextBlock>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button Content="⟳ Rafraîchir" Style="{StaticResource StoneButton}" FontSize="12" Padding="10,5"
+                            <Button Content="⟳ Rafraîchir" Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
                                     Command="{Binding RefreshWindowsCommand}" ToolTip="Rafraîchir la liste"/>
-                            <Button Content="📖 Aide" Style="{StaticResource StoneButton}" FontSize="12" Padding="10,5"
+                            <ComboBox Width="110" Height="28" Margin="6,0,0,0"
+                                      ItemsSource="{Binding AvailableThemes}"
+                                      SelectedItem="{Binding CurrentThemeLabel}"
+                                      ToolTip="Changer de thème"/>
+                            <Button Content="📖 Aide" Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
                                     Click="Help_Click" ToolTip="Guide d'utilisation" Margin="6,0,0,0"/>
-                            <Button Content="?" Style="{StaticResource StoneButton}" FontSize="12" Padding="10,5"
+                            <Button Content="?" Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
                                     Click="About_Click" ToolTip="À propos" Margin="6,0,0,0"/>
                         </StackPanel>
                     </Grid>
 
                     <!-- Gold separator -->
-                    <Border Grid.Row="1" Height="2" Margin="30,4,30,8">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                <GradientStop Color="Transparent" Offset="0"/>
-                                <GradientStop Color="#6B5A33" Offset="0.2"/>
-                                <GradientStop Color="#C9A44A" Offset="0.5"/>
-                                <GradientStop Color="#6B5A33" Offset="0.8"/>
-                                <GradientStop Color="Transparent" Offset="1"/>
-                            </LinearGradientBrush>
-                        </Border.Background>
+                    <Border Grid.Row="1" Height="2" Margin="30,4,30,8"
+                            Background="{DynamicResource GoldSepBrush}">
                     </Border>
 
 
@@ -475,17 +113,17 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- Window list panel -->
-                        <Border Grid.Column="0" Background="{StaticResource PanelBg}" CornerRadius="6"
-                                Padding="12" BorderThickness="1.5" BorderBrush="#6B5A33">
+                        <Border Grid.Column="0" Background="{DynamicResource PanelBg}" CornerRadius="6"
+                                Padding="12" BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}">
                             <DockPanel>
                                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                                     <TextBlock Text="Fenêtres du groupe" FontSize="14" FontWeight="SemiBold"
-                                               Foreground="{StaticResource BrightGoldBrush}" VerticalAlignment="Center"/>
+                                               Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <Button Content="Tout" Style="{StaticResource StoneButton}"
+                                        <Button Content="Tout" Style="{DynamicResource StoneButton}"
                                                 Command="{Binding SelectAllCommand}" FontSize="10" Padding="6,2"
                                                 ToolTip="Tout cocher"/>
-                                        <Button Content="Aucun" Style="{StaticResource StoneButton}"
+                                        <Button Content="Aucun" Style="{DynamicResource StoneButton}"
                                                 Command="{Binding DeselectAllCommand}" FontSize="10" Padding="6,2"
                                                 Margin="4,0,0,0" ToolTip="Tout décocher"/>
                                     </StackPanel>
@@ -517,9 +155,9 @@
                                     </ListBox.ItemContainerStyle>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="{StaticResource PanelBg2}" CornerRadius="4"
+                                            <Border Background="{DynamicResource PanelBg2}" CornerRadius="4"
                                                     Padding="10,8" Margin="0,0,0,3"
-                                                    BorderThickness="1" BorderBrush="#443D2A"
+                                                    BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}"
                                                     Cursor="Hand" ToolTip="Glisser pour réordonner">
     <Grid>
                                                     <Grid.ColumnDefinitions>
@@ -532,16 +170,16 @@
                                                     </Grid.ColumnDefinitions>
 
                                                     <TextBlock Grid.Column="0" Text="☰" FontSize="14"
-                                                               Foreground="{StaticResource SubtextBrush}"
+                                                               Foreground="{DynamicResource SubtextBrush}"
                                                                VerticalAlignment="Center" Margin="0,0,8,0"
                                                                ToolTip="Glisser pour réordonner" Cursor="SizeAll"/>
 
                                                     <CheckBox Grid.Column="1" IsChecked="{Binding IsSelected}"
-                                                              Style="{StaticResource SelectionCheck}" Margin="0,0,8,0"/>
+                                                              Style="{DynamicResource SelectionCheck}" Margin="0,0,8,0"/>
 
                                                     <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                                         <Grid>
-                                                            <TextBlock FontSize="12" Foreground="{StaticResource BrightGoldBrush}"
+                                                            <TextBlock FontSize="12" Foreground="{DynamicResource BrightGoldBrush}"
                                                                        Text="{Binding DisplayName, Mode=OneWay}"
                                                                        VerticalAlignment="Center" Cursor="Hand"
                                                                        ToolTip="Cliquer pour renommer"
@@ -550,12 +188,12 @@
                                                             <TextBox FontSize="12" Padding="0" MinWidth="80"
                                                                      Visibility="Collapsed"
                                                                      Text="{Binding CustomName, UpdateSourceTrigger=PropertyChanged}"
-                                                                     Background="#1A1208" Foreground="{StaticResource GoldBrush}"
-                                                                     BorderBrush="#6B5A33" BorderThickness="1"
+                                                                     Background="#1A1208" Foreground="{DynamicResource GoldBrush}"
+                                                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                                                                      LostFocus="RenameBox_LostFocus"
                                                                      KeyDown="RenameBox_KeyDown"/>
                                                         </Grid>
-                                                        <TextBlock FontSize="10" Foreground="{StaticResource SubtextBrush}"
+                                                        <TextBlock FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                                                    Text="{Binding ProcessName, Mode=OneWay}"/>
                                                     </StackPanel>
 
@@ -568,7 +206,7 @@
 
                                                     <Button Grid.Column="4"
                                                             ToolTip="Plein écran / Restaurer"
-                                                            Style="{StaticResource StoneButton}"
+                                                            Style="{DynamicResource StoneButton}"
                                                             Command="{Binding DataContext.FullscreenWindowCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"
                                                             FontSize="13" Padding="6,3" Width="32" Margin="0,0,4,0">
@@ -590,7 +228,7 @@
 
                                                     <Button Grid.Column="5"
                                                             Content="{Binding IsMainWindow, Converter={StaticResource MainLabelConverter}}"
-                                                            Style="{StaticResource StoneButton}"
+                                                            Style="{DynamicResource StoneButton}"
                                                             Command="{Binding DataContext.SetAsMainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"
                                                             FontSize="10" Padding="4,4" Width="62"/>
@@ -603,8 +241,8 @@
                         </Border>
 
                         <!-- Preview panel -->
-                        <Border Grid.Column="2" Background="{StaticResource PanelBg}" CornerRadius="6"
-                                Padding="8" BorderThickness="1.5" BorderBrush="#6B5A33">
+                        <Border Grid.Column="2" Background="{DynamicResource PanelBg}" CornerRadius="6"
+                                Padding="8" BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}">
                             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
                                             HorizontalContentAlignment="Center">
                                 <ItemsControl ItemsSource="{Binding MonitorConfigs}" HorizontalAlignment="Center">
@@ -616,17 +254,12 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border CornerRadius="4" Margin="4" Padding="10,6"
-                                                    BorderThickness="1.5" BorderBrush="#6B5A33"
-                                                    Width="290" VerticalAlignment="Stretch">
-                                                <Border.Background>
-                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                        <GradientStop Color="#1E1A28" Offset="0"/>
-                                                        <GradientStop Color="#12101C" Offset="1"/>
-                                                    </LinearGradientBrush>
-                                                </Border.Background>
+                                                    BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}"
+                                                    Width="290" VerticalAlignment="Stretch"
+                                                    Background="{DynamicResource MonitorCardBgBrush}">
                                                 <StackPanel>
                                                     <TextBlock FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"
-                                                               Foreground="{StaticResource BrightGoldBrush}" Margin="0,0,0,4"
+                                                               Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"
                                                                Text="{Binding Monitor.DisplayLabel, StringFormat='⚙ {0}'}"/>
                                                     <Grid HorizontalAlignment="Stretch" Margin="8,0" MinHeight="120">
                                                         <!-- Grille mode Principal -->
@@ -654,49 +287,49 @@
 
                                                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Mode" FontSize="10"
                                                                        HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                       Foreground="{StaticResource SubtextBrush}" Margin="0,0,6,0"/>
+                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,0,6,0"/>
                                                             <WrapPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                                <RadioButton Content="Principal" Style="{StaticResource WowPill}" FontSize="10"
+                                                                <RadioButton Content="Principal" Style="{DynamicResource WowPill}" FontSize="10"
                                                                              IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Main}"/>
-                                                                <RadioButton Content="Fractionné" Style="{StaticResource WowPill}" FontSize="10"
+                                                                <RadioButton Content="Fractionné" Style="{DynamicResource WowPill}" FontSize="10"
                                                                              IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}"/>
                                                             </WrapPanel>
 
                                                             <TextBlock Grid.Row="1" Grid.Column="0" Text="Taille" FontSize="10"
                                                                        HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                       Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0"/>
+                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,3,6,0"/>
                                                             <WrapPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
-                                                                <RadioButton Content="G" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Grand"
+                                                                <RadioButton Content="G" Style="{DynamicResource WowPill}" FontSize="10" ToolTip="Grand"
                                                                              IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Grand}"/>
-                                                                <RadioButton Content="M" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Moyen"
+                                                                <RadioButton Content="M" Style="{DynamicResource WowPill}" FontSize="10" ToolTip="Moyen"
                                                                              IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Moyen}"/>
-                                                                <RadioButton Content="P" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Petit"
+                                                                <RadioButton Content="P" Style="{DynamicResource WowPill}" FontSize="10" ToolTip="Petit"
                                                                              IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Petit}"/>
                                                             </WrapPanel>
 
                                                             <TextBlock Grid.Row="2" Grid.Column="0" Text="Pos" FontSize="10"
                                                                        HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                       Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0"/>
+                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,3,6,0"/>
                                                             <WrapPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
-                                                                <RadioButton Content="↖" Style="{StaticResource WowPill}" FontSize="10"
+                                                                <RadioButton Content="↖" Style="{DynamicResource WowPill}" FontSize="10"
                                                                              IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=TopLeft}"/>
-                                                                <RadioButton Content="↗" Style="{StaticResource WowPill}" FontSize="10"
+                                                                <RadioButton Content="↗" Style="{DynamicResource WowPill}" FontSize="10"
                                                                              IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=TopRight}"/>
-                                                                <RadioButton Content="↘" Style="{StaticResource WowPill}" FontSize="10"
+                                                                <RadioButton Content="↘" Style="{DynamicResource WowPill}" FontSize="10"
                                                                              IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=BottomRight}"/>
-                                                                <RadioButton Content="↙" Style="{StaticResource WowPill}" FontSize="10"
+                                                                <RadioButton Content="↙" Style="{DynamicResource WowPill}" FontSize="10"
                                                                              IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=BottomLeft}"/>
                                                             </WrapPanel>
 
                                                             <TextBlock Grid.Row="3" Grid.Column="0" Text="Zones" FontSize="10"
                                                                        HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                       Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0"/>
+                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,3,6,0"/>
                                                             <WrapPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
                                                                 <CheckBox Content="Latéral" IsChecked="{Binding HasLateral}"
-                                                                          Foreground="{StaticResource GoldBrush}" FontSize="10"
+                                                                          Foreground="{DynamicResource GoldBrush}" FontSize="10"
                                                                           VerticalAlignment="Center" Margin="0,0,4,0"/>
                                                                 <CheckBox Content="Bandeau" IsChecked="{Binding HasBandeau}"
-                                                                          Foreground="{StaticResource GoldBrush}" FontSize="10"
+                                                                          Foreground="{DynamicResource GoldBrush}" FontSize="10"
                                                                           VerticalAlignment="Center"/>
                                                             </WrapPanel>
                                                         </Grid>
@@ -724,28 +357,28 @@
 
                                                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Mode" FontSize="10"
                                                                        HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                       Foreground="{StaticResource SubtextBrush}" Margin="0,0,6,0"/>
+                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,0,6,0"/>
                                                             <WrapPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                                <RadioButton Content="Principal" Style="{StaticResource WowPill}" FontSize="10"
+                                                                <RadioButton Content="Principal" Style="{DynamicResource WowPill}" FontSize="10"
                                                                              IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Main}"/>
-                                                                <RadioButton Content="Fractionné" Style="{StaticResource WowPill}" FontSize="10"
+                                                                <RadioButton Content="Fractionné" Style="{DynamicResource WowPill}" FontSize="10"
                                                                              IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}"/>
                                                             </WrapPanel>
 
                                                             <TextBlock Grid.Row="1" Grid.Column="0" Text="Orient." FontSize="10"
                                                                        HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                       Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0"/>
+                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,3,6,0"/>
                                                             <WrapPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
-                                                                <RadioButton Content="▥" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Côte à côte"
+                                                                <RadioButton Content="▥" Style="{DynamicResource WowPill}" FontSize="10" ToolTip="Côte à côte"
                                                                              IsChecked="{Binding SplitOrientation, Converter={StaticResource EnumToBool}, ConverterParameter=Horizontal}"/>
-                                                                <RadioButton Content="▤" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Empilé"
+                                                                <RadioButton Content="▤" Style="{DynamicResource WowPill}" FontSize="10" ToolTip="Empilé"
                                                                              IsChecked="{Binding SplitOrientation, Converter={StaticResource EnumToBool}, ConverterParameter=Vertical}"/>
                                                             </WrapPanel>
                                                         </Grid>
                                                     </Grid>
-                                                    <Border Background="#CC050508" CornerRadius="4" ClipToBounds="True"
+                                                    <Border Background="{DynamicResource OverlayBrush}" CornerRadius="4" ClipToBounds="True"
                                                             Height="140" Margin="0,6,0,0"
-                                                            BorderThickness="1" BorderBrush="#443D2A">
+                                                            BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
                                                         <ItemsControl ItemsSource="{Binding PreviewRects}">
                                                             <ItemsControl.ItemsPanel>
                                                                 <ItemsPanelTemplate>
@@ -777,7 +410,7 @@
                                                                         </Border.Style>
                                                                         <TextBlock Text="{Binding Title}" FontSize="9"
                                                                                    TextTrimming="CharacterEllipsis"
-                                                                                   Foreground="{StaticResource TextBrush}"
+                                                                                   Foreground="{DynamicResource TextBrush}"
                                                                                    HorizontalAlignment="Center"
                                                                                    VerticalAlignment="Center"/>
                                                                     </Border>
@@ -797,19 +430,19 @@
 
                     <!-- Apply button -->
                     <StackPanel Grid.Row="3" HorizontalAlignment="Center" Margin="0,12,0,0">
-                        <Button Content="Appliquer le layout" Style="{StaticResource WowButton}"
+                        <Button Content="Appliquer le layout" Style="{DynamicResource WowButton}"
                                 Command="{Binding ApplyLayoutCommand}" FontSize="15" Padding="40,12"/>
                     </StackPanel>
 
                             <!-- Status bar -->
-                            <Border Grid.Row="4" Background="{StaticResource PanelBg}" CornerRadius="4"
-                                    Padding="12,5" Margin="0,8,0,0" BorderThickness="1" BorderBrush="#443D2A">
+                            <Border Grid.Row="4" Background="{DynamicResource PanelBg}" CornerRadius="4"
+                                    Padding="12,5" Margin="0,8,0,0" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Right" Text="{Binding AppVersion}"
-                                               FontSize="10" Foreground="{StaticResource SubtextBrush}"
+                                               FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                                VerticalAlignment="Center"/>
                                     <TextBlock Text="{Binding StatusMessage}" FontSize="11"
-                                               Foreground="{StaticResource SubtextBrush}"/>
+                                               Foreground="{DynamicResource SubtextBrush}"/>
                                 </DockPanel>
                             </Border>
                         </Grid>
