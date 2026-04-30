@@ -206,10 +206,15 @@ public class LayoutService : ILayoutService
                 rows = selectedWindows.Count;
             }
         }
+        else if (orientation == SplitOrientation.Horizontal)
+        {
+            cols = (int)Math.Ceiling(Math.Sqrt(selectedWindows.Count));
+            rows = (int)Math.Ceiling(selectedWindows.Count / (double)cols);
+        }
         else
         {
-            cols = 2;
-            rows = (int)Math.Ceiling(selectedWindows.Count / (double)cols);
+            rows = (int)Math.Ceiling(Math.Sqrt(selectedWindows.Count));
+            cols = (int)Math.Ceiling(selectedWindows.Count / (double)rows);
         }
 
         var cellW = workArea.Width / cols;
