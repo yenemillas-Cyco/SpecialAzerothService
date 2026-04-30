@@ -122,6 +122,40 @@ public class WindowService : IWindowService
         return new WindowRect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
     }
 
+    public List<MonitorInfo> GetMonitors()
+    {
+        var monitors = new List<MonitorInfo>();
+
+        NativeMethods.EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (IntPtr hMonitor, IntPtr _, ref NativeMethods.RECT _, IntPtr _) =>
+        {
+            var info = new NativeMethods.MONITORINFOEX();
+            info.cbSize = System.Runtime.InteropServices.Marshal.SizeOf(info);
+
+            if (NativeMethods.GetMonitorInfo(hMonitor, ref info))
+            {
+                var bounds = new WindowRect(
+                    info.rcMonitor.Left, info.rcMonitor.Top,
+                    info.rcMonitor.Right - info.rcMonitor.Left,
+                    info.rcMonitor.Bottom - info.rcMonitor.Top);
+
+                var workArea = new WindowRect(
+                    info.rcWork.Left, info.rcWork.Top,
+                    info.rcWork.Right - info.rcWork.Left,
+                    info.rcWork.Bottom - info.rcWork.Top);
+
+                var isPrimary = (info.dwFlags & NativeMethods.MONITORINFOF_PRIMARY) != 0;
+                var deviceName = info.szDevice.TrimEnd('\0');
+
+                monitors.Add(new MonitorInfo(hMonitor, deviceName, bounds, workArea, isPrimary));
+            }
+
+            return true;
+        }, IntPtr.Zero);
+
+        _logger.Information("Enumerated {Count} monitors", monitors.Count);
+        return monitors;
+    }
+
     private static (string Name, uint Pid, DateTime StartTime) GetProcessInfo(IntPtr hWnd)
     {
         try

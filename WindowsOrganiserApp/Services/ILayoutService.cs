@@ -10,5 +10,6 @@ public interface ILayoutService
         bool hasLateral, bool hasBandeau);
 
     Dictionary<IntPtr, WindowRect> CalculateSplitLayout(
-        List<WindowInfo> selectedWindows, WindowRect workArea);
+        List<WindowInfo> selectedWindows, WindowRect workArea,
+        SplitOrientation orientation = SplitOrientation.Horizontal);
 }

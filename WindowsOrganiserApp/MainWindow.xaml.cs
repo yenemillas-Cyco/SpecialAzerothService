@@ -269,6 +269,45 @@ public partial class MainWindow : Window
         ((MainViewModel)DataContext).UpdatePreview();
     }
 
+    // --- Preview rename ---
+
+    private void PreviewName_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not TextBlock label) return;
+        if (label.DataContext is not PreviewRect preview || preview.Window is null) return;
+
+        var grid = (System.Windows.Controls.Grid)label.Parent;
+        var textBox = grid.Children.OfType<TextBox>().First();
+
+        label.Visibility = Visibility.Collapsed;
+        textBox.Visibility = Visibility.Visible;
+        textBox.Focus();
+        textBox.SelectAll();
+        e.Handled = true;
+    }
+
+    private void PreviewRenameBox_LostFocus(object sender, RoutedEventArgs e) => FinishPreviewRename((TextBox)sender);
+
+    private void PreviewRenameBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.Return or Key.Escape)
+        {
+            FinishPreviewRename((TextBox)sender);
+            e.Handled = true;
+        }
+    }
+
+    private void FinishPreviewRename(TextBox textBox)
+    {
+        textBox.Visibility = Visibility.Collapsed;
+
+        var grid = (System.Windows.Controls.Grid)textBox.Parent;
+        var label = grid.Children.OfType<TextBlock>().First();
+        label.Visibility = Visibility.Visible;
+
+        ((MainViewModel)DataContext).UpdatePreview();
+    }
+
     // --- Drag & Drop reorder ---
 
     private void WindowList_PreviewMouseDown(object sender, MouseButtonEventArgs e)

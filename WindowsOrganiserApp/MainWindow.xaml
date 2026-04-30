@@ -255,6 +255,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -298,12 +299,25 @@
                         </Border.Background>
                     </Border>
 
-                    <!-- Mode + Size + Position selectors -->
-                    <WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10">
+                    <!-- Line 1: Mode + options -->
+                    <WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,4">
                         <RadioButton Content="Principal" Style="{StaticResource WowPill}"
                                      IsChecked="{Binding IsMainMode}" GroupName="Mode"/>
                         <RadioButton Content="Fractionné" Style="{StaticResource WowPill}"
                                      IsChecked="{Binding IsSplitMode}" GroupName="Mode"/>
+
+                        <!-- Split orientation (visible only in split mode) -->
+                        <Border Width="2" Margin="10,4" Background="#443D2A"
+                                Visibility="{Binding IsSplitMode, Converter={StaticResource BoolToVis}}"/>
+                        <StackPanel Orientation="Horizontal"
+                                    Visibility="{Binding IsSplitMode, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="Orientation :" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{StaticResource SubtextBrush}" Margin="0,0,8,0"/>
+                            <RadioButton Content="▥ Côte à côte" Style="{StaticResource WowPill}"
+                                         IsChecked="{Binding IsSplitHorizontal}" GroupName="SplitDir"/>
+                            <RadioButton Content="▤ Empilé" Style="{StaticResource WowPill}"
+                                         IsChecked="{Binding IsSplitVertical}" GroupName="SplitDir"/>
+                        </StackPanel>
 
                         <Border Width="2" Margin="10,4" Background="#443D2A"
                                 Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}"/>
@@ -334,10 +348,10 @@
                             <RadioButton Content="Petit" Style="{StaticResource WowPill}"
                                          IsChecked="{Binding IsSizePetit}" GroupName="Size"/>
                         </StackPanel>
+                    </WrapPanel>
 
-                        <Border Width="2" Margin="10,4" Background="#443D2A"
-                                Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}"/>
-
+                    <!-- Line 2: Position + Monitor + Refresh -->
+                    <WrapPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,10">
                         <StackPanel Orientation="Horizontal"
                                     Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="Position :" FontSize="12" VerticalAlignment="Center"
@@ -352,12 +366,25 @@
                                          IsChecked="{Binding IsPosBottomLeft}" GroupName="Pos"/>
                         </StackPanel>
 
+                        <Border Width="2" Margin="10,4" Background="#443D2A"
+                                Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}"/>
+
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Écran :" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{StaticResource SubtextBrush}" Margin="0,0,8,0"/>
+                            <ComboBox ItemsSource="{Binding Monitors}"
+                                      SelectedItem="{Binding SelectedMonitor}"
+                                      DisplayMemberPath="DisplayLabel"
+                                      MinWidth="100" FontSize="11"
+                                      VerticalAlignment="Center"/>
+                        </StackPanel>
+
                         <Button Content="Rafraîchir" Style="{StaticResource StoneButton}"
                                 Command="{Binding RefreshWindowsCommand}" Margin="16,0,0,0"/>
                     </WrapPanel>
 
                     <!-- Main content -->
-                    <Grid Grid.Row="3">
+                    <Grid Grid.Row="4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="14"/>
@@ -418,6 +445,8 @@
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
 
                                                     <TextBlock Grid.Column="0" Text="☰" FontSize="14"
@@ -444,11 +473,8 @@
                                                                      LostFocus="RenameBox_LostFocus"
                                                                      KeyDown="RenameBox_KeyDown"/>
                                                         </Grid>
-                                                        <TextBlock FontSize="10" Foreground="{StaticResource SubtextBrush}">
-                                                            <Run Text="{Binding ProcessName, Mode=OneWay}"/>
-                                                            <Run Text=" — PID "/>
-                                                            <Run Text="{Binding ProcessId, Mode=OneWay}"/>
-                                                        </TextBlock>
+                                                        <TextBlock FontSize="10" Foreground="{StaticResource SubtextBrush}"
+                                                                   Text="{Binding ProcessName, Mode=OneWay}"/>
                                                     </StackPanel>
 
                                                     <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="4,0">
@@ -462,7 +488,21 @@
                                                                 CommandParameter="{Binding}" ToolTip="Descendre"/>
                                                     </StackPanel>
 
-                                                    <Button Grid.Column="4"
+                                                    <ComboBox Grid.Column="4"
+                                                             ItemsSource="{Binding DataContext.Monitors, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                             SelectedItem="{Binding AssignedMonitor}"
+                                                             DisplayMemberPath="DisplayLabel"
+                                                             FontSize="10" MinWidth="80" Margin="4,0"
+                                                             VerticalAlignment="Center" ToolTip="Écran cible"/>
+
+                                                    <Button Grid.Column="5"
+                                                            Content="⛶" ToolTip="Plein écran"
+                                                            Style="{StaticResource StoneButton}"
+                                                            Command="{Binding DataContext.FullscreenWindowCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"
+                                                            FontSize="13" Padding="6,3" Margin="0,0,4,0"/>
+
+                                                    <Button Grid.Column="6"
                                                             Content="{Binding IsMainWindow, Converter={StaticResource MainLabelConverter}}"
                                                             Style="{StaticResource StoneButton}"
                                                             Command="{Binding DataContext.SetAsMainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -501,23 +541,56 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Border Width="{Binding Width}" Height="{Binding Height}"
-                                                        CornerRadius="2" BorderThickness="1.5" Margin="1">
+                                                        CornerRadius="2" Margin="1">
                                                     <Border.Style>
                                                         <Style TargetType="Border">
                                                             <Setter Property="Background" Value="#220070DD"/>
                                                             <Setter Property="BorderBrush" Value="#0070DD"/>
+                                                            <Setter Property="BorderThickness" Value="1.5"/>
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsMain}" Value="True">
                                                                     <Setter Property="Background" Value="#22FF8C00"/>
                                                                     <Setter Property="BorderBrush" Value="#FF8C00"/>
                                                                 </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsMonitorOutline}" Value="True">
+                                                                    <Setter Property="Background" Value="#0C1A1525"/>
+                                                                    <Setter Property="BorderBrush" Value="#886B5A33"/>
+                                                                    <Setter Property="BorderThickness" Value="2"/>
+                                                                </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
                                                     </Border.Style>
-                                                    <TextBlock Text="{Binding Title}" FontSize="10"
-                                                               Foreground="{StaticResource TextBrush}"
-                                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis" Margin="4"/>
+                                                    <Grid Margin="4">
+                                                        <TextBlock Text="{Binding Title}" FontSize="10"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Cursor="Hand" ToolTip="Cliquer pour renommer"
+                                                                   MouseLeftButtonDown="PreviewName_Click"
+                                                                   x:Name="PreviewLabel">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                                                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsMonitorOutline}" Value="True">
+                                                                            <Setter Property="Foreground" Value="{StaticResource SubtextBrush}"/>
+                                                                            <Setter Property="FontSize" Value="9"/>
+                                                                            <Setter Property="HorizontalAlignment" Value="Left"/>
+                                                                            <Setter Property="VerticalAlignment" Value="Top"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                        <TextBox FontSize="10" Padding="0" MinWidth="40"
+                                                                 Visibility="Collapsed"
+                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                 Text="{Binding Window.CustomName, UpdateSourceTrigger=PropertyChanged}"
+                                                                 Background="#1A1208" Foreground="{StaticResource GoldBrush}"
+                                                                 BorderBrush="#6B5A33" BorderThickness="1"
+                                                                 LostFocus="PreviewRenameBox_LostFocus"
+                                                                 KeyDown="PreviewRenameBox_KeyDown"/>
+                                                    </Grid>
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -528,13 +601,13 @@
                     </Grid>
 
                     <!-- Apply button -->
-                    <StackPanel Grid.Row="4" HorizontalAlignment="Center" Margin="0,12,0,0">
+                    <StackPanel Grid.Row="5" HorizontalAlignment="Center" Margin="0,12,0,0">
                         <Button Content="Appliquer le layout" Style="{StaticResource WowButton}"
                                 Command="{Binding ApplyLayoutCommand}" FontSize="15" Padding="40,12"/>
                     </StackPanel>
 
                             <!-- Status bar -->
-                            <Border Grid.Row="5" Background="{StaticResource PanelBg}" CornerRadius="4"
+                            <Border Grid.Row="6" Background="{StaticResource PanelBg}" CornerRadius="4"
                                     Padding="12,5" Margin="0,8,0,0" BorderThickness="1" BorderBrush="#443D2A">
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Right" Text="{Binding AppVersion}"

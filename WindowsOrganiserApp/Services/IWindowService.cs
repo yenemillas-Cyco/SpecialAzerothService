@@ -8,4 +8,5 @@ public interface IWindowService
     List<WindowInfo> GetOpenWindows();
     void MoveAndResize(IntPtr handle, WindowRect rect);
     WindowRect GetWorkArea();
+    List<MonitorInfo> GetMonitors();
 }

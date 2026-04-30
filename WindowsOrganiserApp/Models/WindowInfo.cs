@@ -30,6 +30,9 @@ public partial class WindowInfo : ObservableObject
     [ObservableProperty]
     private int _order;
 
+    [ObservableProperty]
+    private MonitorInfo? _assignedMonitor;
+
     partial void OnLaunchOrderChanged(int value) => OnPropertyChanged(nameof(DisplayName));
     partial void OnCustomNameChanged(string value) => OnPropertyChanged(nameof(DisplayName));
 }

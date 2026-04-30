@@ -19,13 +19,27 @@ public partial class MainViewModel : ObservableObject
         _layoutService = layoutService;
         _logger = logger;
         _selectedMode = LayoutMode.Main;
+        RefreshMonitors();
     }
 
     public ObservableCollection<WindowInfo> AvailableWindows { get; } = [];
     public ObservableCollection<PreviewRect> PreviewRects { get; } = [];
+    public ObservableCollection<MonitorInfo> Monitors { get; } = [];
 
     [ObservableProperty]
     private LayoutMode _selectedMode;
+
+    [ObservableProperty]
+    private MonitorInfo? _selectedMonitor;
+
+    [ObservableProperty]
+    private SplitOrientation _selectedSplitOrientation = SplitOrientation.Horizontal;
+
+    [ObservableProperty]
+    private bool _isSplitHorizontal = true;
+
+    [ObservableProperty]
+    private bool _isSplitVertical;
 
     [ObservableProperty]
     private string _statusMessage = "Prêt";
@@ -140,6 +154,33 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    partial void OnIsSplitHorizontalChanged(bool value)
+    {
+        if (!value) return;
+        IsSplitVertical = false;
+        SelectedSplitOrientation = SplitOrientation.Horizontal;
+        UpdatePreview();
+    }
+
+    partial void OnIsSplitVerticalChanged(bool value)
+    {
+        if (!value) return;
+        IsSplitHorizontal = false;
+        SelectedSplitOrientation = SplitOrientation.Vertical;
+        UpdatePreview();
+    }
+
+    partial void OnSelectedMonitorChanged(MonitorInfo? oldValue, MonitorInfo? newValue)
+    {
+        if (newValue is null) { UpdatePreview(); return; }
+        foreach (var w in AvailableWindows)
+        {
+            if (w.AssignedMonitor is null || w.AssignedMonitor == oldValue)
+                w.AssignedMonitor = newValue;
+        }
+        UpdatePreview();
+    }
+
     // --- Size handlers ---
     partial void OnIsSizeGrandChanged(bool value)
     {
@@ -165,12 +206,48 @@ public partial class MainViewModel : ObservableObject
         UpdatePreview();
     }
 
+    // --- Helpers ---
+
+    private WindowRect GetSelectedWorkArea() =>
+        SelectedMonitor?.WorkArea ?? _windowService.GetWorkArea();
+
+    private void RefreshMonitors()
+    {
+        Monitors.Clear();
+        var monitors = _windowService.GetMonitors();
+        var secondaryIndex = 1;
+        foreach (var m in monitors)
+        {
+            var indexed = m with { Index = m.IsPrimary ? 0 : secondaryIndex++ };
+            Monitors.Add(indexed);
+        }
+
+        SelectedMonitor = Monitors.FirstOrDefault(m => m.IsPrimary) ?? Monitors.FirstOrDefault();
+        _logger.Information("Monitors refreshed: {Count} detected", monitors.Count);
+    }
+
     // --- Commands ---
+
+    [RelayCommand]
+    private void RefreshMonitorList()
+    {
+        RefreshMonitors();
+        StatusMessage = $"{Monitors.Count} écran(s) détecté(s)";
+        UpdatePreview();
+    }
 
     [RelayCommand]
     private void RefreshWindows()
     {
         _logger.Information("Refreshing window list");
+
+        var savedNames = AvailableWindows
+            .Where(w => !string.IsNullOrWhiteSpace(w.CustomName))
+            .ToDictionary(w => w.ProcessId, w => w.CustomName);
+        var savedMonitors = AvailableWindows
+            .Where(w => w.AssignedMonitor is not null)
+            .ToDictionary(w => w.ProcessId, w => w.AssignedMonitor);
+
         AvailableWindows.Clear();
 
         var windows = _windowService.GetOpenWindows();
@@ -180,9 +257,17 @@ public partial class MainViewModel : ObservableObject
             w.IsSelected = true;
             if (isFirst) { w.IsMainWindow = true; isFirst = false; }
 
+            if (savedNames.TryGetValue(w.ProcessId, out var name))
+                w.CustomName = name;
+            if (savedMonitors.TryGetValue(w.ProcessId, out var mon))
+                w.AssignedMonitor = mon;
+            else
+                w.AssignedMonitor = SelectedMonitor;
+
             w.PropertyChanged += (_, e) =>
             {
-                if (e.PropertyName is nameof(WindowInfo.IsSelected) or nameof(WindowInfo.IsMainWindow))
+                if (e.PropertyName is nameof(WindowInfo.IsSelected) or nameof(WindowInfo.IsMainWindow)
+                    or nameof(WindowInfo.AssignedMonitor))
                     UpdatePreview();
             };
             AvailableWindows.Add(w);
@@ -217,19 +302,37 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        var workArea = _windowService.GetWorkArea();
-        _logger.Information("Applying {Mode} layout (size={Size}, pos={Pos}, lat={Lat}, band={Band}) on {W}x{H}",
-            SelectedMode, SelectedMainSize, SelectedMainPosition, HasLateral, HasBandeau, workArea.Width, workArea.Height);
+        var groups = selected.GroupBy(w => w.AssignedMonitor?.Handle ?? SelectedMonitor?.Handle ?? IntPtr.Zero);
 
-        var layout = SelectedMode == LayoutMode.Main
-            ? _layoutService.CalculateMainLayout(selected, workArea, SelectedMainSize, SelectedMainPosition, HasLateral, HasBandeau)
-            : _layoutService.CalculateSplitLayout(selected, workArea);
+        foreach (var group in groups)
+        {
+            var monitor = Monitors.FirstOrDefault(m => m.Handle == group.Key);
+            var workArea = monitor?.WorkArea ?? GetSelectedWorkArea();
+            var windowsInGroup = group.ToList();
 
-        foreach (var (handle, rect) in layout)
-            _windowService.MoveAndResize(handle, rect);
+            _logger.Information("Applying {Mode} layout on monitor {Mon} for {Count} windows",
+                SelectedMode, monitor?.DisplayLabel ?? "default", windowsInGroup.Count);
+
+            var layout = SelectedMode == LayoutMode.Main
+                ? _layoutService.CalculateMainLayout(windowsInGroup, workArea, SelectedMainSize, SelectedMainPosition, HasLateral, HasBandeau)
+                : _layoutService.CalculateSplitLayout(windowsInGroup, workArea, SelectedSplitOrientation);
+
+            foreach (var (handle, rect) in layout)
+                _windowService.MoveAndResize(handle, rect);
+        }
 
         StatusMessage = $"Layout appliqué à {selected.Count} fenêtre(s)";
-        _logger.Information("Layout applied to {Count} windows", selected.Count);
+        _logger.Information("Layout applied to {Count} windows across {Groups} screen(s)", selected.Count, groups.Count());
+    }
+
+    [RelayCommand]
+    private void FullscreenWindow(WindowInfo? window)
+    {
+        if (window is null) return;
+        var workArea = window.AssignedMonitor?.WorkArea ?? GetSelectedWorkArea();
+        _windowService.MoveAndResize(window.Handle, workArea);
+        _logger.Information("Fullscreen window: {Title} on {W}x{H}", window.Title, workArea.Width, workArea.Height);
+        StatusMessage = $"{window.DisplayName} en plein écran";
     }
 
     [RelayCommand]
@@ -267,36 +370,68 @@ public partial class MainViewModel : ObservableObject
     {
         PreviewRects.Clear();
 
-        var selected = AvailableWindows.Where(w => w.IsSelected).ToList();
-        if (selected.Count == 0) return;
-
         const double previewW = 480;
         const double previewH = 270;
 
-        var workArea = _windowService.GetWorkArea();
-        var scaleX = previewW / workArea.Width;
-        var scaleY = previewH / workArea.Height;
+        if (Monitors.Count == 0) return;
 
-        var layout = SelectedMode == LayoutMode.Main
-            ? _layoutService.CalculateMainLayout(selected, workArea, SelectedMainSize, SelectedMainPosition, HasLateral, HasBandeau)
-            : _layoutService.CalculateSplitLayout(selected, workArea);
+        var minX = Monitors.Min(m => m.Bounds.X);
+        var minY = Monitors.Min(m => m.Bounds.Y);
+        var maxX = Monitors.Max(m => m.Bounds.X + m.Bounds.Width);
+        var maxY = Monitors.Max(m => m.Bounds.Y + m.Bounds.Height);
+        var totalW = maxX - minX;
+        var totalH = maxY - minY;
 
-        var slotIndex = 0;
-        foreach (var (handle, rect) in layout)
+        var scale = Math.Min(previewW / totalW, previewH / totalH);
+        var offsetX = (previewW - totalW * scale) / 2;
+        var offsetY = (previewH - totalH * scale) / 2;
+
+        foreach (var monitor in Monitors)
         {
-            var win = selected.First(w => w.Handle == handle);
-            slotIndex++;
             PreviewRects.Add(new PreviewRect
             {
-                X = (rect.X - workArea.X) * scaleX,
-                Y = (rect.Y - workArea.Y) * scaleY,
-                Width = rect.Width * scaleX,
-                Height = rect.Height * scaleY,
-                Title = win.IsMainWindow
-                    ? $"★ {TruncateTitle(win.DisplayName, 16)}"
-                    : $"#{slotIndex - 1} {TruncateTitle(win.DisplayName, 14)}",
-                IsMain = win.IsMainWindow
+                X = (monitor.Bounds.X - minX) * scale + offsetX,
+                Y = (monitor.Bounds.Y - minY) * scale + offsetY,
+                Width = monitor.Bounds.Width * scale,
+                Height = monitor.Bounds.Height * scale,
+                Title = monitor.DisplayLabel,
+                IsMonitorOutline = true
             });
+        }
+
+        var selected = AvailableWindows.Where(w => w.IsSelected).ToList();
+        if (selected.Count == 0) return;
+
+        var groups = selected.GroupBy(w => w.AssignedMonitor?.Handle ?? SelectedMonitor?.Handle ?? IntPtr.Zero);
+
+        foreach (var group in groups)
+        {
+            var monitor = Monitors.FirstOrDefault(m => m.Handle == group.Key) ?? Monitors[0];
+            var workArea = monitor.WorkArea;
+            var windowsInGroup = group.ToList();
+
+            var layout = SelectedMode == LayoutMode.Main
+                ? _layoutService.CalculateMainLayout(windowsInGroup, workArea, SelectedMainSize, SelectedMainPosition, HasLateral, HasBandeau)
+                : _layoutService.CalculateSplitLayout(windowsInGroup, workArea, SelectedSplitOrientation);
+
+            var slotIndex = 0;
+            foreach (var (handle, rect) in layout)
+            {
+                var win = windowsInGroup.First(w => w.Handle == handle);
+                slotIndex++;
+                PreviewRects.Add(new PreviewRect
+                {
+                    X = (rect.X - minX) * scale + offsetX,
+                    Y = (rect.Y - minY) * scale + offsetY,
+                    Width = rect.Width * scale,
+                    Height = rect.Height * scale,
+                    Title = win.IsMainWindow
+                        ? $"★ {TruncateTitle(win.DisplayName, 16)}"
+                        : $"#{slotIndex - 1} {TruncateTitle(win.DisplayName, 14)}",
+                    IsMain = win.IsMainWindow,
+                    Window = win
+                });
+            }
         }
     }
 
@@ -312,4 +447,6 @@ public class PreviewRect
     public double Height { get; init; }
     public string Title { get; init; } = string.Empty;
     public bool IsMain { get; init; }
+    public bool IsMonitorOutline { get; init; }
+    public WindowInfo? Window { get; init; }
 }

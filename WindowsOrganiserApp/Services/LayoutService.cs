@@ -183,20 +183,35 @@ public class LayoutService : ILayoutService
     }
 
     public Dictionary<IntPtr, WindowRect> CalculateSplitLayout(
-        List<WindowInfo> selectedWindows, WindowRect workArea)
+        List<WindowInfo> selectedWindows, WindowRect workArea,
+        SplitOrientation orientation = SplitOrientation.Horizontal)
     {
         var result = new Dictionary<IntPtr, WindowRect>();
         if (selectedWindows.Count == 0) return result;
 
-        _logger.Information("Split layout: {Count} windows", selectedWindows.Count);
+        _logger.Information("Split layout: {Count} windows, orientation={Orientation}",
+            selectedWindows.Count, orientation);
 
-        var cols = selectedWindows.Count switch
+        int cols, rows;
+        if (selectedWindows.Count <= 2)
         {
-            1 => 1,
-            2 => 2,
-            _ => 2
-        };
-        var rows = (int)Math.Ceiling(selectedWindows.Count / (double)cols);
+            if (orientation == SplitOrientation.Horizontal)
+            {
+                cols = selectedWindows.Count;
+                rows = 1;
+            }
+            else
+            {
+                cols = 1;
+                rows = selectedWindows.Count;
+            }
+        }
+        else
+        {
+            cols = 2;
+            rows = (int)Math.Ceiling(selectedWindows.Count / (double)cols);
+        }
+
         var cellW = workArea.Width / cols;
         var cellH = workArea.Height / rows;
 
