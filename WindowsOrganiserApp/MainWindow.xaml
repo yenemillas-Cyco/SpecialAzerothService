@@ -7,8 +7,8 @@
         xmlns:conv="clr-namespace:WindowsOrganiserApp.Converters"
         mc:Ignorable="d"
         Title="Special Azeroth Service — Multibox Organiser"
-        Height="700" Width="900"
-        MinHeight="600" MinWidth="800"
+        Height="700" Width="1100"
+        MinHeight="600" MinWidth="950"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -195,6 +195,34 @@
             </Setter>
         </Style>
 
+        <Style x:Key="SelectionCheck" TargetType="CheckBox">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="Bd" Width="18" Height="18" CornerRadius="3"
+                                BorderThickness="1.5" BorderBrush="#6B5A33"
+                                Background="#1A1208">
+                            <TextBlock x:Name="Check" Text="✓" FontSize="12" FontWeight="Bold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="Transparent"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2A6B2A"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
+                                <Setter TargetName="Check" Property="Foreground" Value="{StaticResource BrightGoldBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BrightGoldBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Window control buttons (close, minimize) -->
         <Style x:Key="WinCtrlBtn" TargetType="Button">
             <Setter Property="Width" Value="32"/>
@@ -341,7 +369,7 @@
                     <!-- Main content -->
                     <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="320"/>
+                            <ColumnDefinition Width="470"/>
                             <ColumnDefinition Width="14"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
@@ -409,7 +437,7 @@
                                                                ToolTip="Glisser pour réordonner" Cursor="SizeAll"/>
 
                                                     <CheckBox Grid.Column="1" IsChecked="{Binding IsSelected}"
-                                                              VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                              Style="{StaticResource SelectionCheck}" Margin="0,0,8,0"/>
 
                                                     <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                                         <Grid>
@@ -435,7 +463,7 @@
                                                              ItemsSource="{Binding DataContext.Monitors, RelativeSource={RelativeSource AncestorType=Window}}"
                                                              SelectedItem="{Binding AssignedMonitor}"
                                                              DisplayMemberPath="DisplayLabel"
-                                                             FontSize="10" Width="90" Margin="4,0"
+                                                             FontSize="10" Width="75" Margin="4,0"
                                                              VerticalAlignment="Center" ToolTip="Écran cible"/>
 
                                                     <Button Grid.Column="4"
@@ -488,7 +516,8 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Border CornerRadius="4" Margin="3" Padding="10,6"
-                                                    BorderThickness="1.5" BorderBrush="#6B5A33">
+                                                    BorderThickness="1.5" BorderBrush="#6B5A33"
+                                                    Width="290" Height="160" VerticalAlignment="Top">
                                                 <Border.Background>
                                                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                                                         <GradientStop Color="#1E1A28" Offset="0"/>
@@ -499,10 +528,10 @@
                                                     <TextBlock FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"
                                                                Foreground="{StaticResource BrightGoldBrush}" Margin="0,0,0,4"
                                                                Text="{Binding Monitor.DisplayLabel, StringFormat='⚙ {0}'}"/>
-                                                    <Grid HorizontalAlignment="Center">
+                                                    <Grid HorizontalAlignment="Stretch" Margin="8,0">
                                                         <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="50"/>
+                                                            <ColumnDefinition Width="*"/>
                                                         </Grid.ColumnDefinitions>
                                                         <Grid.RowDefinitions>
                                                             <RowDefinition Height="Auto"/>
@@ -524,8 +553,29 @@
 
                                                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Taille" FontSize="10"
                                                                    HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0"/>
+                                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
                                                         <WrapPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
+                                                            <WrapPanel.Style>
+                                                                <Style TargetType="WrapPanel">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </WrapPanel.Style>
                                                             <RadioButton Content="G" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Grand"
                                                                          IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Grand}"/>
                                                             <RadioButton Content="M" Style="{StaticResource WowPill}" FontSize="10" ToolTip="Moyen"
@@ -567,8 +617,29 @@
 
                                                         <TextBlock Grid.Row="3" Grid.Column="0" Text="Pos" FontSize="10"
                                                                    HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0"/>
+                                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
                                                         <WrapPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
+                                                            <WrapPanel.Style>
+                                                                <Style TargetType="WrapPanel">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </WrapPanel.Style>
                                                             <RadioButton Content="↖" Style="{StaticResource WowPill}" FontSize="10"
                                                                          IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=TopLeft}"/>
                                                             <RadioButton Content="↗" Style="{StaticResource WowPill}" FontSize="10"
@@ -581,12 +652,33 @@
 
                                                         <TextBlock Grid.Row="4" Grid.Column="0" Text="Zones" FontSize="10"
                                                                    HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0"/>
+                                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,6,0">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
                                                         <WrapPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
-                                                            <CheckBox Content="Lat" IsChecked="{Binding HasLateral}" ToolTip="Latéral"
+                                                            <WrapPanel.Style>
+                                                                <Style TargetType="WrapPanel">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </WrapPanel.Style>
+                                                            <CheckBox Content="Latéral" IsChecked="{Binding HasLateral}"
                                                                       Foreground="{StaticResource GoldBrush}" FontSize="10"
                                                                       VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                            <CheckBox Content="Band" IsChecked="{Binding HasBandeau}" ToolTip="Bandeau"
+                                                            <CheckBox Content="Bandeau" IsChecked="{Binding HasBandeau}"
                                                                       Foreground="{StaticResource GoldBrush}" FontSize="10"
                                                                       VerticalAlignment="Center"/>
                                                         </WrapPanel>
