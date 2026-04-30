@@ -83,6 +83,18 @@ public partial class MainWindow : Window
         var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
         var ver = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "1.0.0";
 
+        System.Windows.Media.Brush Res(string key) =>
+            (System.Windows.Media.Brush)Application.Current.Resources[key];
+
+        var gold = Res("GoldBrush");
+        var brightGold = Res("BrightGoldBrush");
+        var text = Res("TextBrush");
+        var subtext = Res("SubtextBrush");
+        var epic = Res("EpicBrush");
+        var bg = Res("WindowBgBrush");
+        var accentBorder = Res("AccentBorderBrush");
+        var sepBrush = Res("BorderBrush");
+
         var win = new Window
         {
             Title = "À propos",
@@ -96,26 +108,11 @@ public partial class MainWindow : Window
             Background = System.Windows.Media.Brushes.Transparent
         };
 
-        var gold = new System.Windows.Media.SolidColorBrush(
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#C9A44A"));
-        var brightGold = new System.Windows.Media.SolidColorBrush(
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFD100"));
-        var text = new System.Windows.Media.SolidColorBrush(
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#E8D5A3"));
-        var subtext = new System.Windows.Media.SolidColorBrush(
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#9B8B6E"));
-        var epic = new System.Windows.Media.SolidColorBrush(
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#A335EE"));
-
-        var bg = new System.Windows.Media.RadialGradientBrush(
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#1A1525"),
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#0A0A12"));
-
         var outerBorder = new Border
         {
             CornerRadius = new CornerRadius(8),
             BorderThickness = new Thickness(2),
-            BorderBrush = gold,
+            BorderBrush = accentBorder,
             Background = bg,
             Padding = new Thickness(24, 18, 24, 18)
         };
@@ -137,13 +134,11 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 0, 0, 16)
         });
 
-        var sep1 = new Border
+        stack.Children.Add(new Border
         {
-            Height = 1, Background = new System.Windows.Media.SolidColorBrush(
-                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#443D2A")),
+            Height = 1, Background = sepBrush,
             Margin = new Thickness(0, 0, 0, 14)
-        };
-        stack.Children.Add(sep1);
+        });
 
         stack.Children.Add(new TextBlock
         {
@@ -213,50 +208,31 @@ public partial class MainWindow : Window
             new System.Windows.Documents.Run("Téléchargements & mises à jour"))
         {
             NavigateUri = new Uri("https://github.com/yenemillas-Cyco/SpecialAzerothService/releases"),
-            Foreground = new System.Windows.Media.SolidColorBrush(
-                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#4FC3F7")),
+            Foreground = epic,
             FontSize = 11
         };
-        hyperlink.RequestNavigate += (_, e) =>
+        hyperlink.RequestNavigate += (_, nav) =>
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
-            e.Handled = true;
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(nav.Uri.AbsoluteUri) { UseShellExecute = true });
+            nav.Handled = true;
         };
         linkBlock.Inlines.Add(hyperlink);
         stack.Children.Add(linkBlock);
 
-        var sep2 = new Border
+        stack.Children.Add(new Border
         {
-            Height = 1, Background = new System.Windows.Media.SolidColorBrush(
-                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#443D2A")),
+            Height = 1, Background = sepBrush,
             Margin = new Thickness(0, 0, 0, 12)
-        };
-        stack.Children.Add(sep2);
+        });
 
         var closeBtn = new Button
         {
-            Content = "Fermer", Padding = new Thickness(24, 8, 24, 8),
+            Content = "Fermer",
+            Padding = new Thickness(24, 8, 24, 8),
             FontSize = 13, FontWeight = FontWeights.Bold, Cursor = Cursors.Hand,
             HorizontalAlignment = HorizontalAlignment.Center,
-            Foreground = brightGold
+            Style = (Style)Application.Current.Resources["WowButton"]
         };
-        var closeBtnTemplate = new ControlTemplate(typeof(Button));
-        var borderFactory = new FrameworkElementFactory(typeof(Border));
-        borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
-        borderFactory.SetValue(Border.PaddingProperty, new Thickness(24, 8, 24, 8));
-        borderFactory.SetValue(Border.BorderThicknessProperty, new Thickness(2));
-        borderFactory.SetValue(Border.BorderBrushProperty, new System.Windows.Media.SolidColorBrush(
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#8B6914")));
-        borderFactory.SetValue(Border.BackgroundProperty, new System.Windows.Media.LinearGradientBrush(
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#8B1A1A"),
-            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#3D0808"),
-            90));
-        var cpFactory = new FrameworkElementFactory(typeof(ContentPresenter));
-        cpFactory.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-        cpFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
-        borderFactory.AppendChild(cpFactory);
-        closeBtnTemplate.VisualTree = borderFactory;
-        closeBtn.Template = closeBtnTemplate;
         closeBtn.Click += (_, _) => win.Close();
         stack.Children.Add(closeBtn);
 
