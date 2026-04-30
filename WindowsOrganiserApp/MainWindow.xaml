@@ -7,7 +7,7 @@
         xmlns:conv="clr-namespace:WindowsOrganiserApp.Converters"
         mc:Ignorable="d"
         Title="Special Azeroth Service — Multibox Organiser"
-        Height="700" Width="1100"
+        Height="700" Width="1200"
         MinHeight="600" MinWidth="950"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
@@ -561,7 +561,7 @@
                                                              ItemsSource="{Binding DataContext.Monitors, RelativeSource={RelativeSource AncestorType=Window}}"
                                                              SelectedItem="{Binding AssignedMonitor}"
                                                              DisplayMemberPath="DisplayLabel"
-                                                             FontSize="10" Width="75" Margin="4,0"
+                                                             FontSize="10" Width="75" Height="28" Margin="4,0"
                                                              VerticalAlignment="Center" ToolTip="Écran cible"/>
 
                                                     <Button Grid.Column="4"

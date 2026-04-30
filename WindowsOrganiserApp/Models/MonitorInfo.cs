@@ -10,4 +10,6 @@ public record MonitorInfo(
     public int Index { get; init; }
 
     public string DisplayLabel => IsPrimary ? "Principal" : $"Écran {Index}";
+
+    public override string ToString() => DisplayLabel;
 }
