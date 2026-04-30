@@ -19,6 +19,7 @@
 
     <Window.Resources>
         <conv:BoolToMainLabelConverter x:Key="MainLabelConverter"/>
+        <conv:EnumToBoolConverter x:Key="EnumToBool"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
         <!-- WoW Classic Color Palette -->
@@ -153,9 +154,45 @@
         </Style>
 
         <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource SubtextBrush}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="Bd" CornerRadius="3" Padding="10,5"
+                                BorderThickness="1" BorderBrush="#443D2A">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#1E1A28" Offset="0"/>
+                                    <GradientStop Color="#141020" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource BrightGoldBrush}"/>
+                                <Setter TargetName="Bd" Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                            <GradientStop Color="#2E2840" Offset="0"/>
+                                            <GradientStop Color="#1E1830" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#6B5A33"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Window control buttons (close, minimize) -->
@@ -254,8 +291,6 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -281,9 +316,12 @@
                             </TextBlock.Foreground>
                             <Run Text="&lt;Special Azeroth Service&gt;"/>
                         </TextBlock>
-                        <Button Grid.Column="2" Content="?" FontSize="11" Padding="6,2"
-                                Style="{StaticResource StoneButton}" Click="About_Click"
-                                VerticalAlignment="Center" ToolTip="À propos"/>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="⟳ Rafraîchir" Style="{StaticResource StoneButton}" FontSize="12" Padding="10,5"
+                                    Command="{Binding RefreshWindowsCommand}" ToolTip="Rafraîchir la liste"/>
+                            <Button Content="?" Style="{StaticResource StoneButton}" FontSize="12" Padding="10,5"
+                                    Click="About_Click" ToolTip="À propos" Margin="6,0,0,0"/>
+                        </StackPanel>
                     </Grid>
 
                     <!-- Gold separator -->
@@ -299,92 +337,9 @@
                         </Border.Background>
                     </Border>
 
-                    <!-- Line 1: Mode + options -->
-                    <WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,4">
-                        <RadioButton Content="Principal" Style="{StaticResource WowPill}"
-                                     IsChecked="{Binding IsMainMode}" GroupName="Mode"/>
-                        <RadioButton Content="Fractionné" Style="{StaticResource WowPill}"
-                                     IsChecked="{Binding IsSplitMode}" GroupName="Mode"/>
-
-                        <!-- Split orientation (visible only in split mode) -->
-                        <Border Width="2" Margin="10,4" Background="#443D2A"
-                                Visibility="{Binding IsSplitMode, Converter={StaticResource BoolToVis}}"/>
-                        <StackPanel Orientation="Horizontal"
-                                    Visibility="{Binding IsSplitMode, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="Orientation :" FontSize="12" VerticalAlignment="Center"
-                                       Foreground="{StaticResource SubtextBrush}" Margin="0,0,8,0"/>
-                            <RadioButton Content="▥ Côte à côte" Style="{StaticResource WowPill}"
-                                         IsChecked="{Binding IsSplitHorizontal}" GroupName="SplitDir"/>
-                            <RadioButton Content="▤ Empilé" Style="{StaticResource WowPill}"
-                                         IsChecked="{Binding IsSplitVertical}" GroupName="SplitDir"/>
-                        </StackPanel>
-
-                        <Border Width="2" Margin="10,4" Background="#443D2A"
-                                Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}"/>
-
-                        <StackPanel Orientation="Horizontal"
-                                    Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="Zones :" FontSize="12" VerticalAlignment="Center"
-                                       Foreground="{StaticResource SubtextBrush}" Margin="0,0,8,0"/>
-                            <CheckBox Content="▐ Latéral" IsChecked="{Binding HasLateral}"
-                                      Foreground="{StaticResource GoldBrush}" FontSize="12"
-                                      VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <CheckBox Content="▬ Bandeau" IsChecked="{Binding HasBandeau}"
-                                      Foreground="{StaticResource GoldBrush}" FontSize="12"
-                                      VerticalAlignment="Center"/>
-                        </StackPanel>
-
-                        <Border Width="2" Margin="10,4" Background="#443D2A"
-                                Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}"/>
-
-                        <StackPanel Orientation="Horizontal"
-                                    Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="Taille :" FontSize="12" VerticalAlignment="Center"
-                                       Foreground="{StaticResource SubtextBrush}" Margin="0,0,8,0"/>
-                            <RadioButton Content="Grand" Style="{StaticResource WowPill}"
-                                         IsChecked="{Binding IsSizeGrand}" GroupName="Size"/>
-                            <RadioButton Content="Moyen" Style="{StaticResource WowPill}"
-                                         IsChecked="{Binding IsSizeMoyen}" GroupName="Size"/>
-                            <RadioButton Content="Petit" Style="{StaticResource WowPill}"
-                                         IsChecked="{Binding IsSizePetit}" GroupName="Size"/>
-                        </StackPanel>
-                    </WrapPanel>
-
-                    <!-- Line 2: Position + Monitor + Refresh -->
-                    <WrapPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,10">
-                        <StackPanel Orientation="Horizontal"
-                                    Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}">
-                            <TextBlock Text="Position :" FontSize="12" VerticalAlignment="Center"
-                                       Foreground="{StaticResource SubtextBrush}" Margin="0,0,8,0"/>
-                            <RadioButton Content="&#x2196; HG" Style="{StaticResource WowPill}"
-                                         IsChecked="{Binding IsPosTopLeft}" GroupName="Pos"/>
-                            <RadioButton Content="&#x2197; HD" Style="{StaticResource WowPill}"
-                                         IsChecked="{Binding IsPosTopRight}" GroupName="Pos"/>
-                            <RadioButton Content="&#x2198; BD" Style="{StaticResource WowPill}"
-                                         IsChecked="{Binding IsPosBottomRight}" GroupName="Pos"/>
-                            <RadioButton Content="&#x2199; BG" Style="{StaticResource WowPill}"
-                                         IsChecked="{Binding IsPosBottomLeft}" GroupName="Pos"/>
-                        </StackPanel>
-
-                        <Border Width="2" Margin="10,4" Background="#443D2A"
-                                Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}"/>
-
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Écran :" FontSize="12" VerticalAlignment="Center"
-                                       Foreground="{StaticResource SubtextBrush}" Margin="0,0,8,0"/>
-                            <ComboBox ItemsSource="{Binding Monitors}"
-                                      SelectedItem="{Binding SelectedMonitor}"
-                                      DisplayMemberPath="DisplayLabel"
-                                      MinWidth="100" FontSize="11"
-                                      VerticalAlignment="Center"/>
-                        </StackPanel>
-
-                        <Button Content="Rafraîchir" Style="{StaticResource StoneButton}"
-                                Command="{Binding RefreshWindowsCommand}" Margin="16,0,0,0"/>
-                    </WrapPanel>
 
                     <!-- Main content -->
-                    <Grid Grid.Row="4">
+                    <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="14"/>
@@ -446,7 +401,6 @@
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
 
                                                     <TextBlock Grid.Column="0" Text="☰" FontSize="14"
@@ -477,37 +431,26 @@
                                                                    Text="{Binding ProcessName, Mode=OneWay}"/>
                                                     </StackPanel>
 
-                                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="4,0">
-                                                        <Button Content="▲" FontSize="10" Padding="4,1" MinWidth="0"
-                                                                Style="{StaticResource StoneButton}"
-                                                                Command="{Binding DataContext.MoveUpCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                CommandParameter="{Binding}" ToolTip="Monter"/>
-                                                        <Button Content="▼" FontSize="10" Padding="4,1" MinWidth="0"
-                                                                Style="{StaticResource StoneButton}" Margin="2,0,0,0"
-                                                                Command="{Binding DataContext.MoveDownCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                CommandParameter="{Binding}" ToolTip="Descendre"/>
-                                                    </StackPanel>
-
-                                                    <ComboBox Grid.Column="4"
+                                                    <ComboBox Grid.Column="3"
                                                              ItemsSource="{Binding DataContext.Monitors, RelativeSource={RelativeSource AncestorType=Window}}"
                                                              SelectedItem="{Binding AssignedMonitor}"
                                                              DisplayMemberPath="DisplayLabel"
-                                                             FontSize="10" MinWidth="80" Margin="4,0"
+                                                             FontSize="10" Width="90" Margin="4,0"
                                                              VerticalAlignment="Center" ToolTip="Écran cible"/>
 
-                                                    <Button Grid.Column="5"
+                                                    <Button Grid.Column="4"
                                                             Content="⛶" ToolTip="Plein écran"
                                                             Style="{StaticResource StoneButton}"
                                                             Command="{Binding DataContext.FullscreenWindowCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"
-                                                            FontSize="13" Padding="6,3" Margin="0,0,4,0"/>
+                                                            FontSize="13" Padding="6,3" Width="32" Margin="0,0,4,0"/>
 
-                                                    <Button Grid.Column="6"
+                                                    <Button Grid.Column="5"
                                                             Content="{Binding IsMainWindow, Converter={StaticResource MainLabelConverter}}"
                                                             Style="{StaticResource StoneButton}"
                                                             Command="{Binding DataContext.SetAsMainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"
-                                                            FontSize="11" Padding="8,4"/>
+                                                            FontSize="10" Padding="4,4" Width="62"/>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -520,16 +463,134 @@
                         <Border Grid.Column="2" Background="{StaticResource PanelBg}" CornerRadius="6"
                                 Padding="12" BorderThickness="1.5" BorderBrush="#6B5A33">
                             <DockPanel>
-                                <TextBlock DockPanel.Dock="Top" Text="Aperçu du raid" FontSize="14" FontWeight="SemiBold"
-                                           Foreground="{StaticResource BrightGoldBrush}" Margin="0,0,0,8"/>
+                                <!-- Per-monitor layout options (compact, above canvas) -->
+                                <Border DockPanel.Dock="Top" CornerRadius="4" Margin="0,0,0,6"
+                                        Padding="12,8" BorderThickness="1.5" BorderBrush="#6B5A33"
+                                        HorizontalAlignment="Center"
+                                        DataContext="{Binding SelectedMonitorConfig}">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                            <GradientStop Color="#1E1A28" Offset="0"/>
+                                            <GradientStop Color="#12101C" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <StackPanel>
+                                        <TextBlock FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"
+                                                   Foreground="{StaticResource BrightGoldBrush}" Margin="0,0,0,4"
+                                                   Text="{Binding Monitor.DisplayLabel, StringFormat='⚙ {0}'}"/>
+                                    <Grid HorizontalAlignment="Center">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
 
-                                <Border Background="#CC050508" CornerRadius="4" ClipToBounds="True"
-                                        Width="480" Height="270" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Mode" FontSize="10"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,0,8,0"/>
+                                        <WrapPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <RadioButton Content="Principal" Style="{StaticResource WowPill}" FontSize="10"
+                                                         IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Main}"
+                                                         GroupName="MonMode"/>
+                                            <RadioButton Content="Fractionné" Style="{StaticResource WowPill}" FontSize="10"
+                                                         IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}"
+                                                         GroupName="MonMode"/>
+                                        </WrapPanel>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Taille" FontSize="10"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,8,0"/>
+                                        <WrapPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
+                                            <RadioButton Content="Grand" Style="{StaticResource WowPill}" FontSize="10"
+                                                         IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Grand}"
+                                                         GroupName="MonSize"/>
+                                            <RadioButton Content="Moyen" Style="{StaticResource WowPill}" FontSize="10"
+                                                         IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Moyen}"
+                                                         GroupName="MonSize"/>
+                                            <RadioButton Content="Petit" Style="{StaticResource WowPill}" FontSize="10"
+                                                         IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Petit}"
+                                                         GroupName="MonSize"/>
+                                        </WrapPanel>
+
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Orientation" FontSize="10"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,8,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <WrapPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
+                                            <WrapPanel.Style>
+                                                <Style TargetType="WrapPanel">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </WrapPanel.Style>
+                                            <RadioButton Content="▥ Côte à côte" Style="{StaticResource WowPill}" FontSize="10"
+                                                         IsChecked="{Binding SplitOrientation, Converter={StaticResource EnumToBool}, ConverterParameter=Horizontal}"
+                                                         GroupName="MonSplit"/>
+                                            <RadioButton Content="▤ Empilé" Style="{StaticResource WowPill}" FontSize="10"
+                                                         IsChecked="{Binding SplitOrientation, Converter={StaticResource EnumToBool}, ConverterParameter=Vertical}"
+                                                         GroupName="MonSplit"/>
+                                        </WrapPanel>
+
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Position" FontSize="10"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,8,0"/>
+                                        <WrapPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
+                                            <RadioButton Content="↖" Style="{StaticResource WowPill}" FontSize="10"
+                                                         IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=TopLeft}"
+                                                         GroupName="MonPos"/>
+                                            <RadioButton Content="↗" Style="{StaticResource WowPill}" FontSize="10"
+                                                         IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=TopRight}"
+                                                         GroupName="MonPos"/>
+                                            <RadioButton Content="↘" Style="{StaticResource WowPill}" FontSize="10"
+                                                         IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=BottomRight}"
+                                                         GroupName="MonPos"/>
+                                            <RadioButton Content="↙" Style="{StaticResource WowPill}" FontSize="10"
+                                                         IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=BottomLeft}"
+                                                         GroupName="MonPos"/>
+                                        </WrapPanel>
+
+                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Zones" FontSize="10"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource SubtextBrush}" Margin="0,3,8,0"/>
+                                        <WrapPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
+                                            <CheckBox Content="Latéral" IsChecked="{Binding HasLateral}"
+                                                      Foreground="{StaticResource GoldBrush}" FontSize="10"
+                                                      VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <CheckBox Content="Bandeau" IsChecked="{Binding HasBandeau}"
+                                                      Foreground="{StaticResource GoldBrush}" FontSize="10"
+                                                      VerticalAlignment="Center"/>
+                                        </WrapPanel>
+                                    </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border DockPanel.Dock="Top" Background="#CC050508" CornerRadius="4" ClipToBounds="True"
+                                        Width="480" Height="200" HorizontalAlignment="Center"
                                         BorderThickness="1" BorderBrush="#443D2A">
                                     <ItemsControl ItemsSource="{Binding PreviewRects}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <Canvas Width="480" Height="270"/>
+                                                <Canvas Width="480" Height="200"/>
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemContainerStyle>
@@ -541,7 +602,8 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Border Width="{Binding Width}" Height="{Binding Height}"
-                                                        CornerRadius="2" Margin="1">
+                                                        CornerRadius="2" Margin="1"
+                                                        MouseLeftButtonDown="PreviewRect_Click">
                                                     <Border.Style>
                                                         <Style TargetType="Border">
                                                             <Setter Property="Background" Value="#220070DD"/>
@@ -557,13 +619,18 @@
                                                                     <Setter Property="BorderBrush" Value="#886B5A33"/>
                                                                     <Setter Property="BorderThickness" Value="2"/>
                                                                 </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsSelectedMonitor}" Value="True">
+                                                                    <Setter Property="Background" Value="#1AC9A44A"/>
+                                                                    <Setter Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
+                                                                    <Setter Property="BorderThickness" Value="2.5"/>
+                                                                </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
                                                     </Border.Style>
                                                     <Grid Margin="4">
                                                         <TextBlock Text="{Binding Title}" FontSize="10"
                                                                    TextTrimming="CharacterEllipsis"
-                                                                   Cursor="Hand" ToolTip="Cliquer pour renommer"
+                                                                   Cursor="Hand"
                                                                    MouseLeftButtonDown="PreviewName_Click"
                                                                    x:Name="PreviewLabel">
                                                             <TextBlock.Style>
@@ -596,18 +663,19 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </Border>
+
                             </DockPanel>
                         </Border>
                     </Grid>
 
                     <!-- Apply button -->
-                    <StackPanel Grid.Row="5" HorizontalAlignment="Center" Margin="0,12,0,0">
+                    <StackPanel Grid.Row="3" HorizontalAlignment="Center" Margin="0,12,0,0">
                         <Button Content="Appliquer le layout" Style="{StaticResource WowButton}"
                                 Command="{Binding ApplyLayoutCommand}" FontSize="15" Padding="40,12"/>
                     </StackPanel>
 
                             <!-- Status bar -->
-                            <Border Grid.Row="6" Background="{StaticResource PanelBg}" CornerRadius="4"
+                            <Border Grid.Row="4" Background="{StaticResource PanelBg}" CornerRadius="4"
                                     Padding="12,5" Margin="0,8,0,0" BorderThickness="1" BorderBrush="#443D2A">
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Right" Text="{Binding AppVersion}"

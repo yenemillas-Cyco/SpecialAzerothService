@@ -269,6 +269,21 @@ public partial class MainWindow : Window
         ((MainViewModel)DataContext).UpdatePreview();
     }
 
+    // --- Preview monitor click ---
+
+    private void PreviewRect_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement el) return;
+        if (el.DataContext is not PreviewRect preview) return;
+
+        var vm = (MainViewModel)DataContext;
+        if (preview.IsMonitorOutline && preview.MonitorConfig is not null)
+        {
+            vm.SelectMonitorConfigCommand.Execute(preview.MonitorConfig);
+            e.Handled = true;
+        }
+    }
+
     // --- Preview rename ---
 
     private void PreviewName_Click(object sender, MouseButtonEventArgs e)
