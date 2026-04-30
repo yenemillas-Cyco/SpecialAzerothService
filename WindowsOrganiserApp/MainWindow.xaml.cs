@@ -43,6 +43,11 @@ public partial class MainWindow : Window
     private void Close_Click(object sender, RoutedEventArgs e) =>
         Close();
 
+    private void Help_Click(object sender, RoutedEventArgs e)
+    {
+        new HelpWindow { Owner = this }.ShowDialog();
+    }
+
     private void About_Click(object sender, RoutedEventArgs e)
     {
         var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;

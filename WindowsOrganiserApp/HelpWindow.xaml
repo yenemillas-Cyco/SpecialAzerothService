@@ -1,0 +1,205 @@
+<Window x:Class="WindowsOrganiserApp.HelpWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Aide — Special Azeroth Service"
+        Height="650" Width="620"
+        MinHeight="400" MinWidth="450"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="CanResizeWithGrip"
+        Foreground="#E8D5A3"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="GoldBrush" Color="#C9A44A"/>
+        <SolidColorBrush x:Key="BrightGoldBrush" Color="#FFD100"/>
+        <SolidColorBrush x:Key="TextBrush" Color="#E8D5A3"/>
+        <SolidColorBrush x:Key="SubtextBrush" Color="#9B8B6E"/>
+        <SolidColorBrush x:Key="SepBrush" Color="#443D2A"/>
+
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#FFD100"/>
+            <Setter Property="Margin" Value="0,18,0,6"/>
+        </Style>
+
+        <Style x:Key="SubTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#C9A44A"/>
+            <Setter Property="Margin" Value="8,10,0,4"/>
+        </Style>
+
+        <Style x:Key="Body" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#E8D5A3"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="12,2,0,2"/>
+            <Setter Property="LineHeight" Value="20"/>
+        </Style>
+
+        <Style x:Key="Bullet" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#E8D5A3"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="20,1,0,1"/>
+            <Setter Property="LineHeight" Value="20"/>
+        </Style>
+
+        <Style x:Key="Sep" TargetType="Border">
+            <Setter Property="Height" Value="1"/>
+            <Setter Property="Background" Value="#443D2A"/>
+            <Setter Property="Margin" Value="0,10,0,4"/>
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="8" BorderThickness="2" BorderBrush="#6B5A33">
+        <Border.Background>
+            <RadialGradientBrush>
+                <GradientStop Color="#1A1525" Offset="0"/>
+                <GradientStop Color="#0A0A12" Offset="1"/>
+            </RadialGradientBrush>
+        </Border.Background>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Title bar -->
+            <Border Grid.Row="0" Padding="16,10" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid>
+                    <TextBlock Text="📖  Guide d'utilisation" FontSize="16" FontWeight="Bold"
+                               Foreground="{StaticResource BrightGoldBrush}" VerticalAlignment="Center"/>
+                    <Button Content="✕" HorizontalAlignment="Right" VerticalAlignment="Center"
+                            FontSize="14" Foreground="#9B8B6E" Background="Transparent" BorderThickness="0"
+                            Cursor="Hand" Click="Close_Click" Padding="6,2"/>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="0" VerticalAlignment="Bottom" Height="2" Margin="20,0">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="Transparent" Offset="0"/>
+                        <GradientStop Color="#C9A44A" Offset="0.3"/>
+                        <GradientStop Color="#C9A44A" Offset="0.7"/>
+                        <GradientStop Color="Transparent" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- Content -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20,0,20,10">
+                <StackPanel>
+
+                    <!-- LISTE DES FENÊTRES -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="⚔  Liste des fenêtres"/>
+                    <TextBlock Style="{StaticResource Body}"
+                               Text="L'application détecte automatiquement toutes les fenêtres WoW ouvertes au lancement et après chaque rafraîchissement."/>
+
+                    <TextBlock Style="{StaticResource Bullet}" Text="☑ Cocher / décocher une fenêtre pour l'inclure dans la disposition"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="✏ Cliquer sur le nom pour le renommer (conservé après rafraîchissement)"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="👑 Leader : désigner la fenêtre principale d'un écran (zone dominante en mode Principal)"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="⛶ Plein écran : bascule en plein écran, un second clic restaure la position"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="🖥 Écran : choisir sur quel moniteur placer chaque fenêtre"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="↕ Glisser-déposer pour réorganiser l'ordre des fenêtres"/>
+
+                    <Border Style="{StaticResource Sep}"/>
+
+                    <!-- MODE PRINCIPAL -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="🏰  Mode Principal"/>
+                    <TextBlock Style="{StaticResource Body}"
+                               Text="La fenêtre Leader occupe la zone dominante de l'écran, les autres fenêtres se répartissent autour."/>
+
+                    <TextBlock Style="{StaticResource SubTitle}" Text="Taille (G / M / P)"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Grand — le leader occupe 75% de l'écran"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Moyen — le leader occupe 67% de l'écran"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Petit — le leader occupe 50% de l'écran"/>
+
+                    <TextBlock Style="{StaticResource SubTitle}" Text="Position (↖ ↗ ↘ ↙)"/>
+                    <TextBlock Style="{StaticResource Body}"
+                               Text="Choisir dans quel coin de l'écran placer le leader. Les secondaires occupent l'espace restant."/>
+
+                    <TextBlock Style="{StaticResource SubTitle}" Text="Zones"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Latéral — les secondaires s'empilent verticalement à côté du leader"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Bandeau — les secondaires s'alignent horizontalement sous ou sur le leader"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Les deux — disposition mixte : latéral + bandeau (grille avancée)"/>
+
+                    <Border Style="{StaticResource Sep}"/>
+
+                    <!-- MODE FRACTIONNÉ -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="⊞  Mode Fractionné"/>
+                    <TextBlock Style="{StaticResource Body}"
+                               Text="Toutes les fenêtres ont la même taille, réparties en grille régulière."/>
+
+                    <TextBlock Style="{StaticResource SubTitle}" Text="Orientation"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• ▥ Côte à côte (Horizontal) — privilégie les colonnes (ex. 6 fenêtres → 3 colonnes × 2 lignes)"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• ▤ Empilé (Vertical) — privilégie les lignes (ex. 6 fenêtres → 2 colonnes × 3 lignes)"/>
+
+                    <Border Style="{StaticResource Sep}"/>
+
+                    <!-- MULTI-ÉCRAN -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="🖥  Multi-écran"/>
+                    <TextBlock Style="{StaticResource Body}"
+                               Text="Tous les moniteurs connectés sont détectés automatiquement. Chaque écran dispose de son propre panneau de configuration :"/>
+
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Choix indépendant du mode (Principal / Fractionné) par écran"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Options de taille, position et zones propres à chaque écran"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Aperçu miniature en temps réel par écran"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Les panneaux s'affichent côte à côte avec défilement horizontal"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Assigner chaque fenêtre à l'écran souhaité via le menu déroulant dans la liste"/>
+
+                    <Border Style="{StaticResource Sep}"/>
+
+                    <!-- APERÇU -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="👁  Aperçu"/>
+                    <TextBlock Style="{StaticResource Body}"
+                               Text="Chaque panneau d'écran inclut un aperçu miniature montrant le contour de l'écran, la position et la taille de chaque fenêtre assignée, ainsi que son nom. L'aperçu se met à jour automatiquement à chaque changement d'option."/>
+
+                    <Border Style="{StaticResource Sep}"/>
+
+                    <!-- APPLIQUER -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="⚔  Appliquer"/>
+                    <TextBlock Style="{StaticResource Body}"
+                               Text="Cliquer sur « ⚔ Appliquer » pour déplacer et redimensionner toutes les fenêtres sélectionnées selon la configuration définie. Chaque écran applique sa propre disposition indépendamment."/>
+
+                    <TextBlock Style="{StaticResource Body}" Margin="12,16,0,4" Foreground="#9B8B6E" FontStyle="Italic"
+                               Text="Développé par Cyco — yenemillas@gmail.com"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Footer -->
+            <Border Grid.Row="2" Padding="16,8">
+                <Button Content="Fermer" HorizontalAlignment="Center"
+                        FontSize="13" FontWeight="Bold" Foreground="#FFD100" Cursor="Hand"
+                        Padding="24,8" Click="Close_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd" CornerRadius="4" Padding="{TemplateBinding Padding}"
+                                    BorderThickness="2" BorderBrush="#8B6914">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#8B1A1A" Offset="0"/>
+                                        <GradientStop Color="#5C0E0E" Offset="0.5"/>
+                                        <GradientStop Color="#3D0808" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#FFD100"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Border>
+        </Grid>
+    </Border>
+</Window>
