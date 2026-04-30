@@ -85,8 +85,13 @@
                             <Run Text="&lt;Special Azeroth Service&gt;"/>
                         </TextBlock>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button Content="⟳ Rafraîchir" Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
-                                    Command="{Binding RefreshWindowsCommand}" ToolTip="Rafraîchir la liste"/>
+                            <Button Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
+                                    Command="{Binding RefreshWindowsCommand}" ToolTip="Rafraîchir la liste">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="⟳" FontSize="14" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock Text="Rafraîchir" FontSize="12" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             <ComboBox Width="110" Height="28" Margin="6,0,0,0"
                                       ItemsSource="{Binding AvailableThemes}"
                                       SelectedItem="{Binding CurrentThemeLabel}"
@@ -156,11 +161,12 @@
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <Border Background="{DynamicResource PanelBg2}" CornerRadius="4"
-                                                    Padding="10,8" Margin="0,0,0,3"
+                                                    Padding="12,10" Margin="0,0,0,5"
                                                     BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}"
                                                     Cursor="Hand" ToolTip="Glisser pour réordonner">
     <Grid>
                                                     <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
@@ -175,9 +181,17 @@
                                                                ToolTip="Glisser pour réordonner" Cursor="SizeAll"/>
 
                                                     <CheckBox Grid.Column="1" IsChecked="{Binding IsSelected}"
-                                                              Style="{DynamicResource SelectionCheck}" Margin="0,0,8,0"/>
+                                                              Style="{DynamicResource SelectionCheck}" Margin="0,0,6,0"/>
 
-                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                    <Border Grid.Column="2" Width="22" Height="22" CornerRadius="11"
+                                                            Background="{DynamicResource GoldBrush}" Margin="0,0,8,0"
+                                                            VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding LaunchOrder}" FontSize="11" FontWeight="Bold"
+                                                                   Foreground="#FFFFFF" HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Border>
+
+                                                    <StackPanel Grid.Column="3" VerticalAlignment="Center">
                                                         <Grid>
                                                             <TextBlock FontSize="12" Foreground="{DynamicResource BrightGoldBrush}"
                                                                        Text="{Binding DisplayName, Mode=OneWay}"
@@ -197,19 +211,19 @@
                                                                    Text="{Binding ProcessName, Mode=OneWay}"/>
                                                     </StackPanel>
 
-                                                    <ComboBox Grid.Column="3"
+                                                    <ComboBox Grid.Column="4"
                                                              ItemsSource="{Binding DataContext.Monitors, RelativeSource={RelativeSource AncestorType=Window}}"
                                                              SelectedItem="{Binding AssignedMonitor}"
                                                              DisplayMemberPath="DisplayLabel"
-                                                             FontSize="10" Width="75" Height="28" Margin="4,0"
+                                                             FontSize="11" Width="80" Height="32" Margin="4,0"
                                                              VerticalAlignment="Center" ToolTip="Écran cible"/>
 
-                                                    <Button Grid.Column="4"
+                                                    <Button Grid.Column="5"
                                                             ToolTip="Plein écran / Restaurer"
                                                             Style="{DynamicResource StoneButton}"
                                                             Command="{Binding DataContext.FullscreenWindowCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"
-                                                            FontSize="13" Padding="6,3" Width="32" Margin="0,0,4,0">
+                                                            FontSize="15" Padding="8,5" Width="38" Height="32" Margin="0,0,4,0">
                                                         <Button.Content>
                                                             <TextBlock>
                                                                 <TextBlock.Style>
@@ -226,12 +240,12 @@
                                                         </Button.Content>
                                                     </Button>
 
-                                                    <Button Grid.Column="5"
+                                                    <Button Grid.Column="6"
                                                             Content="{Binding IsMainWindow, Converter={StaticResource MainLabelConverter}}"
                                                             Style="{DynamicResource StoneButton}"
                                                             Command="{Binding DataContext.SetAsMainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"
-                                                            FontSize="10" Padding="4,4" Width="62"/>
+                                                            FontSize="11" Padding="6,5" Width="70" Height="32"/>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -285,51 +299,59 @@
                                                                 <RowDefinition Height="Auto"/>
                                                             </Grid.RowDefinitions>
 
-                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Mode" FontSize="10"
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Mode" FontSize="11"
                                                                        HorizontalAlignment="Right" VerticalAlignment="Center"
                                                                        Foreground="{DynamicResource SubtextBrush}" Margin="0,0,6,0"/>
                                                             <WrapPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                                <RadioButton Content="Principal" Style="{DynamicResource WowPill}" FontSize="10"
+                                                                <RadioButton Content="Principal" Style="{DynamicResource WowPill}" FontSize="11" Height="30"
                                                                              IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Main}"/>
-                                                                <RadioButton Content="Fractionné" Style="{DynamicResource WowPill}" FontSize="10"
+                                                                <RadioButton Content="Fractionné" Style="{DynamicResource WowPill}" FontSize="11" Height="30"
                                                                              IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}"/>
                                                             </WrapPanel>
 
-                                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Taille" FontSize="10"
+                                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Taille" FontSize="11"
                                                                        HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,3,6,0"/>
-                                                            <WrapPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
-                                                                <RadioButton Content="G" Style="{DynamicResource WowPill}" FontSize="10" ToolTip="Grand"
+                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,5,6,0"/>
+                                                            <WrapPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5,0,0">
+                                                                <RadioButton Content="G" Style="{DynamicResource WowPill}" FontSize="11" Height="30" ToolTip="Grand"
                                                                              IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Grand}"/>
-                                                                <RadioButton Content="M" Style="{DynamicResource WowPill}" FontSize="10" ToolTip="Moyen"
+                                                                <RadioButton Content="M" Style="{DynamicResource WowPill}" FontSize="11" Height="30" ToolTip="Moyen"
                                                                              IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Moyen}"/>
-                                                                <RadioButton Content="P" Style="{DynamicResource WowPill}" FontSize="10" ToolTip="Petit"
+                                                                <RadioButton Content="P" Style="{DynamicResource WowPill}" FontSize="11" Height="30" ToolTip="Petit"
                                                                              IsChecked="{Binding Size, Converter={StaticResource EnumToBool}, ConverterParameter=Petit}"/>
                                                             </WrapPanel>
 
-                                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Pos" FontSize="10"
+                                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Pos" FontSize="11"
                                                                        HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,3,6,0"/>
-                                                            <WrapPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
-                                                                <RadioButton Content="↖" Style="{DynamicResource WowPill}" FontSize="10"
-                                                                             IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=TopLeft}"/>
-                                                                <RadioButton Content="↗" Style="{DynamicResource WowPill}" FontSize="10"
-                                                                             IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=TopRight}"/>
-                                                                <RadioButton Content="↘" Style="{DynamicResource WowPill}" FontSize="10"
-                                                                             IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=BottomRight}"/>
-                                                                <RadioButton Content="↙" Style="{DynamicResource WowPill}" FontSize="10"
-                                                                             IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=BottomLeft}"/>
+                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,5,6,0"/>
+                                                            <WrapPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5,0,0">
+                                                                <RadioButton Style="{DynamicResource WowPill}" Height="30" Padding="10,4"
+                                                                             IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=TopLeft}">
+                                                                    <TextBlock Text="↖" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                                </RadioButton>
+                                                                <RadioButton Style="{DynamicResource WowPill}" Height="30" Padding="10,4"
+                                                                             IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=TopRight}">
+                                                                    <TextBlock Text="↗" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                                </RadioButton>
+                                                                <RadioButton Style="{DynamicResource WowPill}" Height="30" Padding="10,4"
+                                                                             IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=BottomRight}">
+                                                                    <TextBlock Text="↘" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                                </RadioButton>
+                                                                <RadioButton Style="{DynamicResource WowPill}" Height="30" Padding="10,4"
+                                                                             IsChecked="{Binding Position, Converter={StaticResource EnumToBool}, ConverterParameter=BottomLeft}">
+                                                                    <TextBlock Text="↙" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                                </RadioButton>
                                                             </WrapPanel>
 
-                                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Zones" FontSize="10"
+                                                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Zones" FontSize="11"
                                                                        HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,3,6,0"/>
-                                                            <WrapPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
+                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,5,6,0"/>
+                                                            <WrapPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5,0,0">
                                                                 <CheckBox Content="Latéral" IsChecked="{Binding HasLateral}"
-                                                                          Foreground="{DynamicResource GoldBrush}" FontSize="10"
-                                                                          VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                                          Foreground="{DynamicResource GoldBrush}" FontSize="11"
+                                                                          VerticalAlignment="Center" Margin="0,0,6,0"/>
                                                                 <CheckBox Content="Bandeau" IsChecked="{Binding HasBandeau}"
-                                                                          Foreground="{DynamicResource GoldBrush}" FontSize="10"
+                                                                          Foreground="{DynamicResource GoldBrush}" FontSize="11"
                                                                           VerticalAlignment="Center"/>
                                                             </WrapPanel>
                                                         </Grid>
@@ -355,23 +377,23 @@
                                                                 <RowDefinition Height="Auto"/>
                                                             </Grid.RowDefinitions>
 
-                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Mode" FontSize="10"
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Mode" FontSize="11"
                                                                        HorizontalAlignment="Right" VerticalAlignment="Center"
                                                                        Foreground="{DynamicResource SubtextBrush}" Margin="0,0,6,0"/>
                                                             <WrapPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                                <RadioButton Content="Principal" Style="{DynamicResource WowPill}" FontSize="10"
+                                                                <RadioButton Content="Principal" Style="{DynamicResource WowPill}" FontSize="11" Height="30"
                                                                              IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Main}"/>
-                                                                <RadioButton Content="Fractionné" Style="{DynamicResource WowPill}" FontSize="10"
+                                                                <RadioButton Content="Fractionné" Style="{DynamicResource WowPill}" FontSize="11" Height="30"
                                                                              IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Split}"/>
                                                             </WrapPanel>
 
-                                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Orient." FontSize="10"
+                                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Orient." FontSize="11"
                                                                        HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,3,6,0"/>
-                                                            <WrapPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,3,0,0">
-                                                                <RadioButton Content="▥" Style="{DynamicResource WowPill}" FontSize="10" ToolTip="Côte à côte"
+                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,5,6,0"/>
+                                                            <WrapPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5,0,0">
+                                                                <RadioButton Content="▥" Style="{DynamicResource WowPill}" FontSize="14" Height="30" ToolTip="Côte à côte"
                                                                              IsChecked="{Binding SplitOrientation, Converter={StaticResource EnumToBool}, ConverterParameter=Horizontal}"/>
-                                                                <RadioButton Content="▤" Style="{DynamicResource WowPill}" FontSize="10" ToolTip="Empilé"
+                                                                <RadioButton Content="▤" Style="{DynamicResource WowPill}" FontSize="14" Height="30" ToolTip="Empilé"
                                                                              IsChecked="{Binding SplitOrientation, Converter={StaticResource EnumToBool}, ConverterParameter=Vertical}"/>
                                                             </WrapPanel>
                                                         </Grid>
@@ -408,11 +430,30 @@
                                                                                 </Style.Triggers>
                                                                             </Style>
                                                                         </Border.Style>
-                                                                        <TextBlock Text="{Binding Title}" FontSize="9"
-                                                                                   TextTrimming="CharacterEllipsis"
-                                                                                   Foreground="{DynamicResource TextBrush}"
-                                                                                   HorizontalAlignment="Center"
-                                                                                   VerticalAlignment="Center"/>
+                                                                        <Grid>
+                                                                            <Border Width="16" Height="16" CornerRadius="8"
+                                                                                    Background="{DynamicResource GoldBrush}"
+                                                                                    HorizontalAlignment="Left" VerticalAlignment="Top"
+                                                                                    Margin="2,2,0,0">
+                                                                                <Border.Style>
+                                                                                    <Style TargetType="Border">
+                                                                                        <Style.Triggers>
+                                                                                            <DataTrigger Binding="{Binding BadgeNumber}" Value="0">
+                                                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                            </DataTrigger>
+                                                                                        </Style.Triggers>
+                                                                                    </Style>
+                                                                                </Border.Style>
+                                                                                <TextBlock Text="{Binding BadgeNumber}" FontSize="9" FontWeight="Bold"
+                                                                                           Foreground="#FFFFFF" HorizontalAlignment="Center"
+                                                                                           VerticalAlignment="Center"/>
+                                                                            </Border>
+                                                                            <TextBlock Text="{Binding Title}" FontSize="9"
+                                                                                       TextTrimming="CharacterEllipsis"
+                                                                                       Foreground="{DynamicResource TextBrush}"
+                                                                                       HorizontalAlignment="Center"
+                                                                                       VerticalAlignment="Center"/>
+                                                                        </Grid>
                                                                     </Border>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>

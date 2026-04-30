@@ -365,9 +365,8 @@ public partial class MainViewModel : ObservableObject
                     Y = (rect.Y - workArea.Y) * scale + offsetY,
                     Width = rect.Width * scale,
                     Height = rect.Height * scale,
-                    Title = win.IsMainWindow
-                        ? $"★ {TruncateTitle(win.DisplayName, 16)}"
-                        : $"#{slotIndex - 1} {TruncateTitle(win.DisplayName, 14)}",
+                    Title = TruncateTitle(win.DisplayName, 16),
+                    BadgeNumber = win.LaunchOrder,
                     IsMain = win.IsMainWindow,
                     Window = win
                 };
@@ -388,6 +387,7 @@ public class PreviewRect
     public double Width { get; init; }
     public double Height { get; init; }
     public string Title { get; init; } = string.Empty;
+    public int BadgeNumber { get; init; }
     public bool IsMain { get; init; }
     public bool IsMonitorOutline { get; init; }
     public bool IsSelectedMonitor { get; init; }

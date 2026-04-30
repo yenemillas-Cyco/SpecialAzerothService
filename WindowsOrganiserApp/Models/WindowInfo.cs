@@ -18,7 +18,7 @@ public partial class WindowInfo : ObservableObject
     private string _customName = string.Empty;
 
     public string DisplayName => string.IsNullOrWhiteSpace(CustomName)
-        ? $"WoW #{LaunchOrder}"
+        ? $"WoW {LaunchOrder}"
         : CustomName;
 
     [ObservableProperty]
