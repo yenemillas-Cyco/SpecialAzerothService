@@ -33,6 +33,11 @@ public partial class WindowInfo : ObservableObject
     [ObservableProperty]
     private MonitorInfo? _assignedMonitor;
 
+    [ObservableProperty]
+    private bool _isFullscreen;
+
+    public WindowRect? SavedRect { get; set; }
+
     partial void OnLaunchOrderChanged(int value) => OnPropertyChanged(nameof(DisplayName));
     partial void OnCustomNameChanged(string value) => OnPropertyChanged(nameof(DisplayName));
 }

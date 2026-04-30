@@ -122,6 +122,12 @@ public class WindowService : IWindowService
         return new WindowRect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
     }
 
+    public WindowRect GetWindowRect(IntPtr handle)
+    {
+        NativeMethods.GetWindowRect(handle, out var rect);
+        return new WindowRect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
+    }
+
     public List<MonitorInfo> GetMonitors()
     {
         var monitors = new List<MonitorInfo>();

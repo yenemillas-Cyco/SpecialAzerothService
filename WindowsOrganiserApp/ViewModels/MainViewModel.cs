@@ -180,9 +180,21 @@ public partial class MainViewModel : ObservableObject
     private void FullscreenWindow(WindowInfo? window)
     {
         if (window is null) return;
-        var workArea = window.AssignedMonitor?.WorkArea ?? _windowService.GetWorkArea();
-        _windowService.MoveAndResize(window.Handle, workArea);
-        StatusMessage = $"{window.DisplayName} en plein écran";
+
+        if (window.IsFullscreen && window.SavedRect is not null)
+        {
+            _windowService.MoveAndResize(window.Handle, window.SavedRect);
+            window.IsFullscreen = false;
+            StatusMessage = $"{window.DisplayName} restauré";
+        }
+        else
+        {
+            window.SavedRect = _windowService.GetWindowRect(window.Handle);
+            var workArea = window.AssignedMonitor?.WorkArea ?? _windowService.GetWorkArea();
+            _windowService.MoveAndResize(window.Handle, workArea);
+            window.IsFullscreen = true;
+            StatusMessage = $"{window.DisplayName} en plein écran";
+        }
     }
 
     [RelayCommand]
