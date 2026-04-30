@@ -195,6 +195,104 @@
             </Setter>
         </Style>
 
+        <Style TargetType="ComboBox">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#1E1A28" Offset="0"/>
+                        <GradientStop Color="#141020" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="BorderBrush" Value="#6B5A33"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleBtn" Focusable="False"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="Border" CornerRadius="3"
+                                                BorderThickness="1" BorderBrush="#6B5A33"
+                                                Background="{TemplateBinding Background}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="16"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="1" Text="▾" FontSize="10"
+                                                           Foreground="{StaticResource GoldBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                                <ToggleButton.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#1E1A28" Offset="0"/>
+                                        <GradientStop Color="#141020" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </ToggleButton.Background>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="ContentSite" IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              Margin="6,3,20,3" VerticalAlignment="Center"
+                                              HorizontalAlignment="Left"/>
+                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Border x:Name="DropDown" CornerRadius="3" Margin="0,2,0,0"
+                                        MinWidth="{TemplateBinding ActualWidth}" MaxHeight="200"
+                                        BorderThickness="1" BorderBrush="#6B5A33">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                            <GradientStop Color="#1E1A28" Offset="0"/>
+                                            <GradientStop Color="#0E0A14" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Border.Background>
+                                    <ScrollViewer>
+                                        <StackPanel IsItemsHost="True"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Padding="{TemplateBinding Padding}" Background="Transparent">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#33C9A44A"/>
+                                <Setter Property="Foreground" Value="{StaticResource BrightGoldBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="SelectionCheck" TargetType="CheckBox">
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -504,20 +602,20 @@
 
                         <!-- Preview panel -->
                         <Border Grid.Column="2" Background="{StaticResource PanelBg}" CornerRadius="6"
-                                Padding="12" BorderThickness="1.5" BorderBrush="#6B5A33">
-                            <DockPanel>
-                                <!-- Per-monitor layout options (one panel per screen) -->
-                                <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding MonitorConfigs}" Margin="0,0,0,6">
+                                Padding="8" BorderThickness="1.5" BorderBrush="#6B5A33">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
+                                            HorizontalContentAlignment="Center">
+                                <ItemsControl ItemsSource="{Binding MonitorConfigs}" HorizontalAlignment="Center">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
-                                            <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
                                         </ItemsPanelTemplate>
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border CornerRadius="4" Margin="3" Padding="10,6"
+                                            <Border CornerRadius="4" Margin="4" Padding="10,6"
                                                     BorderThickness="1.5" BorderBrush="#6B5A33"
-                                                    Width="290" Height="160" VerticalAlignment="Top">
+                                                    Width="290" VerticalAlignment="Stretch">
                                                 <Border.Background>
                                                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                                                         <GradientStop Color="#1E1A28" Offset="0"/>
@@ -683,93 +781,55 @@
                                                                       VerticalAlignment="Center"/>
                                                         </WrapPanel>
                                                     </Grid>
+                                                    <Border Background="#CC050508" CornerRadius="4" ClipToBounds="True"
+                                                            Height="140" Margin="0,6,0,0"
+                                                            BorderThickness="1" BorderBrush="#443D2A">
+                                                        <ItemsControl ItemsSource="{Binding PreviewRects}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <Canvas Width="240" Height="140"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemContainerStyle>
+                                                                <Style TargetType="ContentPresenter">
+                                                                    <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                                                    <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                                                </Style>
+                                                            </ItemsControl.ItemContainerStyle>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Width="{Binding Width}" Height="{Binding Height}"
+                                                                            CornerRadius="2" Margin="1">
+                                                                        <Border.Style>
+                                                                            <Style TargetType="Border">
+                                                                                <Setter Property="Background" Value="#220070DD"/>
+                                                                                <Setter Property="BorderBrush" Value="#0070DD"/>
+                                                                                <Setter Property="BorderThickness" Value="1.5"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsMain}" Value="True">
+                                                                                        <Setter Property="Background" Value="#22FF8C00"/>
+                                                                                        <Setter Property="BorderBrush" Value="#FF8C00"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Border.Style>
+                                                                        <TextBlock Text="{Binding Title}" FontSize="9"
+                                                                                   TextTrimming="CharacterEllipsis"
+                                                                                   Foreground="{StaticResource TextBrush}"
+                                                                                   HorizontalAlignment="Center"
+                                                                                   VerticalAlignment="Center"/>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </Border>
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
 
-                                <Border DockPanel.Dock="Top" Background="#CC050508" CornerRadius="4" ClipToBounds="True"
-                                        Width="480" Height="200" HorizontalAlignment="Center"
-                                        BorderThickness="1" BorderBrush="#443D2A">
-                                    <ItemsControl ItemsSource="{Binding PreviewRects}">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <Canvas Width="480" Height="200"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemContainerStyle>
-                                            <Style TargetType="ContentPresenter">
-                                                <Setter Property="Canvas.Left" Value="{Binding X}"/>
-                                                <Setter Property="Canvas.Top" Value="{Binding Y}"/>
-                                            </Style>
-                                        </ItemsControl.ItemContainerStyle>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Width="{Binding Width}" Height="{Binding Height}"
-                                                        CornerRadius="2" Margin="1"
-                                                        MouseLeftButtonDown="PreviewRect_Click">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Setter Property="Background" Value="#220070DD"/>
-                                                            <Setter Property="BorderBrush" Value="#0070DD"/>
-                                                            <Setter Property="BorderThickness" Value="1.5"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsMain}" Value="True">
-                                                                    <Setter Property="Background" Value="#22FF8C00"/>
-                                                                    <Setter Property="BorderBrush" Value="#FF8C00"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding IsMonitorOutline}" Value="True">
-                                                                    <Setter Property="Background" Value="#0C1A1525"/>
-                                                                    <Setter Property="BorderBrush" Value="#886B5A33"/>
-                                                                    <Setter Property="BorderThickness" Value="2"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding IsSelectedMonitor}" Value="True">
-                                                                    <Setter Property="Background" Value="#1AC9A44A"/>
-                                                                    <Setter Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
-                                                                    <Setter Property="BorderThickness" Value="2.5"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-                                                    <Grid Margin="4">
-                                                        <TextBlock Text="{Binding Title}" FontSize="10"
-                                                                   TextTrimming="CharacterEllipsis"
-                                                                   Cursor="Hand"
-                                                                   MouseLeftButtonDown="PreviewName_Click"
-                                                                   x:Name="PreviewLabel">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-                                                                    <Setter Property="HorizontalAlignment" Value="Center"/>
-                                                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsMonitorOutline}" Value="True">
-                                                                            <Setter Property="Foreground" Value="{StaticResource SubtextBrush}"/>
-                                                                            <Setter Property="FontSize" Value="9"/>
-                                                                            <Setter Property="HorizontalAlignment" Value="Left"/>
-                                                                            <Setter Property="VerticalAlignment" Value="Top"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                        <TextBox FontSize="10" Padding="0" MinWidth="40"
-                                                                 Visibility="Collapsed"
-                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                 Text="{Binding Window.CustomName, UpdateSourceTrigger=PropertyChanged}"
-                                                                 Background="#1A1208" Foreground="{StaticResource GoldBrush}"
-                                                                 BorderBrush="#6B5A33" BorderThickness="1"
-                                                                 LostFocus="PreviewRenameBox_LostFocus"
-                                                                 KeyDown="PreviewRenameBox_KeyDown"/>
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </Border>
-
-                            </DockPanel>
+                            </ScrollViewer>
                         </Border>
                     </Grid>
 

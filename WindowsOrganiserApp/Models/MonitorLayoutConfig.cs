@@ -1,10 +1,14 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using WindowsOrganiserApp.ViewModels;
 
 namespace WindowsOrganiserApp.Models;
 
 public partial class MonitorLayoutConfig : ObservableObject
 {
     public MonitorInfo Monitor { get; init; } = null!;
+
+    public ObservableCollection<PreviewRect> PreviewRects { get; } = [];
 
     [ObservableProperty]
     private LayoutMode _mode = LayoutMode.Main;

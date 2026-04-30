@@ -97,6 +97,10 @@ public partial class MainViewModel : ObservableObject
         var savedMonitors = AvailableWindows
             .Where(w => w.AssignedMonitor is not null)
             .ToDictionary(w => w.ProcessId, w => w.AssignedMonitor);
+        var savedMains = AvailableWindows
+            .Where(w => w.IsMainWindow)
+            .Select(w => w.ProcessId)
+            .ToHashSet();
 
         AvailableWindows.Clear();
 
@@ -112,6 +116,8 @@ public partial class MainViewModel : ObservableObject
                 w.AssignedMonitor = mon;
             else
                 w.AssignedMonitor = defaultMonitor;
+            if (savedMains.Contains(w.ProcessId))
+                w.IsMainWindow = true;
 
             w.PropertyChanged += (_, e) =>
             {
@@ -236,51 +242,31 @@ public partial class MainViewModel : ObservableObject
     public void UpdatePreview()
     {
         PreviewRects.Clear();
-
-        const double previewW = 480;
-        const double previewH = 200;
+        foreach (var cfg in MonitorConfigs)
+            cfg.PreviewRects.Clear();
 
         if (Monitors.Count == 0) return;
 
-        var minX = Monitors.Min(m => m.Bounds.X);
-        var minY = Monitors.Min(m => m.Bounds.Y);
-        var maxX = Monitors.Max(m => m.Bounds.X + m.Bounds.Width);
-        var maxY = Monitors.Max(m => m.Bounds.Y + m.Bounds.Height);
-        var totalW = maxX - minX;
-        var totalH = maxY - minY;
-
-        var scale = Math.Min(previewW / totalW, previewH / totalH);
-        var offsetX = (previewW - totalW * scale) / 2;
-        var offsetY = (previewH - totalH * scale) / 2;
-
-        foreach (var monitor in Monitors)
-        {
-            var config = GetConfigForMonitor(monitor);
-            var isSelected = SelectedMonitorConfig?.Monitor.Handle == monitor.Handle;
-            PreviewRects.Add(new PreviewRect
-            {
-                X = (monitor.Bounds.X - minX) * scale + offsetX,
-                Y = (monitor.Bounds.Y - minY) * scale + offsetY,
-                Width = monitor.Bounds.Width * scale,
-                Height = monitor.Bounds.Height * scale,
-                Title = monitor.DisplayLabel,
-                IsMonitorOutline = true,
-                IsSelectedMonitor = isSelected,
-                MonitorConfig = config
-            });
-        }
+        const double previewW = 240;
+        const double previewH = 140;
 
         var selected = AvailableWindows.Where(w => w.IsSelected).ToList();
-        if (selected.Count == 0) return;
-
         var groups = selected.GroupBy(w => w.AssignedMonitor?.Handle ?? IntPtr.Zero);
 
-        foreach (var group in groups)
+        foreach (var config in MonitorConfigs)
         {
-            var monitor = Monitors.FirstOrDefault(m => m.Handle == group.Key) ?? Monitors[0];
-            var config = GetConfigForMonitor(monitor);
+            var monitor = config.Monitor;
             var workArea = monitor.WorkArea;
-            var windowsInGroup = group.ToList();
+
+            var scale = Math.Min(previewW / workArea.Width, previewH / workArea.Height);
+            var offsetX = (previewW - workArea.Width * scale) / 2;
+            var offsetY = (previewH - workArea.Height * scale) / 2;
+
+            var windowsInGroup = groups
+                .FirstOrDefault(g => g.Key == monitor.Handle)?
+                .ToList() ?? [];
+
+            if (windowsInGroup.Count == 0) continue;
 
             var layout = config.Mode == LayoutMode.Main
                 ? _layoutService.CalculateMainLayout(windowsInGroup, workArea, config.Size, config.Position, config.HasLateral, config.HasBandeau)
@@ -291,10 +277,10 @@ public partial class MainViewModel : ObservableObject
             {
                 var win = windowsInGroup.First(w => w.Handle == handle);
                 slotIndex++;
-                PreviewRects.Add(new PreviewRect
+                var previewRect = new PreviewRect
                 {
-                    X = (rect.X - minX) * scale + offsetX,
-                    Y = (rect.Y - minY) * scale + offsetY,
+                    X = (rect.X - workArea.X) * scale + offsetX,
+                    Y = (rect.Y - workArea.Y) * scale + offsetY,
                     Width = rect.Width * scale,
                     Height = rect.Height * scale,
                     Title = win.IsMainWindow
@@ -302,7 +288,9 @@ public partial class MainViewModel : ObservableObject
                         : $"#{slotIndex - 1} {TruncateTitle(win.DisplayName, 14)}",
                     IsMain = win.IsMainWindow,
                     Window = win
-                });
+                };
+                config.PreviewRects.Add(previewRect);
+                PreviewRects.Add(previewRect);
             }
         }
     }
