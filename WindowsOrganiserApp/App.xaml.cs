@@ -32,10 +32,16 @@ public partial class App : Application
         services.AddSingleton<ILayoutService, LayoutService>();
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<IThemeService, ThemeService>();
+        services.AddSingleton<IPresetService, PresetService>();
         services.AddSingleton<MainViewModel>();
+        services.AddSingleton<AdvancedViewModel>();
         services.AddTransient<MainWindow>();
 
         _serviceProvider = services.BuildServiceProvider();
+
+        var mainVm = _serviceProvider.GetRequiredService<MainViewModel>();
+        var advVm = _serviceProvider.GetRequiredService<AdvancedViewModel>();
+        mainVm.AdvancedVm = advVm;
 
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
         mainWindow.Show();

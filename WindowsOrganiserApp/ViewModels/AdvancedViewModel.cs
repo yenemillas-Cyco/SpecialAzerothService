@@ -1,0 +1,649 @@
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using WindowsOrganiserApp.Models;
+using WindowsOrganiserApp.Services;
+
+namespace WindowsOrganiserApp.ViewModels;
+
+public partial class AdvancedViewModel : ObservableObject
+{
+    private readonly IPresetService _presetService;
+    private readonly IWindowService _windowService;
+    private readonly ILayoutService _layoutService;
+    private readonly MainViewModel _mainVm;
+
+    public AdvancedViewModel(IPresetService presetService, IWindowService windowService,
+                             ILayoutService layoutService, MainViewModel mainVm)
+    {
+        _presetService = presetService;
+        _windowService = windowService;
+        _layoutService = layoutService;
+        _mainVm = mainVm;
+
+        RefreshPresets();
+    }
+
+    public ObservableCollection<AdvancedSlot> Slots { get; } = [];
+    public ObservableCollection<MonitorOutline> MonitorOutlines { get; } = [];
+    public ObservableCollection<LayoutPreset> Presets { get; } = [];
+
+    [ObservableProperty]
+    private AdvancedSlot? _selectedSlot;
+
+    partial void OnSelectedSlotChanged(AdvancedSlot? value)
+    {
+        OnPropertyChanged(nameof(SelectedSlotMonitor));
+    }
+
+    /// <summary>Monitor of the currently selected slot — changeable via ComboBox.</summary>
+    public MonitorInfo? SelectedSlotMonitor
+    {
+        get => SelectedSlot is null ? null
+            : _mainVm.Monitors.FirstOrDefault(m => m.DeviceName == SelectedSlot.MonitorDeviceName);
+        set
+        {
+            if (SelectedSlot is null || value is null) return;
+            if (value.DeviceName == SelectedSlot.MonitorDeviceName) return;
+            MoveSlotToMonitor(SelectedSlot, value);
+            OnPropertyChanged(nameof(SelectedSlotMonitor));
+        }
+    }
+
+    private void MoveSlotToMonitor(AdvancedSlot slot, MonitorInfo newMon)
+    {
+        var monitors = _mainVm.Monitors.ToList();
+        var minX = monitors.Min(m => m.WorkArea.X);
+        var minY = monitors.Min(m => m.WorkArea.Y);
+        var maxX = monitors.Max(m => m.WorkArea.X + m.WorkArea.Width);
+        var maxY = monitors.Max(m => m.WorkArea.Y + m.WorkArea.Height);
+        var totalW = maxX - minX;
+        var totalH = maxY - minY;
+        var canvasOffX = (CanvasWidth - totalW * _globalScale) / 2;
+        var canvasOffY = (CanvasHeight - totalH * _globalScale) / 2;
+
+        var wa = newMon.WorkArea;
+        var monCx = (wa.X - minX) * _globalScale + canvasOffX;
+        var monCy = (wa.Y - minY) * _globalScale + canvasOffY;
+        var monCw = wa.Width * _globalScale;
+        var monCh = wa.Height * _globalScale;
+
+        slot.MonitorDeviceName = newMon.DeviceName;
+        slot.MonitorWorkArea = wa;
+        slot.SetCanvasDirect(monCx, monCy,
+            Math.Min(slot.CanvasWidth, monCw),
+            Math.Min(slot.CanvasHeight, monCh),
+            _globalScale, monCx, monCy, monCw, monCh);
+        OnPropertyChanged(nameof(Slots));
+    }
+
+    [ObservableProperty]
+    private LayoutPreset? _selectedPreset;
+
+    [ObservableProperty]
+    private string _newPresetName = string.Empty;
+
+    [ObservableProperty]
+    private string _statusMessage = string.Empty;
+
+    public double CanvasWidth { get; set; } = 600;
+    public double CanvasHeight { get; set; } = 340;
+
+    private double _globalScale;
+    private int _globalOffsetX;
+    private int _globalOffsetY;
+
+    public void RefreshFromMain()
+    {
+        Slots.Clear();
+        MonitorOutlines.Clear();
+
+        var windows = _mainVm.AvailableWindows.Where(w => w.IsSelected).ToList();
+        var monitors = _mainVm.Monitors.ToList();
+        if (monitors.Count == 0) return;
+
+        // Bounding box of all monitors (virtual desktop)
+        var minX = monitors.Min(m => m.WorkArea.X);
+        var minY = monitors.Min(m => m.WorkArea.Y);
+        var maxX = monitors.Max(m => m.WorkArea.X + m.WorkArea.Width);
+        var maxY = monitors.Max(m => m.WorkArea.Y + m.WorkArea.Height);
+        var totalW = maxX - minX;
+        var totalH = maxY - minY;
+
+        _globalOffsetX = minX;
+        _globalOffsetY = minY;
+        _globalScale = Math.Min(CanvasWidth / totalW, CanvasHeight / totalH) * 0.95;
+
+        var canvasOffX = (CanvasWidth - totalW * _globalScale) / 2;
+        var canvasOffY = (CanvasHeight - totalH * _globalScale) / 2;
+
+        // Monitor outlines — build a lookup so we can pass the canvas origin + size to slots
+        var monitorCanvasMap = new Dictionary<IntPtr, (double cx, double cy, double cw, double ch)>();
+        foreach (var mon in monitors)
+        {
+            var wa = mon.WorkArea;
+            var cx = (wa.X - minX) * _globalScale + canvasOffX;
+            var cy = (wa.Y - minY) * _globalScale + canvasOffY;
+            var cw = wa.Width * _globalScale;
+            var ch = wa.Height * _globalScale;
+            monitorCanvasMap[mon.Handle] = (cx, cy, cw, ch);
+            MonitorOutlines.Add(new MonitorOutline
+            {
+                CanvasX = cx,
+                CanvasY = cy,
+                CanvasWidth = wa.Width * _globalScale,
+                CanvasHeight = wa.Height * _globalScale,
+                Label = mon.DisplayLabel
+            });
+        }
+
+        if (windows.Count == 0)
+        {
+            SelectedSlot = null;
+            OnPropertyChanged(nameof(Slots));
+            return;
+        }
+
+        // Read actual window positions from the OS
+        foreach (var win in windows)
+        {
+            var actualRect = _windowService.GetWindowRect(win.Handle);
+
+            // Find which monitor this window is actually on
+            var bestMon = monitors[0];
+            var bestOverlap = 0L;
+            foreach (var mon in monitors)
+            {
+                var wa = mon.WorkArea;
+                var ox = Math.Max(0, Math.Min(actualRect.X + actualRect.Width, wa.X + wa.Width) - Math.Max(actualRect.X, wa.X));
+                var oy = Math.Max(0, Math.Min(actualRect.Y + actualRect.Height, wa.Y + wa.Height) - Math.Max(actualRect.Y, wa.Y));
+                var overlap = (long)ox * oy;
+                if (overlap > bestOverlap) { bestOverlap = overlap; bestMon = mon; }
+            }
+
+            var workArea = bestMon.WorkArea;
+            var monEntry = monitorCanvasMap[bestMon.Handle];
+
+            var realX = actualRect.X - workArea.X;
+            var realY = actualRect.Y - workArea.Y;
+            var realW = Math.Max(100, actualRect.Width);
+            var realH = Math.Max(50, actualRect.Height);
+
+            var slot = new AdvancedSlot
+            {
+                Window = win,
+                MonitorDeviceName = bestMon.DeviceName,
+                MonitorWorkArea = workArea,
+                RealX = realX,
+                RealY = realY,
+                RealWidth = realW,
+                RealHeight = realH
+            };
+
+            slot.SetCanvasDirect(
+                monEntry.cx + realX * _globalScale,
+                monEntry.cy + realY * _globalScale,
+                realW * _globalScale,
+                realH * _globalScale,
+                _globalScale,
+                monEntry.cx, monEntry.cy, monEntry.cw, monEntry.ch);
+
+            slot.PropertyChanged += (_, _) => OnPropertyChanged(nameof(Slots));
+            Slots.Add(slot);
+        }
+
+        // Auto-assign leader: largest window by real area
+        foreach (var s in Slots) s.Window.IsMainWindow = false;
+        var largest = Slots
+            .OrderByDescending(s => (long)s.RealWidth * s.RealHeight)
+            .ThenBy(s => s.Window.LaunchOrder)
+            .FirstOrDefault();
+        if (largest is not null)
+            largest.Window.IsMainWindow = true;
+
+        SelectedSlot = Slots.FirstOrDefault();
+        OnPropertyChanged(nameof(Slots));
+    }
+
+    [RelayCommand]
+    private void ToggleMainWindow()
+    {
+        if (SelectedSlot is null) return;
+        var win = SelectedSlot.Window;
+        if (win.IsMainWindow)
+        {
+            win.IsMainWindow = false;
+        }
+        else
+        {
+            // Exclusive: un seul leader par moniteur
+            foreach (var slot in Slots)
+            {
+                if (slot.MonitorDeviceName == SelectedSlot.MonitorDeviceName)
+                    slot.Window.IsMainWindow = false;
+            }
+            win.IsMainWindow = true;
+        }
+        OnPropertyChanged(nameof(Slots));
+        OnPropertyChanged(nameof(SelectedSlot));
+    }
+
+    // --- Auto-layout commands ---
+
+    [RelayCommand]
+    private void AutoLayoutMain()
+    {
+        ApplyAutoLayout((windows, wa) =>
+            _layoutService.CalculateMainLayout(windows, wa, MainSize.Grand, MainPosition.TopLeft, true, false));
+    }
+
+    [RelayCommand]
+    private void AutoLayoutSplitH()
+    {
+        ApplyAutoLayout((windows, wa) =>
+            _layoutService.CalculateSplitLayout(windows, wa, SplitOrientation.Vertical));
+    }
+
+    [RelayCommand]
+    private void AutoLayoutSplitV()
+    {
+        ApplyAutoLayout((windows, wa) =>
+            _layoutService.CalculateSplitLayout(windows, wa, SplitOrientation.Horizontal));
+    }
+
+    private double _copiedCanvasW;
+    private double _copiedCanvasH;
+
+    [ObservableProperty]
+    private bool _hasCopiedSize;
+
+    [ObservableProperty]
+    private bool _isSwapMode;
+
+    [RelayCommand]
+    private void StartSwap()
+    {
+        if (SelectedSlot is null || Slots.Count < 2) return;
+        IsSwapMode = true;
+        StatusMessage = $"Cliquez sur la fenêtre à inverser avec {SelectedSlot.Window.DisplayName}";
+    }
+
+    public void CompleteSwap(AdvancedSlot target)
+    {
+        if (SelectedSlot is null || target == SelectedSlot)
+        {
+            IsSwapMode = false;
+            return;
+        }
+
+        var srcX = SelectedSlot.CanvasX;
+        var srcY = SelectedSlot.CanvasY;
+        var srcW = SelectedSlot.CanvasWidth;
+        var srcH = SelectedSlot.CanvasHeight;
+
+        var dstX = target.CanvasX;
+        var dstY = target.CanvasY;
+        var dstW = target.CanvasWidth;
+        var dstH = target.CanvasHeight;
+
+        SelectedSlot.SetCanvasRect(dstX, dstY, dstX + dstW, dstY + dstH);
+        target.SetCanvasRect(srcX, srcY, srcX + srcW, srcY + srcH);
+
+        IsSwapMode = false;
+        OnPropertyChanged(nameof(Slots));
+        StatusMessage = $"Positions inversées : {SelectedSlot.Window.DisplayName} ↔ {target.Window.DisplayName}";
+    }
+
+    [RelayCommand]
+    private void CopySize()
+    {
+        if (SelectedSlot is null) return;
+        _copiedCanvasW = SelectedSlot.CanvasWidth;
+        _copiedCanvasH = SelectedSlot.CanvasHeight;
+        HasCopiedSize = true;
+        StatusMessage = $"Taille copiée ({SelectedSlot.RealWidth}×{SelectedSlot.RealHeight})";
+    }
+
+    [RelayCommand]
+    private void PasteSize()
+    {
+        if (SelectedSlot is null || !HasCopiedSize) return;
+        SelectedSlot.SetCanvasRect(
+            SelectedSlot.CanvasX, SelectedSlot.CanvasY,
+            SelectedSlot.CanvasX + _copiedCanvasW,
+            SelectedSlot.CanvasY + _copiedCanvasH);
+        OnPropertyChanged(nameof(Slots));
+        StatusMessage = $"Taille collée sur {SelectedSlot.Window.DisplayName}";
+    }
+
+    [RelayCommand]
+    private void ApplySizeToAll()
+    {
+        if (SelectedSlot is null || Slots.Count < 2) return;
+        var srcW = SelectedSlot.CanvasWidth;
+        var srcH = SelectedSlot.CanvasHeight;
+        foreach (var slot in Slots)
+        {
+            if (slot == SelectedSlot) continue;
+            slot.SetCanvasRect(slot.CanvasX, slot.CanvasY,
+                slot.CanvasX + srcW, slot.CanvasY + srcH);
+        }
+        OnPropertyChanged(nameof(Slots));
+        StatusMessage = $"Taille appliquée à {Slots.Count - 1} fenêtre(s)";
+    }
+
+    private void ApplyAutoLayout(Func<List<WindowInfo>, WindowRect, Dictionary<IntPtr, WindowRect>> layoutFunc)
+    {
+        var windows = _mainVm.AvailableWindows.Where(w => w.IsSelected).ToList();
+        var monitors = _mainVm.Monitors.ToList();
+        if (monitors.Count == 0 || windows.Count == 0) return;
+
+        // Use the first monitor (primary) for auto-layout
+        var monitor = monitors.FirstOrDefault(m => m.IsPrimary) ?? monitors[0];
+        var wa = monitor.WorkArea;
+        var layout = layoutFunc(windows, wa);
+
+        // Rebuild monitor canvas map
+        var minX = monitors.Min(m => m.WorkArea.X);
+        var minY = monitors.Min(m => m.WorkArea.Y);
+        var canvasOffX = (CanvasWidth - (monitors.Max(m => m.WorkArea.X + m.WorkArea.Width) - minX) * _globalScale) / 2;
+        var canvasOffY = (CanvasHeight - (monitors.Max(m => m.WorkArea.Y + m.WorkArea.Height) - minY) * _globalScale) / 2;
+        var monCx = (wa.X - minX) * _globalScale + canvasOffX;
+        var monCy = (wa.Y - minY) * _globalScale + canvasOffY;
+        var monCw = wa.Width * _globalScale;
+        var monCh = wa.Height * _globalScale;
+
+        Slots.Clear();
+        foreach (var kvp in layout)
+        {
+            var win = windows.FirstOrDefault(w => w.Handle == kvp.Key);
+            if (win is null) continue;
+
+            var rect = kvp.Value;
+            var realX = rect.X - wa.X;
+            var realY = rect.Y - wa.Y;
+            var slot = new AdvancedSlot
+            {
+                Window = win,
+                MonitorDeviceName = monitor.DeviceName,
+                MonitorWorkArea = wa,
+                RealX = realX, RealY = realY,
+                RealWidth = rect.Width, RealHeight = rect.Height
+            };
+            slot.SetCanvasDirect(
+                monCx + realX * _globalScale,
+                monCy + realY * _globalScale,
+                rect.Width * _globalScale,
+                rect.Height * _globalScale,
+                _globalScale, monCx, monCy, monCw, monCh);
+            slot.PropertyChanged += (_, _) => OnPropertyChanged(nameof(Slots));
+            Slots.Add(slot);
+        }
+
+        SelectedSlot = Slots.FirstOrDefault();
+        OnPropertyChanged(nameof(Slots));
+        StatusMessage = "Layout auto appliqué";
+    }
+
+    [RelayCommand]
+    private void ApplyAdvanced()
+    {
+        foreach (var slot in Slots)
+        {
+            var monitor = _mainVm.Monitors.FirstOrDefault(m => m.DeviceName == slot.MonitorDeviceName);
+            if (monitor is null) continue;
+
+            var workArea = monitor.WorkArea;
+            var rect = new WindowRect(
+                workArea.X + slot.RealX,
+                workArea.Y + slot.RealY,
+                slot.RealWidth,
+                slot.RealHeight);
+            _windowService.MoveAndResize(slot.Window.Handle, rect);
+        }
+
+        StatusMessage = $"Layout avancé appliqué à {Slots.Count} fenêtre(s)";
+    }
+
+    [RelayCommand]
+    private void SavePreset()
+    {
+        if (string.IsNullOrWhiteSpace(NewPresetName)) return;
+
+        var preset = new LayoutPreset
+        {
+            Name = NewPresetName.Trim(),
+            CreatedAt = DateTime.Now,
+            Positions = Slots.Select((s, i) => new AdvancedWindowPosition
+            {
+                SlotIndex = i,
+                MonitorDeviceName = s.MonitorDeviceName,
+                X = s.RealX,
+                Y = s.RealY,
+                Width = s.RealWidth,
+                Height = s.RealHeight,
+                IsMain = s.Window.IsMainWindow
+            }).ToList()
+        };
+
+        _presetService.Save(preset);
+        RefreshPresets();
+        SelectedPreset = Presets.FirstOrDefault(p => p.Name == preset.Name);
+        StatusMessage = $"Preset \"{preset.Name}\" sauvegardé";
+        NewPresetName = string.Empty;
+    }
+
+    [RelayCommand]
+    private void LoadPreset()
+    {
+        if (SelectedPreset is null) return;
+
+        var windows = _mainVm.AvailableWindows.Where(w => w.IsSelected).ToList();
+        var positions = SelectedPreset.Positions;
+
+        // Rebuild monitor canvas map for coordinate conversion
+        var monitors = _mainVm.Monitors.ToList();
+        if (monitors.Count == 0) return;
+
+        var mMinX = monitors.Min(m => m.WorkArea.X);
+        var mMinY = monitors.Min(m => m.WorkArea.Y);
+        var mMaxX = monitors.Max(m => m.WorkArea.X + m.WorkArea.Width);
+        var mMaxY = monitors.Max(m => m.WorkArea.Y + m.WorkArea.Height);
+        var cOffX = (CanvasWidth - (mMaxX - mMinX) * _globalScale) / 2;
+        var cOffY = (CanvasHeight - (mMaxY - mMinY) * _globalScale) / 2;
+
+        Slots.Clear();
+        for (var i = 0; i < Math.Min(positions.Count, windows.Count); i++)
+        {
+            var pos = positions[i];
+            var win = windows[i];
+            var monitor = monitors.FirstOrDefault(m => m.DeviceName == pos.MonitorDeviceName)
+                          ?? monitors.FirstOrDefault();
+            if (monitor is null) continue;
+
+            var workArea = monitor.WorkArea;
+            var monCx = (workArea.X - mMinX) * _globalScale + cOffX;
+            var monCy = (workArea.Y - mMinY) * _globalScale + cOffY;
+            var monCw = workArea.Width * _globalScale;
+            var monCh = workArea.Height * _globalScale;
+
+            var slot = new AdvancedSlot
+            {
+                Window = win,
+                MonitorDeviceName = monitor.DeviceName,
+                MonitorWorkArea = workArea,
+                RealX = pos.X,
+                RealY = pos.Y,
+                RealWidth = pos.Width,
+                RealHeight = pos.Height
+            };
+
+            slot.SetCanvasDirect(
+                monCx + pos.X * _globalScale,
+                monCy + pos.Y * _globalScale,
+                pos.Width * _globalScale,
+                pos.Height * _globalScale,
+                _globalScale,
+                monCx, monCy, monCw, monCh);
+
+            slot.PropertyChanged += (_, _) => OnPropertyChanged(nameof(Slots));
+            Slots.Add(slot);
+        }
+
+        SelectedSlot = Slots.FirstOrDefault();
+        StatusMessage = $"Preset \"{SelectedPreset.Name}\" chargé";
+    }
+
+    [RelayCommand]
+    private void DeletePreset()
+    {
+        if (SelectedPreset is null) return;
+        _presetService.Delete(SelectedPreset.Name);
+        StatusMessage = $"Preset \"{SelectedPreset.Name}\" supprimé";
+        RefreshPresets();
+    }
+
+    private void RefreshPresets()
+    {
+        Presets.Clear();
+        foreach (var p in _presetService.LoadAll())
+            Presets.Add(p);
+    }
+}
+
+public partial class AdvancedSlot : ObservableObject
+{
+    public WindowInfo Window { get; init; } = null!;
+    public string MonitorDeviceName { get; set; } = string.Empty;
+    public WindowRect MonitorWorkArea { get; set; } = new(0, 0, 1920, 1080);
+
+    [ObservableProperty] private int _realX;
+    [ObservableProperty] private int _realY;
+    [ObservableProperty] private int _realWidth;
+    [ObservableProperty] private int _realHeight;
+
+    [ObservableProperty] private double _canvasX;
+    [ObservableProperty] private double _canvasY;
+    [ObservableProperty] private double _canvasWidth;
+    [ObservableProperty] private double _canvasHeight;
+
+    [ObservableProperty] private bool _isSelected;
+
+    private double _scale;
+    private double _monCanvasX;
+    private double _monCanvasY;
+    private double _monCanvasW;
+    private double _monCanvasH;
+    private bool _syncing;
+
+    public double MonBoundsLeft => _monCanvasX;
+    public double MonBoundsTop => _monCanvasY;
+    public double MonBoundsRight => _monCanvasX + _monCanvasW;
+    public double MonBoundsBottom => _monCanvasY + _monCanvasH;
+
+    /// <summary>Initial setup — no sync triggered.</summary>
+    public void SetCanvasDirect(double cx, double cy, double cw, double ch,
+                                double scale, double monCanvasX, double monCanvasY,
+                                double monCanvasW, double monCanvasH)
+    {
+        _scale = scale;
+        _monCanvasX = monCanvasX;
+        _monCanvasY = monCanvasY;
+        _monCanvasW = monCanvasW;
+        _monCanvasH = monCanvasH;
+        _syncing = true;
+        CanvasX = Math.Clamp(cx, monCanvasX, monCanvasX + monCanvasW - 5);
+        CanvasY = Math.Clamp(cy, monCanvasY, monCanvasY + monCanvasH - 5);
+        CanvasWidth = Math.Min(cw, monCanvasX + monCanvasW - CanvasX);
+        CanvasHeight = Math.Min(ch, monCanvasY + monCanvasH - CanvasY);
+        _syncing = false;
+    }
+
+    /// <summary>Called during drag — clamped within monitor bounds.</summary>
+    public void SetCanvasPos(double cx, double cy)
+    {
+        _syncing = true;
+        CanvasX = Math.Clamp(cx, _monCanvasX, _monCanvasX + _monCanvasW - CanvasWidth);
+        CanvasY = Math.Clamp(cy, _monCanvasY, _monCanvasY + _monCanvasH - CanvasHeight);
+        if (_scale > 0)
+        {
+            RealX = (int)((CanvasX - _monCanvasX) / _scale);
+            RealY = (int)((CanvasY - _monCanvasY) / _scale);
+        }
+        _syncing = false;
+    }
+
+    /// <summary>Called during resize — clamped within monitor bounds.</summary>
+    public void SetCanvasSize(double cw, double ch)
+    {
+        _syncing = true;
+        CanvasWidth = Math.Clamp(cw, 20, _monCanvasX + _monCanvasW - CanvasX);
+        CanvasHeight = Math.Clamp(ch, 15, _monCanvasY + _monCanvasH - CanvasY);
+        if (_scale > 0)
+        {
+            RealWidth = Math.Max(100, (int)(CanvasWidth / _scale));
+            RealHeight = Math.Max(50, (int)(CanvasHeight / _scale));
+        }
+        _syncing = false;
+    }
+
+    /// <summary>Atomic set of left/top/right/bottom — for corner resize (TL/TR/BL).</summary>
+    public void SetCanvasRect(double left, double top, double right, double bottom)
+    {
+        _syncing = true;
+        var ml = _monCanvasX;
+        var mt = _monCanvasY;
+        var mr = _monCanvasX + _monCanvasW;
+        var mb = _monCanvasY + _monCanvasH;
+
+        // Clamp within monitor bounds, ensuring min size of 20x15
+        left = Math.Clamp(left, ml, mr - 20);
+        top = Math.Clamp(top, mt, mb - 15);
+        right = Math.Clamp(right, left + 20, mr);
+        bottom = Math.Clamp(bottom, top + 15, mb);
+
+        CanvasX = left;
+        CanvasY = top;
+        CanvasWidth = right - left;
+        CanvasHeight = bottom - top;
+
+        if (_scale > 0)
+        {
+            RealX = (int)((CanvasX - _monCanvasX) / _scale);
+            RealY = (int)((CanvasY - _monCanvasY) / _scale);
+            RealWidth = Math.Max(100, (int)(CanvasWidth / _scale));
+            RealHeight = Math.Max(50, (int)(CanvasHeight / _scale));
+        }
+        _syncing = false;
+    }
+
+    /// <summary>Called when user edits Real values in the fine-tuning panel.</summary>
+    private void SyncCanvasFromReal()
+    {
+        if (_syncing || _scale == 0) return;
+        _syncing = true;
+        var cx = Math.Max(_monCanvasX, RealX * _scale + _monCanvasX);
+        var cy = Math.Max(_monCanvasY, RealY * _scale + _monCanvasY);
+        var maxW = _monCanvasX + _monCanvasW - cx;
+        var maxH = _monCanvasY + _monCanvasH - cy;
+        CanvasX = cx;
+        CanvasY = cy;
+        CanvasWidth = Math.Clamp(RealWidth * _scale, 20, maxW);
+        CanvasHeight = Math.Clamp(RealHeight * _scale, 15, maxH);
+        _syncing = false;
+    }
+
+    partial void OnRealXChanged(int value) => SyncCanvasFromReal();
+    partial void OnRealYChanged(int value) => SyncCanvasFromReal();
+    partial void OnRealWidthChanged(int value) => SyncCanvasFromReal();
+    partial void OnRealHeightChanged(int value) => SyncCanvasFromReal();
+}
+
+public class MonitorOutline
+{
+    public double CanvasX { get; init; }
+    public double CanvasY { get; init; }
+    public double CanvasWidth { get; init; }
+    public double CanvasHeight { get; init; }
+    public string Label { get; init; } = string.Empty;
+}

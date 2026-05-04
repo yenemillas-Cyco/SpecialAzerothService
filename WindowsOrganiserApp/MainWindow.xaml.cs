@@ -32,6 +32,23 @@ public partial class MainWindow : Window
             viewModel.RefreshWindowsCommand.Execute(null);
         };
 
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.IsAdvancedMode) && viewModel.IsAdvancedMode)
+                Dispatcher.InvokeAsync(RedrawAdvancedCanvas, System.Windows.Threading.DispatcherPriority.Render);
+        };
+
+        if (viewModel.AdvancedVm is not null)
+        {
+            viewModel.AdvancedVm.Slots.CollectionChanged += (_, _) =>
+                Dispatcher.InvokeAsync(RedrawAdvancedCanvas, System.Windows.Threading.DispatcherPriority.Render);
+            viewModel.AdvancedVm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(AdvancedViewModel.Slots))
+                    Dispatcher.InvokeAsync(RedrawAdvancedCanvas, System.Windows.Threading.DispatcherPriority.Render);
+            };
+        }
+
         Closing += (_, _) => SaveAllSettings();
     }
 
@@ -488,6 +505,366 @@ public partial class MainWindow : Window
             current = VisualTreeHelper.GetParent(current);
         }
         return null;
+    }
+}
+
+// --- Advanced Canvas interaction (drag & resize) ---
+
+public partial class MainWindow
+{
+    private AdvancedSlot? _dragSlot;
+    private Point _dragOffset;
+    private enum DragMode { None, Move, ResizeTL, ResizeTR, ResizeBL, ResizeBR }
+    private DragMode _dragMode = DragMode.None;
+    private const double GripSize = 14;
+    private const double GripHitZone = 18;
+    private const double SnapDistance = 6;
+
+    private void AdvCanvas_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        var pos = e.GetPosition(AdvancedCanvas);
+        var vm = (MainViewModel)DataContext;
+        var advVm = vm.AdvancedVm;
+        if (advVm is null) return;
+
+        // Swap mode: clicking a window completes the swap
+        if (advVm.IsSwapMode)
+        {
+            foreach (var slot in advVm.Slots.Reverse())
+            {
+                var l = slot.CanvasX; var t = slot.CanvasY;
+                var r = l + slot.CanvasWidth; var b = t + slot.CanvasHeight;
+                if (pos.X >= l && pos.X <= r && pos.Y >= t && pos.Y <= b)
+                {
+                    advVm.CompleteSwap(slot);
+                    RedrawAdvancedCanvas();
+                    e.Handled = true;
+                    return;
+                }
+            }
+            advVm.IsSwapMode = false;
+            e.Handled = true;
+            return;
+        }
+
+        // Pass 1: check grips of all slots (top to bottom) — grips win everywhere
+        foreach (var slot in advVm.Slots.Reverse())
+        {
+            var l = slot.CanvasX; var t = slot.CanvasY;
+            var r = l + slot.CanvasWidth; var b = t + slot.CanvasHeight;
+
+            if (TryGripHit(pos, slot, advVm, l, t, r, b))
+            { e.Handled = true; return; }
+        }
+
+        // Pass 2: check body of topmost slot for move
+        foreach (var slot in advVm.Slots.Reverse())
+        {
+            var l = slot.CanvasX; var t = slot.CanvasY;
+            var r = l + slot.CanvasWidth; var b = t + slot.CanvasHeight;
+
+            if (pos.X >= l && pos.X <= r && pos.Y >= t && pos.Y <= b)
+            {
+                _dragOffset = new Point(pos.X - l, pos.Y - t);
+                StartDrag(slot, advVm, DragMode.Move, pos);
+                e.Handled = true;
+                return;
+            }
+        }
+    }
+
+    private bool TryGripHit(Point pos, AdvancedSlot slot, AdvancedViewModel advVm,
+        double l, double t, double r, double b)
+    {
+        if (HitCorner(pos, l, t, 1, 1)) { StartDrag(slot, advVm, DragMode.ResizeTL, pos); return true; }
+        if (HitCorner(pos, r, t, -1, 1)) { StartDrag(slot, advVm, DragMode.ResizeTR, pos); return true; }
+        if (HitCorner(pos, l, b, 1, -1)) { StartDrag(slot, advVm, DragMode.ResizeBL, pos); return true; }
+        if (HitCorner(pos, r, b, -1, -1)) { StartDrag(slot, advVm, DragMode.ResizeBR, pos); return true; }
+        return false;
+    }
+
+    private bool HitCorner(Point pos, double cornerX, double cornerY, double dirX, double dirY)
+    {
+        var dx = (pos.X - cornerX) * dirX;
+        var dy = (pos.Y - cornerY) * dirY;
+        return dx >= -4 && dx <= GripHitZone && dy >= -4 && dy <= GripHitZone;
+    }
+
+    private void StartDrag(AdvancedSlot slot, AdvancedViewModel advVm, DragMode mode, Point pos)
+    {
+        _dragSlot = slot;
+        _dragMode = mode;
+        advVm.SelectedSlot = slot;
+        AdvancedCanvas.CaptureMouse();
+    }
+
+    private void AdvCanvas_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (_dragSlot is null || _dragMode == DragMode.None || e.LeftButton != MouseButtonState.Pressed) return;
+
+        var vm = (MainViewModel)DataContext;
+        var advVm = vm.AdvancedVm;
+        if (advVm is null) return;
+
+        var pos = e.GetPosition(AdvancedCanvas);
+        var s = _dragSlot;
+
+        var l = s.CanvasX;
+        var t = s.CanvasY;
+        var r = l + s.CanvasWidth;
+        var b = t + s.CanvasHeight;
+
+        switch (_dragMode)
+        {
+            case DragMode.Move:
+            {
+                var nx = pos.X - _dragOffset.X;
+                var ny = pos.Y - _dragOffset.Y;
+                (nx, ny) = SnapPos(advVm, s, nx, ny, s.CanvasWidth, s.CanvasHeight);
+                s.SetCanvasPos(nx, ny);
+                break;
+            }
+            case DragMode.ResizeBR:
+            {
+                var nr = SnapEdge(advVm, s, pos.X, false);
+                var nb = SnapEdge(advVm, s, pos.Y, true);
+                s.SetCanvasRect(l, t, nr, nb);
+                break;
+            }
+            case DragMode.ResizeTL:
+            {
+                var nl = SnapEdge(advVm, s, pos.X, false);
+                var nt = SnapEdge(advVm, s, pos.Y, true);
+                s.SetCanvasRect(nl, nt, r, b);
+                break;
+            }
+            case DragMode.ResizeTR:
+            {
+                var nr = SnapEdge(advVm, s, pos.X, false);
+                var nt = SnapEdge(advVm, s, pos.Y, true);
+                s.SetCanvasRect(l, nt, nr, b);
+                break;
+            }
+            case DragMode.ResizeBL:
+            {
+                var nl = SnapEdge(advVm, s, pos.X, false);
+                var nb = SnapEdge(advVm, s, pos.Y, true);
+                s.SetCanvasRect(nl, t, r, nb);
+                break;
+            }
+        }
+
+        RedrawAdvancedCanvas();
+    }
+
+    private (double x, double y) SnapPos(AdvancedViewModel advVm, AdvancedSlot self,
+        double x, double y, double w, double h)
+    {
+        var edges = CollectSnapEdges(advVm, self);
+        x = TrySnap(x, edges.xEdges) ?? x;
+        y = TrySnap(y, edges.yEdges) ?? y;
+        var r = x + w; var b = y + h;
+        var snapR = TrySnap(r, edges.xEdges);
+        if (snapR.HasValue) x = snapR.Value - w;
+        var snapB = TrySnap(b, edges.yEdges);
+        if (snapB.HasValue) y = snapB.Value - h;
+        return (x, y);
+    }
+
+    private (List<double> xEdges, List<double> yEdges) CollectSnapEdges(AdvancedViewModel advVm, AdvancedSlot self)
+    {
+        var xs = new List<double>();
+        var ys = new List<double>();
+
+        // Monitor edges
+        foreach (var mon in advVm.MonitorOutlines)
+        {
+            xs.Add(mon.CanvasX); xs.Add(mon.CanvasX + mon.CanvasWidth);
+            ys.Add(mon.CanvasY); ys.Add(mon.CanvasY + mon.CanvasHeight);
+        }
+
+        // Other slots edges
+        foreach (var slot in advVm.Slots)
+        {
+            if (slot == self) continue;
+            xs.Add(slot.CanvasX); xs.Add(slot.CanvasX + slot.CanvasWidth);
+            ys.Add(slot.CanvasY); ys.Add(slot.CanvasY + slot.CanvasHeight);
+        }
+
+        return (xs, ys);
+    }
+
+    private double SnapEdge(AdvancedViewModel advVm, AdvancedSlot self, double val, bool isY)
+    {
+        var edges = CollectSnapEdges(advVm, self);
+        return TrySnap(val, isY ? edges.yEdges : edges.xEdges) ?? val;
+    }
+
+    private double? TrySnap(double val, List<double> edges)
+    {
+        double? best = null;
+        var bestDist = SnapDistance;
+        foreach (var edge in edges)
+        {
+            var dist = Math.Abs(val - edge);
+            if (dist < bestDist) { bestDist = dist; best = edge; }
+        }
+        return best;
+    }
+
+    private void AdvCanvas_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        _dragSlot = null;
+        _dragMode = DragMode.None;
+        AdvancedCanvas.ReleaseMouseCapture();
+    }
+
+    internal void RedrawAdvancedCanvas()
+    {
+        AdvancedCanvas.Children.Clear();
+        var vm = (MainViewModel)DataContext;
+        var advVm = vm.AdvancedVm;
+        if (advVm is null) return;
+
+        // Draw monitor outlines
+        foreach (var mon in advVm.MonitorOutlines)
+        {
+            var monW = Math.Min(mon.CanvasWidth, AdvancedCanvas.Width - mon.CanvasX);
+            var monH = Math.Min(mon.CanvasHeight, AdvancedCanvas.Height - mon.CanvasY);
+            if (monW < 5 || monH < 5) continue;
+
+            var monBorder = new Border
+            {
+                Width = monW,
+                Height = monH,
+                BorderBrush = (Brush)Application.Current.Resources["GoldBrush"],
+                BorderThickness = new Thickness(2.5),
+                Background = new SolidColorBrush(Color.FromArgb(0x0A, 0xFF, 0xFF, 0xFF)),
+                CornerRadius = new CornerRadius(4)
+            };
+            var monLabel = new TextBlock
+            {
+                Text = $"🖥 {mon.Label}",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = (Brush)Application.Current.Resources["GoldBrush"],
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            monBorder.Child = monLabel;
+            Canvas.SetLeft(monBorder, mon.CanvasX);
+            Canvas.SetTop(monBorder, mon.CanvasY);
+            AdvancedCanvas.Children.Add(monBorder);
+        }
+
+        // Draw window slots
+        foreach (var slot in advVm.Slots)
+        {
+            var isSelected = slot == advVm.SelectedSlot;
+            var borderColor = isSelected ? Colors.Orange : Color.FromRgb(0x00, 0x70, 0xDD);
+            var bgColor = isSelected
+                ? Color.FromArgb(0x44, 0xFF, 0x8C, 0x00)
+                : Color.FromArgb(0x33, 0x00, 0x70, 0xDD);
+
+            var drawW = Math.Min(slot.CanvasWidth, AdvancedCanvas.Width - slot.CanvasX);
+            var drawH = Math.Min(slot.CanvasHeight, AdvancedCanvas.Height - slot.CanvasY);
+            if (drawW < 5 || drawH < 5) continue;
+
+            var border = new Border
+            {
+                Width = drawW,
+                Height = drawH,
+                Background = new SolidColorBrush(bgColor),
+                BorderBrush = new SolidColorBrush(borderColor),
+                BorderThickness = new Thickness(isSelected ? 2 : 1.5),
+                CornerRadius = new CornerRadius(3)
+            };
+
+            var grid = new Grid { Cursor = Cursors.SizeAll };
+
+            // Badge — number centered at top
+            var badge = new Border
+            {
+                Width = 18, Height = 18,
+                CornerRadius = new CornerRadius(9),
+                Background = (Brush)Application.Current.Resources["GoldBrush"],
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            badge.Child = new TextBlock
+            {
+                Text = slot.Window.LaunchOrder.ToString(),
+                FontSize = 10, FontWeight = FontWeights.Bold,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            grid.Children.Add(badge);
+
+            // Star badge for leader — same visual weight as number badge
+            if (slot.Window.IsMainWindow)
+            {
+                var starBadge = new Border
+                {
+                    Width = 18, Height = 18,
+                    CornerRadius = new CornerRadius(9),
+                    Background = Brushes.Gold,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(42, 2, 0, 0)
+                };
+                starBadge.Child = new TextBlock
+                {
+                    Text = "★",
+                    FontSize = 13, FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.Black,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, -1, 0, 0)
+                };
+                grid.Children.Add(starBadge);
+            }
+
+            // Title — slightly below center
+            grid.Children.Add(new TextBlock
+            {
+                Text = slot.Window.DisplayName,
+                FontSize = 10,
+                Foreground = (Brush)Application.Current.Resources["TextBrush"],
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 6, 0, 0),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+
+            // 4 corner grips
+            var gripBrush = new SolidColorBrush(borderColor) { Opacity = 0.8 };
+            foreach (var (ha, va, cursor) in new[]
+            {
+                (HorizontalAlignment.Left,  VerticalAlignment.Top,    Cursors.SizeNWSE),
+                (HorizontalAlignment.Right, VerticalAlignment.Top,    Cursors.SizeNESW),
+                (HorizontalAlignment.Left,  VerticalAlignment.Bottom, Cursors.SizeNESW),
+                (HorizontalAlignment.Right, VerticalAlignment.Bottom, Cursors.SizeNWSE),
+            })
+            {
+                grid.Children.Add(new Border
+                {
+                    Width = GripSize, Height = GripSize,
+                    Background = gripBrush,
+                    HorizontalAlignment = ha,
+                    VerticalAlignment = va,
+                    CornerRadius = new CornerRadius(3),
+                    Cursor = cursor
+                });
+            }
+
+            border.Child = grid;
+            Canvas.SetLeft(border, slot.CanvasX);
+            Canvas.SetTop(border, slot.CanvasY);
+            AdvancedCanvas.Children.Add(border);
+        }
     }
 }
 

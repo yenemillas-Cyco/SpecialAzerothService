@@ -65,6 +65,7 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -108,9 +109,16 @@
                             Background="{DynamicResource GoldSepBrush}">
                     </Border>
 
+                    <!-- Mode toggle -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
+                        <RadioButton Content="Standard" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
+                                     IsChecked="{Binding IsStandardMode}" Margin="0,0,6,0"/>
+                        <RadioButton Content="Avancé" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
+                                     IsChecked="{Binding IsAdvancedMode}"/>
+                    </StackPanel>
 
-                    <!-- Main content -->
-                    <Grid Grid.Row="2">
+                    <!-- Standard content -->
+                    <Grid Grid.Row="3" Visibility="{Binding IsStandardMode, Converter={StaticResource BoolToVis}}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="470"/>
                             <ColumnDefinition Width="14"/>
@@ -469,14 +477,178 @@
                         </Border>
                     </Grid>
 
-                    <!-- Apply button -->
-                    <StackPanel Grid.Row="3" HorizontalAlignment="Center" Margin="0,12,0,0">
+                    <!-- Apply button (Standard mode) -->
+                    <StackPanel Grid.Row="4" HorizontalAlignment="Center" Margin="0,12,0,0"
+                                Visibility="{Binding IsStandardMode, Converter={StaticResource BoolToVis}}">
                         <Button Content="Appliquer le layout" Style="{DynamicResource WowButton}"
                                 Command="{Binding ApplyLayoutCommand}" FontSize="15" Padding="40,12"/>
                     </StackPanel>
 
+                    <!-- Advanced content -->
+                    <Grid Grid.Row="3" Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVis}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="14"/>
+                            <ColumnDefinition Width="280"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Interactive Canvas -->
+                        <Border Grid.Column="0" Background="{DynamicResource PanelBg}" CornerRadius="6"
+                                Padding="8" BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}">
+                            <Grid>
+                                <TextBlock Text="Aperçu interactif — Glisser pour déplacer, coins pour redimensionner"
+                                           FontSize="10" Foreground="{DynamicResource SubtextBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                                <Border Background="{DynamicResource OverlayBrush}" CornerRadius="4"
+                                        Margin="0,18,0,0" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}"
+                                        ClipToBounds="True">
+                                    <Canvas x:Name="AdvancedCanvas" Width="600" Height="340"
+                                            Background="Transparent"
+                                            ClipToBounds="True"
+                                            MouseLeftButtonDown="AdvCanvas_MouseDown"
+                                            MouseMove="AdvCanvas_MouseMove"
+                                            MouseLeftButtonUp="AdvCanvas_MouseUp"/>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- Controls panel -->
+                        <Border Grid.Column="2" Background="{DynamicResource PanelBg}" CornerRadius="6"
+                                Padding="12" BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="Réglage fin" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,8"/>
+
+                                <!-- Slot info -->
+                                <Border DockPanel.Dock="Top" Background="{DynamicResource PanelBg2}" CornerRadius="4"
+                                        Padding="8,6" Margin="0,0,0,8" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding AdvancedVm.SelectedSlot.Window.DisplayName, FallbackValue='Aucune sélection'}"
+                                                   FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrightGoldBrush}"/>
+                                        <Grid Margin="0,4,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="🖥 Écran" FontSize="10" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,0,6,3"/>
+                                            <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding Monitors}"
+                                                      SelectedItem="{Binding AdvancedVm.SelectedSlotMonitor}"
+                                                      FontSize="10" Height="24" VerticalContentAlignment="Center" Margin="0,0,0,3"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="⭐ Rôle" FontSize="10" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,0,6,0"/>
+                                            <Button Grid.Row="1" Grid.Column="1" FontSize="10" Height="24" Padding="8,2"
+                                                    Style="{DynamicResource StoneButton}"
+                                                    Command="{Binding ToggleAdvancedLeadCommand}"
+                                                    Content="{Binding AdvancedVm.SelectedSlot.Window.IsMainWindow, 
+                                                        Converter={StaticResource MainLabelConverter}}"/>
+                                        </Grid>
+                                        <Grid Margin="0,6,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="X" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,4,2"/>
+                                            <TextBox Grid.Row="0" Grid.Column="1" FontSize="11" Padding="4,2" Margin="0,0,8,2"
+                                                     Text="{Binding AdvancedVm.SelectedSlot.RealX, UpdateSourceTrigger=PropertyChanged}"
+                                                     Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Y" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,4,2"/>
+                                            <TextBox Grid.Row="0" Grid.Column="3" FontSize="11" Padding="4,2" Margin="0,0,0,2"
+                                                     Text="{Binding AdvancedVm.SelectedSlot.RealY, UpdateSourceTrigger=PropertyChanged}"
+                                                     Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="L" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,4,0"/>
+                                            <TextBox Grid.Row="1" Grid.Column="1" FontSize="11" Padding="4,2" Margin="0,0,8,0"
+                                                     Text="{Binding AdvancedVm.SelectedSlot.RealWidth, UpdateSourceTrigger=PropertyChanged}"
+                                                     Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="2" Text="H" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,4,0"/>
+                                            <TextBox Grid.Row="1" Grid.Column="3" FontSize="11" Padding="4,2"
+                                                     Text="{Binding AdvancedVm.SelectedSlot.RealHeight, UpdateSourceTrigger=PropertyChanged}"
+                                                     Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Auto layout -->
+                                <TextBlock DockPanel.Dock="Top" Text="Positionnement auto" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource GoldBrush}" Margin="0,4,0,4"/>
+                                <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                                    <Button Content="▣ Principal" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
+                                            Command="{Binding AdvancedVm.AutoLayoutMainCommand}" ToolTip="1 fenêtre principale + comptes en latéral"/>
+                                    <Button Content="▥ Fractionné V" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
+                                            Command="{Binding AdvancedVm.AutoLayoutSplitHCommand}" ToolTip="Fenêtres côte à côte"/>
+                                    <Button Content="▤ Fractionné H" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
+                                            Command="{Binding AdvancedVm.AutoLayoutSplitVCommand}" ToolTip="Fenêtres empilées"/>
+                                </WrapPanel>
+
+                                <!-- Copy size -->
+                                <TextBlock DockPanel.Dock="Top" Text="Outils" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource GoldBrush}" Margin="0,4,0,4"/>
+                                <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                                    <Button Content="📋 Copier taille" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
+                                            Command="{Binding AdvancedVm.CopySizeCommand}" ToolTip="Copie la taille de la fenêtre sélectionnée"/>
+                                    <Button Content="📌 Coller taille" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
+                                            Command="{Binding AdvancedVm.PasteSizeCommand}"
+                                            IsEnabled="{Binding AdvancedVm.HasCopiedSize}"
+                                            ToolTip="Colle la taille copiée sur la fenêtre sélectionnée"/>
+                                    <Button Content="⇔⇕ Appliquer à toutes" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
+                                            Command="{Binding AdvancedVm.ApplySizeToAllCommand}"
+                                            ToolTip="Applique la largeur et hauteur de la fenêtre sélectionnée à toutes les autres"/>
+                                    <Button Content="🔀 Inverser" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
+                                            Command="{Binding AdvancedVm.StartSwapCommand}"
+                                            ToolTip="Échange la position de la fenêtre sélectionnée avec une autre"/>
+                                </WrapPanel>
+
+                                <!-- Presets -->
+                                <TextBlock DockPanel.Dock="Top" Text="Configurations" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource GoldBrush}" Margin="0,4,0,4"/>
+                                <ComboBox DockPanel.Dock="Top" ItemsSource="{Binding AdvancedVm.Presets}"
+                                          SelectedItem="{Binding AdvancedVm.SelectedPreset}"
+                                          DisplayMemberPath="Name" Height="28" Margin="0,0,0,4"/>
+                                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Content="Charger" Style="{DynamicResource StoneButton}" FontSize="10" Padding="8,4"
+                                            Command="{Binding AdvancedVm.LoadPresetCommand}"/>
+                                    <Button Content="Supprimer" Style="{DynamicResource StoneButton}" FontSize="10" Padding="8,4" Margin="4,0,0,0"
+                                            Command="{Binding AdvancedVm.DeletePresetCommand}"/>
+                                </StackPanel>
+                                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                                    <Button DockPanel.Dock="Right" Content="💾" Style="{DynamicResource StoneButton}" FontSize="12" Padding="8,4" Margin="4,0,0,0"
+                                            Command="{Binding AdvancedVm.SavePresetCommand}"/>
+                                    <TextBox Text="{Binding AdvancedVm.NewPresetName, UpdateSourceTrigger=PropertyChanged}"
+                                             FontSize="11" Padding="4,4" ToolTip="Nom du preset"
+                                             Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                                </DockPanel>
+
+                                <!-- Apply advanced -->
+                                <Button DockPanel.Dock="Bottom" Content="⚔ Appliquer" Style="{DynamicResource WowButton}"
+                                        Command="{Binding AdvancedVm.ApplyAdvancedCommand}" FontSize="13" Padding="20,10"
+                                        HorizontalAlignment="Stretch" Margin="0,8,0,0"/>
+
+                                <TextBlock Text="{Binding AdvancedVm.StatusMessage}" FontSize="10"
+                                           Foreground="{DynamicResource SubtextBrush}" Margin="0,4,0,0"
+                                           TextWrapping="Wrap"/>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Apply button (Advanced mode - handled inside panel) -->
+
                             <!-- Status bar -->
-                            <Border Grid.Row="4" Background="{DynamicResource PanelBg}" CornerRadius="4"
+                            <Border Grid.Row="5" Background="{DynamicResource PanelBg}" CornerRadius="4"
                                     Padding="12,5" Margin="0,8,0,0" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Right" Text="{Binding AppVersion}"

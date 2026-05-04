@@ -44,8 +44,12 @@ public class WindowService : IWindowService
 
             var (processName, processId, startTime) = GetProcessInfo(hWnd);
 
-            // Uniquement les fenêtres World of Warcraft
+            // Uniquement les fenêtres World of Warcraft (+ msedge en DEBUG)
+#if DEBUG
+            var allowed = new[] { "Wow", "WowClassic", "WowT", "WowB", "msedge" };
+#else
             var allowed = new[] { "Wow", "WowClassic", "WowT", "WowB" };
+#endif
             if (!allowed.Any(a => processName.Equals(a, StringComparison.OrdinalIgnoreCase)))
                 return true;
 

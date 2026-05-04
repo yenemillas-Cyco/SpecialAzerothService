@@ -36,6 +36,28 @@ public partial class MainViewModel : ObservableObject
     public string[] AvailableThemes => _themeService.AvailableThemes;
 
     [ObservableProperty]
+    private bool _isStandardMode = true;
+
+    [ObservableProperty]
+    private bool _isAdvancedMode;
+
+    partial void OnIsStandardModeChanged(bool value)
+    {
+        if (value) IsAdvancedMode = false;
+    }
+
+    partial void OnIsAdvancedModeChanged(bool value)
+    {
+        if (value)
+        {
+            IsStandardMode = false;
+            AdvancedVm?.RefreshFromMain();
+        }
+    }
+
+    public AdvancedViewModel? AdvancedVm { get; set; }
+
+    [ObservableProperty]
     private string _currentThemeLabel;
 
     partial void OnCurrentThemeLabelChanged(string value)
@@ -154,36 +176,57 @@ public partial class MainViewModel : ObservableObject
     {
         _logger.Information("Refreshing window list");
 
-        var savedNames = AvailableWindows
-            .Where(w => !string.IsNullOrWhiteSpace(w.CustomName))
-            .ToDictionary(w => w.ProcessId, w => w.CustomName);
-        var savedMonitors = AvailableWindows
-            .Where(w => w.AssignedMonitor is not null)
-            .ToDictionary(w => w.ProcessId, w => w.AssignedMonitor);
-        var savedMains = AvailableWindows
-            .Where(w => w.IsMainWindow)
-            .Select(w => w.ProcessId)
-            .ToHashSet();
+        // 1. Save window state keyed by LaunchOrder
+        var savedState = AvailableWindows.ToDictionary(
+            w => w.LaunchOrder,
+            w => (w.CustomName, MonitorDevice: w.AssignedMonitor?.DeviceName, w.IsMainWindow, w.IsSelected));
 
+        // 2. Save monitor configs keyed by DeviceName
+        var savedMonCfg = MonitorConfigs.ToDictionary(
+            c => c.Monitor.DeviceName,
+            c => (c.Mode, c.Size, c.Position, c.HasLateral, c.HasBandeau, c.SplitOrientation));
+
+        // 3. Refresh monitors
+        RefreshMonitors();
+
+        // 4. Restore saved monitor configs
+        foreach (var cfg in MonitorConfigs)
+        {
+            if (savedMonCfg.TryGetValue(cfg.Monitor.DeviceName, out var prev))
+            {
+                cfg.Mode = prev.Mode;
+                cfg.Size = prev.Size;
+                cfg.Position = prev.Position;
+                cfg.HasLateral = prev.HasLateral;
+                cfg.HasBandeau = prev.HasBandeau;
+                cfg.SplitOrientation = prev.SplitOrientation;
+            }
+        }
+
+        // 5. Refresh windows
         AvailableWindows.Clear();
-
         var defaultMonitor = Monitors.FirstOrDefault(m => m.IsPrimary) ?? Monitors.FirstOrDefault();
         var windows = _windowService.GetOpenWindows();
         foreach (var w in windows)
         {
             w.IsSelected = true;
+            w.AssignedMonitor = defaultMonitor;
 
-            if (savedNames.TryGetValue(w.ProcessId, out var name))
-                w.CustomName = name;
-            if (savedMonitors.TryGetValue(w.ProcessId, out var mon))
-                w.AssignedMonitor = mon;
-            else
-                w.AssignedMonitor = defaultMonitor;
-            if (savedMains.Contains(w.ProcessId))
-                w.IsMainWindow = true;
+            if (savedState.TryGetValue(w.LaunchOrder, out var prev))
+            {
+                if (!string.IsNullOrWhiteSpace(prev.CustomName))
+                    w.CustomName = prev.CustomName;
+                if (prev.MonitorDevice is not null)
+                {
+                    var mon = Monitors.FirstOrDefault(m => m.DeviceName == prev.MonitorDevice);
+                    w.AssignedMonitor = mon ?? defaultMonitor;
+                }
+                w.IsMainWindow = prev.IsMainWindow;
+                w.IsSelected = prev.IsSelected;
+            }
 
             // First launch: apply persisted settings by LaunchOrder
-            if (savedNames.Count == 0 && _loadedSettings?.Windows is { Count: > 0 } savedWindows)
+            if (savedState.Count == 0 && _loadedSettings?.Windows is { Count: > 0 } savedWindows)
             {
                 var sw = savedWindows.FirstOrDefault(s => s.LaunchOrder == w.LaunchOrder);
                 if (sw is not null)
@@ -210,8 +253,11 @@ public partial class MainViewModel : ObservableObject
             AvailableWindows.Add(w);
         }
 
-        StatusMessage = $"{windows.Count} fenêtres détectées";
+        StatusMessage = $"{windows.Count} fenêtres détectées — {Monitors.Count} écran(s)";
         UpdatePreview();
+
+        if (IsAdvancedMode)
+            AdvancedVm?.RefreshFromMain();
     }
 
     [RelayCommand]
@@ -299,6 +345,12 @@ public partial class MainViewModel : ObservableObject
         window.IsSelected = true;
         _logger.Information("Set main window: {Title} on {Mon}", window.Title, targetMonitor?.DisplayLabel);
         UpdatePreview();
+    }
+
+    [RelayCommand]
+    private void ToggleAdvancedLead()
+    {
+        AdvancedVm?.ToggleMainWindowCommand.Execute(null);
     }
 
     [RelayCommand]
