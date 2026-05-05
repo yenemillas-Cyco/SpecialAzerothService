@@ -331,6 +331,24 @@ public partial class MainWindow : Window
         RedrawAdvancedCanvas();
     }
 
+    private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+        e.Handled = true;
+    }
+
+    private void CalendarEvent_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement el) return;
+        if (el.DataContext is not RaidEvent raidEvent) return;
+        var vm = (MainViewModel)DataContext;
+        if (vm.CalendarVm is not null)
+        {
+            vm.CalendarVm.SelectedDate = raidEvent.StartDateTime.Date;
+            vm.CalendarVm.SelectedEvent = raidEvent;
+        }
+    }
+
     // --- Preview monitor click ---
 
     private void PreviewRect_Click(object sender, MouseButtonEventArgs e)
@@ -655,7 +673,9 @@ public partial class MainWindow
                 var nx = pos.X - _dragOffset.X;
                 var ny = pos.Y - _dragOffset.Y;
                 (nx, ny) = SnapPos(advVm, s, nx, ny, s.CanvasWidth, s.CanvasHeight);
-                s.SetCanvasPos(nx, ny);
+                s.SetCanvasPos(nx, ny,
+                    advVm.GlobalBoundsLeft, advVm.GlobalBoundsTop,
+                    advVm.GlobalBoundsRight, advVm.GlobalBoundsBottom);
                 break;
             }
             case DragMode.ResizeBR:
@@ -748,6 +768,13 @@ public partial class MainWindow
 
     private void AdvCanvas_MouseUp(object sender, MouseButtonEventArgs e)
     {
+        if (_dragSlot is not null && _dragMode == DragMode.Move)
+        {
+            var vm = (MainViewModel)DataContext;
+            var advVm = vm.AdvancedVm;
+            if (advVm is not null)
+                advVm.ResolveMonitorAfterDrop(_dragSlot);
+        }
         _dragSlot = null;
         _dragMode = DragMode.None;
         AdvancedCanvas.ReleaseMouseCapture();

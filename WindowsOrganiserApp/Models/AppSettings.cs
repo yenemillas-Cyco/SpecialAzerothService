@@ -8,6 +8,9 @@ public sealed class AppSettings
     public double WindowTop { get; set; } = double.NaN;
     public string Theme { get; set; } = "Classic";
 
+    public string? RaidHelperServerId { get; set; }
+    public string? RaidHelperApiKey { get; set; }
+
     public List<MonitorConfigSettings> MonitorConfigs { get; set; } = [];
     public List<WindowSettings> Windows { get; set; } = [];
 }

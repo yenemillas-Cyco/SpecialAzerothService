@@ -41,9 +41,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isAdvancedMode;
 
+    [ObservableProperty]
+    private bool _isCalendarMode;
+
     partial void OnIsStandardModeChanged(bool value)
     {
-        if (value) IsAdvancedMode = false;
+        if (value) { IsAdvancedMode = false; IsCalendarMode = false; }
     }
 
     partial void OnIsAdvancedModeChanged(bool value)
@@ -51,11 +54,18 @@ public partial class MainViewModel : ObservableObject
         if (value)
         {
             IsStandardMode = false;
+            IsCalendarMode = false;
             AdvancedVm?.RefreshFromMain();
         }
     }
 
+    partial void OnIsCalendarModeChanged(bool value)
+    {
+        if (value) { IsStandardMode = false; IsAdvancedMode = false; }
+    }
+
     public AdvancedViewModel? AdvancedVm { get; set; }
+    public RaidCalendarViewModel? CalendarVm { get; set; }
 
     [ObservableProperty]
     private string _currentThemeLabel;
@@ -258,8 +268,13 @@ public partial class MainViewModel : ObservableObject
                     or nameof(WindowInfo.AssignedMonitor))
                 {
                     UpdatePreview();
-                    if (IsAdvancedMode && e.PropertyName is nameof(WindowInfo.IsSelected) or nameof(WindowInfo.AssignedMonitor))
-                        AdvancedVm?.RefreshFromMain();
+                    if (IsAdvancedMode)
+                    {
+                        if (e.PropertyName == nameof(WindowInfo.IsSelected))
+                            AdvancedVm?.RefreshFromMain();
+                        else if (e.PropertyName == nameof(WindowInfo.AssignedMonitor))
+                            AdvancedVm?.MoveWindowToAssignedMonitor(w);
+                    }
                 }
             };
             AvailableWindows.Add(w);

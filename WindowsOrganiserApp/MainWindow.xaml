@@ -119,7 +119,9 @@
                         <RadioButton Content="Standard" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
                                      IsChecked="{Binding IsStandardMode}" Margin="0,0,6,0"/>
                         <RadioButton Content="Avancé" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
-                                     IsChecked="{Binding IsAdvancedMode}"/>
+                                     IsChecked="{Binding IsAdvancedMode}" Margin="0,0,6,0"/>
+                        <RadioButton Content="📅 Calendrier" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
+                                     IsChecked="{Binding IsCalendarMode}"/>
                     </StackPanel>
 
                     <!-- Standard content -->
@@ -524,60 +526,63 @@
                                 <!-- Window list -->
                                 <TextBlock DockPanel.Dock="Top" Text="Fenêtres" FontSize="13" FontWeight="SemiBold"
                                            Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
-                                <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding AvailableWindows}" Margin="0,0,0,8">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="{DynamicResource PanelBg2}" CornerRadius="3"
-                                                    Padding="4,3" Margin="0,0,0,2"
-                                                    BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}"
-                                                              Style="{DynamicResource SelectionCheck}" Margin="0,0,4,0"
-                                                              VerticalAlignment="Center" ToolTip="Afficher/masquer"/>
-                                                    <Border Grid.Column="1" Width="16" Height="16" CornerRadius="8"
-                                                            Background="{DynamicResource GoldBrush}" Margin="0,0,4,0"
-                                                            VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding LaunchOrder}" FontSize="9" FontWeight="Bold"
-                                                                   Foreground="#FFFFFF" HorizontalAlignment="Center"
-                                                                   VerticalAlignment="Center"/>
-                                                    </Border>
-                                                    <Grid Grid.Column="2" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding DisplayName}" FontSize="10"
-                                                                   Foreground="{DynamicResource TextBrush}"
-                                                                   TextTrimming="CharacterEllipsis"
-                                                                   Cursor="Hand" ToolTip="Cliquer pour renommer"
-                                                                   MouseLeftButtonDown="AdvName_Click"/>
-                                                        <TextBox FontSize="10" Padding="0" MinWidth="50"
-                                                                 Visibility="Collapsed"
-                                                                 Text="{Binding CustomName, UpdateSourceTrigger=PropertyChanged}"
-                                                                 Background="#1A1208" Foreground="{DynamicResource GoldBrush}"
-                                                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                                                 LostFocus="AdvRenameBox_LostFocus"
-                                                                 KeyDown="AdvRenameBox_KeyDown"/>
+                                <ScrollViewer DockPanel.Dock="Top" MaxHeight="160" Margin="0,0,0,8"
+                                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding AvailableWindows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{DynamicResource PanelBg2}" CornerRadius="3"
+                                                        Padding="4,3" Margin="0,0,0,2"
+                                                        BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}"
+                                                                  Style="{DynamicResource SelectionCheck}" Margin="0,0,4,0"
+                                                                  VerticalAlignment="Center" ToolTip="Afficher/masquer"/>
+                                                        <Border Grid.Column="1" Width="16" Height="16" CornerRadius="8"
+                                                                Background="{DynamicResource GoldBrush}" Margin="0,0,4,0"
+                                                                VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding LaunchOrder}" FontSize="9" FontWeight="Bold"
+                                                                       Foreground="#FFFFFF" HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <Grid Grid.Column="2" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding DisplayName}" FontSize="10"
+                                                                       Foreground="{DynamicResource TextBrush}"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       Cursor="Hand" ToolTip="Cliquer pour renommer"
+                                                                       MouseLeftButtonDown="AdvName_Click"/>
+                                                            <TextBox FontSize="10" Padding="0" MinWidth="50"
+                                                                     Visibility="Collapsed"
+                                                                     Text="{Binding CustomName, UpdateSourceTrigger=PropertyChanged}"
+                                                                     Background="#1A1208" Foreground="{DynamicResource GoldBrush}"
+                                                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                                                     LostFocus="AdvRenameBox_LostFocus"
+                                                                     KeyDown="AdvRenameBox_KeyDown"/>
+                                                        </Grid>
+                                                        <Button Grid.Column="3" FontSize="9" Height="18" Padding="4,1" Margin="2,0"
+                                                                Style="{DynamicResource StoneButton}"
+                                                                Command="{Binding DataContext.SetAsMainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}"
+                                                                Content="{Binding IsMainWindow, Converter={StaticResource MainLabelConverter}}"
+                                                                VerticalAlignment="Center" ToolTip="Définir comme leader"/>
+                                                        <ComboBox Grid.Column="4" Width="70" Height="20" FontSize="9"
+                                                                  ItemsSource="{Binding DataContext.Monitors, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                  SelectedItem="{Binding AssignedMonitor}"
+                                                                  VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                                                  ToolTip="Écran cible"/>
                                                     </Grid>
-                                                    <Button Grid.Column="3" FontSize="9" Height="18" Padding="4,1" Margin="2,0"
-                                                            Style="{DynamicResource StoneButton}"
-                                                            Command="{Binding DataContext.SetAsMainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}"
-                                                            Content="{Binding IsMainWindow, Converter={StaticResource MainLabelConverter}}"
-                                                            VerticalAlignment="Center" ToolTip="Définir comme leader"/>
-                                                    <ComboBox Grid.Column="4" Width="70" Height="20" FontSize="9"
-                                                              ItemsSource="{Binding DataContext.Monitors, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                              SelectedItem="{Binding AssignedMonitor}"
-                                                              VerticalAlignment="Center" VerticalContentAlignment="Center"
-                                                              ToolTip="Écran cible"/>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
 
                                 <TextBlock DockPanel.Dock="Top" Text="Réglage fin" FontSize="13" FontWeight="SemiBold"
                                            Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,8"/>
@@ -686,7 +691,241 @@
                         </Border>
                     </Grid>
 
-                    <!-- Apply button (Advanced mode - handled inside panel) -->
+                    <!-- Calendar content -->
+                    <Grid Grid.Row="3" Visibility="{Binding IsCalendarMode, Converter={StaticResource BoolToVis}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="260"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Left: Connection + Day navigation -->
+                        <Border Grid.Column="0" Background="{DynamicResource PanelBg}" CornerRadius="6"
+                                Padding="12" BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="🔗 Connexion RaidHelper" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,8"/>
+
+                                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12"
+                                            Visibility="{Binding CalendarVm.IsNotConnected, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="API Key personnelle" FontSize="10"
+                                               Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
+                                    <TextBox Text="{Binding CalendarVm.ApiKey, UpdateSourceTrigger=PropertyChanged}"
+                                             FontSize="11" Padding="6,4" Margin="0,0,0,6"
+                                             Background="{DynamicResource SelectionBgBrush}"
+                                             Foreground="{DynamicResource TextBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                             ToolTip="Depuis raid-helper.xyz → Connexion → API Key"/>
+                                    <TextBlock FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                               TextWrapping="Wrap" Margin="0,0,0,8">
+                                        <Run Text="💡 Connecte-toi sur "/>
+                                        <Hyperlink NavigateUri="https://raid-helper.xyz"
+                                                   RequestNavigate="Hyperlink_RequestNavigate"
+                                                   Foreground="{DynamicResource BrightGoldBrush}">
+                                            raid-helper.xyz
+                                        </Hyperlink>
+                                        <Run Text=" avec Discord pour obtenir ta clé."/>
+                                    </TextBlock>
+
+                                    <CheckBox IsChecked="{Binding CalendarVm.UseServerMode}" Margin="0,0,0,4"
+                                              Style="{DynamicResource SelectionCheck}"
+                                              ToolTip="Activer si vous êtes admin et voulez voir tous les events du serveur"/>
+                                    <TextBlock Text="Mode serveur (admin)" FontSize="9"
+                                               Foreground="{DynamicResource SubtextBrush}" Margin="20,-20,0,6"/>
+
+                                    <StackPanel Visibility="{Binding CalendarVm.UseServerMode, Converter={StaticResource BoolToVis}}"
+                                                Margin="0,4,0,6">
+                                        <TextBlock Text="Server ID (Discord)" FontSize="10"
+                                                   Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
+                                        <TextBox Text="{Binding CalendarVm.ServerId, UpdateSourceTrigger=PropertyChanged}"
+                                                 FontSize="11" Padding="6,4"
+                                                 Background="{DynamicResource SelectionBgBrush}"
+                                                 Foreground="{DynamicResource TextBrush}"
+                                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                                 ToolTip="Clic droit serveur → Copier l'identifiant"/>
+                                    </StackPanel>
+
+                                    <Button Content="⚡ Connecter" Style="{DynamicResource WowButton}"
+                                            Command="{Binding CalendarVm.ConnectCommand}" FontSize="12" Padding="16,8"
+                                            HorizontalAlignment="Stretch"/>
+                                </StackPanel>
+
+                                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8"
+                                            Visibility="{Binding CalendarVm.IsConnected, Converter={StaticResource BoolToVis}}">
+                                    <Button Content="🔌 Déconnecter" Style="{DynamicResource StoneButton}"
+                                            Command="{Binding CalendarVm.DisconnectCommand}" FontSize="10" Padding="8,4"
+                                            HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                                    <Button Content="⟳ Actualiser" Style="{DynamicResource StoneButton}"
+                                            Command="{Binding CalendarVm.RefreshCommand}" FontSize="10" Padding="8,4"
+                                            HorizontalAlignment="Left"/>
+                                </StackPanel>
+
+                                <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource InnerBorderBrush}" Margin="0,4,0,8"/>
+
+                                <TextBlock DockPanel.Dock="Top" Text="📅 Navigation" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource GoldBrush}" Margin="0,0,0,6"/>
+                                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                                    <Button Content="◀" Style="{DynamicResource StoneButton}" FontSize="12" Padding="8,4"
+                                            Command="{Binding CalendarVm.PreviousDayCommand}" Margin="0,0,4,0"/>
+                                    <Button Content="Aujourd'hui" Style="{DynamicResource StoneButton}" FontSize="10" Padding="8,4"
+                                            Command="{Binding CalendarVm.TodayCommand}" Margin="0,0,4,0"/>
+                                    <Button Content="▶" Style="{DynamicResource StoneButton}" FontSize="12" Padding="8,4"
+                                            Command="{Binding CalendarVm.NextDayCommand}"/>
+                                </StackPanel>
+                                <TextBlock DockPanel.Dock="Top" FontSize="14" FontWeight="Bold"
+                                           Foreground="{DynamicResource BrightGoldBrush}"
+                                           HorizontalAlignment="Center" Margin="0,0,0,8"
+                                           Text="{Binding CalendarVm.SelectedDate, StringFormat='{}{0:dddd dd MMMM yyyy}'}"/>
+
+                                <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource InnerBorderBrush}" Margin="0,4,0,8"/>
+
+                                <TextBlock DockPanel.Dock="Top" Text="📋 Tous les événements" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource GoldBrush}" Margin="0,0,0,4"/>
+                                <ScrollViewer DockPanel.Dock="Top" VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding CalendarVm.Events}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{DynamicResource PanelBg2}" CornerRadius="3"
+                                                        Padding="6,4" Margin="0,0,0,3"
+                                                        BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}"
+                                                        Cursor="Hand"
+                                                        MouseLeftButtonDown="CalendarEvent_Click">
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Title}" FontSize="10" FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource TextBrush}" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock FontSize="9" Foreground="{DynamicResource SubtextBrush}">
+                                                            <Run Text="{Binding StartDateTime, StringFormat='{}{0:dd/MM HH:mm}', Mode=OneWay}"/>
+                                                            <Run Text=" — "/>
+                                                            <Run Text="{Binding SignUpCount, Mode=OneWay}"/>
+                                                            <Run Text=" inscrits"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Right: Month view + Day detail -->
+                        <Border Grid.Column="2" Background="{DynamicResource PanelBg}" CornerRadius="6"
+                                Padding="16" BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}">
+                            <DockPanel>
+                                <!-- Month navigation -->
+                                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                                    <Button DockPanel.Dock="Left" Content="◀" Style="{DynamicResource StoneButton}"
+                                            FontSize="12" Padding="8,4"
+                                            Command="{Binding CalendarVm.PreviousMonthCommand}"/>
+                                    <Button DockPanel.Dock="Right" Content="▶" Style="{DynamicResource StoneButton}"
+                                            FontSize="12" Padding="8,4"
+                                            Command="{Binding CalendarVm.NextMonthCommand}"/>
+                                    <TextBlock FontSize="15" FontWeight="Bold"
+                                               Foreground="{DynamicResource BrightGoldBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Text="{Binding CalendarVm.SelectedDate, StringFormat='{}{0:MMMM yyyy}'}"/>
+                                </DockPanel>
+
+                                <!-- Month events list -->
+                                <TextBlock DockPanel.Dock="Top" Text="Raids du mois" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource GoldBrush}" Margin="0,0,0,6"/>
+
+                                <ScrollViewer DockPanel.Dock="Top" VerticalScrollBarVisibility="Auto" MaxHeight="200" Margin="0,0,0,8">
+                                    <ItemsControl ItemsSource="{Binding CalendarVm.EventsForCurrentMonth}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{DynamicResource PanelBg2}" CornerRadius="4"
+                                                        Padding="8,6" Margin="0,0,0,4"
+                                                        BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}"
+                                                        Cursor="Hand" MouseLeftButtonDown="CalendarEvent_Click">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                            <TextBlock FontSize="11" FontWeight="Bold"
+                                                                       Foreground="{DynamicResource BrightGoldBrush}"
+                                                                       Text="{Binding StartDateTime, StringFormat='{}{0:ddd dd}'}"/>
+                                                            <TextBlock FontSize="10" Foreground="{DynamicResource SubtextBrush}"
+                                                                       Text="{Binding StartDateTime, StringFormat='{}{0:HH:mm}'}"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="11"
+                                                                   FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"
+                                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                        <Border Grid.Column="2" Background="{DynamicResource GoldBrush}"
+                                                                CornerRadius="8" Padding="5,2" VerticalAlignment="Center">
+                                                            <TextBlock FontSize="8" FontWeight="Bold" Foreground="#1A1208">
+                                                                <Run Text="{Binding SignUpCount, Mode=OneWay}"/>
+                                                            </TextBlock>
+                                                        </Border>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+
+                                <!-- Day detail -->
+                                <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource InnerBorderBrush}" Margin="0,0,0,8"/>
+                                <TextBlock DockPanel.Dock="Top" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,8"
+                                           Text="{Binding CalendarVm.SelectedDate, StringFormat='📅 {0:dddd dd MMMM}'}"/>
+
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding CalendarVm.EventsForSelectedDate}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{DynamicResource PanelBg2}" CornerRadius="6"
+                                                        Padding="12,10" Margin="0,0,0,8"
+                                                        BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0" Margin="0,0,16,0" VerticalAlignment="Top">
+                                                            <TextBlock FontSize="20" FontWeight="Bold"
+                                                                       Foreground="{DynamicResource BrightGoldBrush}"
+                                                                       Text="{Binding StartDateTime, StringFormat='{}{0:HH:mm}'}"/>
+                                                            <TextBlock FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                                                       Text="{Binding EndDateTime, StringFormat='→ {0:HH:mm}'}"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap"/>
+                                                            <TextBlock Text="{Binding Description}" FontSize="10"
+                                                                       Foreground="{DynamicResource SubtextBrush}"
+                                                                       TextWrapping="Wrap" Margin="0,4,0,0"
+                                                                       MaxHeight="40" TextTrimming="CharacterEllipsis"/>
+                                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                                <Border Background="{DynamicResource GoldBrush}" CornerRadius="8"
+                                                                        Padding="6,2">
+                                                                    <TextBlock FontSize="9" FontWeight="Bold" Foreground="#1A1208">
+                                                                        <Run Text="{Binding SignUpCount, Mode=OneWay}"/>
+                                                                        <Run Text=" inscrits"/>
+                                                                    </TextBlock>
+                                                                </Border>
+                                                                <TextBlock FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                                                           VerticalAlignment="Center" Margin="8,0,0,0">
+                                                                    <Run Text="Lead: "/>
+                                                                    <Run Text="{Binding LeaderName, Mode=OneWay}"/>
+                                                                </TextBlock>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+
+                                <TextBlock DockPanel.Dock="Bottom" Text="{Binding CalendarVm.StatusMessage}"
+                                           FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,8,0,0"/>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
 
                             <!-- Status bar -->
                             <Border Grid.Row="5" Background="{DynamicResource PanelBg}" CornerRadius="4"

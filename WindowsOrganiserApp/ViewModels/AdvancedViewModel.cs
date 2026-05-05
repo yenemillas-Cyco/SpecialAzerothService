@@ -50,6 +50,54 @@ public partial class AdvancedViewModel : ObservableObject
         }
     }
 
+    public void MoveWindowToAssignedMonitor(WindowInfo window)
+    {
+        var slot = Slots.FirstOrDefault(s => s.Window == window);
+        if (slot is null || window.AssignedMonitor is null) return;
+        if (slot.MonitorDeviceName == window.AssignedMonitor.DeviceName) return;
+        MoveSlotToMonitor(slot, window.AssignedMonitor);
+    }
+
+    /// <summary>After a drag-drop, detect which monitor the slot center is over and re-assign.</summary>
+    public void ResolveMonitorAfterDrop(AdvancedSlot slot)
+    {
+        var centerX = slot.CanvasX + slot.CanvasWidth / 2;
+        var centerY = slot.CanvasY + slot.CanvasHeight / 2;
+
+        foreach (var mon in MonitorOutlines)
+        {
+            if (centerX >= mon.CanvasX && centerX <= mon.CanvasX + mon.CanvasWidth &&
+                centerY >= mon.CanvasY && centerY <= mon.CanvasY + mon.CanvasHeight)
+            {
+                var targetMon = _mainVm.Monitors.FirstOrDefault(m => m.DisplayLabel == mon.Label);
+                if (targetMon is not null && targetMon.DeviceName != slot.MonitorDeviceName)
+                {
+                    slot.MonitorDeviceName = targetMon.DeviceName;
+                    slot.MonitorWorkArea = targetMon.WorkArea;
+                    slot.Window.AssignedMonitor = targetMon;
+                    // Update internal monitor bounds for clamping
+                    var monitors = _mainVm.Monitors.ToList();
+                    var minX = monitors.Min(m => m.WorkArea.X);
+                    var minY = monitors.Min(m => m.WorkArea.Y);
+                    var maxX = monitors.Max(m => m.WorkArea.X + m.WorkArea.Width);
+                    var maxY = monitors.Max(m => m.WorkArea.Y + m.WorkArea.Height);
+                    var totalW = maxX - minX;
+                    var totalH = maxY - minY;
+                    var canvasOffX = (CanvasWidth - totalW * _globalScale) / 2;
+                    var canvasOffY = (CanvasHeight - totalH * _globalScale) / 2;
+                    var wa = targetMon.WorkArea;
+                    var monCx = (wa.X - minX) * _globalScale + canvasOffX;
+                    var monCy = (wa.Y - minY) * _globalScale + canvasOffY;
+                    var monCw = wa.Width * _globalScale;
+                    var monCh = wa.Height * _globalScale;
+                    slot.UpdateMonitorBounds(monCx, monCy, monCw, monCh);
+                    OnPropertyChanged(nameof(Slots));
+                }
+                return;
+            }
+        }
+    }
+
     private void MoveSlotToMonitor(AdvancedSlot slot, MonitorInfo newMon)
     {
         var monitors = _mainVm.Monitors.ToList();
@@ -89,6 +137,12 @@ public partial class AdvancedViewModel : ObservableObject
     public double CanvasWidth { get; set; } = 600;
     public double CanvasHeight { get; set; } = 340;
 
+    // Bounding box of all monitors on canvas (for drag clamping)
+    public double GlobalBoundsLeft { get; private set; }
+    public double GlobalBoundsTop { get; private set; }
+    public double GlobalBoundsRight { get; private set; }
+    public double GlobalBoundsBottom { get; private set; }
+
     private double _globalScale;
     private int _globalOffsetX;
     private int _globalOffsetY;
@@ -116,6 +170,12 @@ public partial class AdvancedViewModel : ObservableObject
 
         var canvasOffX = (CanvasWidth - totalW * _globalScale) / 2;
         var canvasOffY = (CanvasHeight - totalH * _globalScale) / 2;
+
+        // Global bounds = bounding box of all monitors on the canvas
+        GlobalBoundsLeft = canvasOffX;
+        GlobalBoundsTop = canvasOffY;
+        GlobalBoundsRight = canvasOffX + totalW * _globalScale;
+        GlobalBoundsBottom = canvasOffY + totalH * _globalScale;
 
         // Monitor outlines — build a lookup so we can pass the canvas origin + size to slots
         var monitorCanvasMap = new Dictionary<IntPtr, (double cx, double cy, double cw, double ch)>();
@@ -166,8 +226,17 @@ public partial class AdvancedViewModel : ObservableObject
 
             var realX = actualRect.X - workArea.X;
             var realY = actualRect.Y - workArea.Y;
-            var realW = Math.Max(100, actualRect.Width);
-            var realH = Math.Max(50, actualRect.Height);
+            var realW = Math.Max(160, actualRect.Width);
+            var realH = Math.Max(160, actualRect.Height);
+
+            // If window is minimized or off-screen, give it a reasonable default
+            if (actualRect.Width <= 0 || actualRect.Height <= 0)
+            {
+                realX = 0;
+                realY = 0;
+                realW = Math.Max(160, workArea.Width / 3);
+                realH = Math.Max(160, workArea.Height / 3);
+            }
 
             var slot = new AdvancedSlot
             {
@@ -180,11 +249,14 @@ public partial class AdvancedViewModel : ObservableObject
                 RealHeight = realH
             };
 
+            var canvasW = Math.Max(60, realW * _globalScale);
+            var canvasH = Math.Max(40, realH * _globalScale);
+
             slot.SetCanvasDirect(
                 monEntry.cx + realX * _globalScale,
                 monEntry.cy + realY * _globalScale,
-                realW * _globalScale,
-                realH * _globalScale,
+                canvasW,
+                canvasH,
                 _globalScale,
                 monEntry.cx, monEntry.cy, monEntry.cw, monEntry.ch);
 
@@ -541,6 +613,15 @@ public partial class AdvancedSlot : ObservableObject
     public double MonBoundsRight => _monCanvasX + _monCanvasW;
     public double MonBoundsBottom => _monCanvasY + _monCanvasH;
 
+    /// <summary>Update monitor bounds after cross-monitor drag.</summary>
+    public void UpdateMonitorBounds(double monCanvasX, double monCanvasY, double monCanvasW, double monCanvasH)
+    {
+        _monCanvasX = monCanvasX;
+        _monCanvasY = monCanvasY;
+        _monCanvasW = monCanvasW;
+        _monCanvasH = monCanvasH;
+    }
+
     /// <summary>Initial setup — no sync triggered.</summary>
     public void SetCanvasDirect(double cx, double cy, double cw, double ch,
                                 double scale, double monCanvasX, double monCanvasY,
@@ -559,12 +640,12 @@ public partial class AdvancedSlot : ObservableObject
         _syncing = false;
     }
 
-    /// <summary>Called during drag — clamped within monitor bounds.</summary>
-    public void SetCanvasPos(double cx, double cy)
+    /// <summary>Called during drag — clamped within global desktop bounds on canvas.</summary>
+    public void SetCanvasPos(double cx, double cy, double globalMinX, double globalMinY, double globalMaxX, double globalMaxY)
     {
         _syncing = true;
-        CanvasX = Math.Clamp(cx, _monCanvasX, _monCanvasX + _monCanvasW - CanvasWidth);
-        CanvasY = Math.Clamp(cy, _monCanvasY, _monCanvasY + _monCanvasH - CanvasHeight);
+        CanvasX = Math.Clamp(cx, globalMinX, globalMaxX - CanvasWidth);
+        CanvasY = Math.Clamp(cy, globalMinY, globalMaxY - CanvasHeight);
         if (_scale > 0)
         {
             RealX = (int)((CanvasX - _monCanvasX) / _scale);
@@ -573,16 +654,18 @@ public partial class AdvancedSlot : ObservableObject
         _syncing = false;
     }
 
-    /// <summary>Called during resize — clamped within monitor bounds.</summary>
+    /// <summary>Called during resize — clamped within monitor bounds, min 160px real.</summary>
     public void SetCanvasSize(double cw, double ch)
     {
         _syncing = true;
-        CanvasWidth = Math.Clamp(cw, 20, _monCanvasX + _monCanvasW - CanvasX);
-        CanvasHeight = Math.Clamp(ch, 15, _monCanvasY + _monCanvasH - CanvasY);
+        var minCw = _scale > 0 ? 160 * _scale : 20;
+        var minCh = _scale > 0 ? 160 * _scale : 15;
+        CanvasWidth = Math.Clamp(cw, minCw, _monCanvasX + _monCanvasW - CanvasX);
+        CanvasHeight = Math.Clamp(ch, minCh, _monCanvasY + _monCanvasH - CanvasY);
         if (_scale > 0)
         {
-            RealWidth = Math.Max(100, (int)(CanvasWidth / _scale));
-            RealHeight = Math.Max(50, (int)(CanvasHeight / _scale));
+            RealWidth = Math.Max(160, (int)(CanvasWidth / _scale));
+            RealHeight = Math.Max(160, (int)(CanvasHeight / _scale));
         }
         _syncing = false;
     }
@@ -596,11 +679,13 @@ public partial class AdvancedSlot : ObservableObject
         var mr = _monCanvasX + _monCanvasW;
         var mb = _monCanvasY + _monCanvasH;
 
-        // Clamp within monitor bounds, ensuring min size of 20x15
-        left = Math.Clamp(left, ml, mr - 20);
-        top = Math.Clamp(top, mt, mb - 15);
-        right = Math.Clamp(right, left + 20, mr);
-        bottom = Math.Clamp(bottom, top + 15, mb);
+        // Clamp within monitor bounds, ensuring min size of 160px real
+        var minCw = _scale > 0 ? 160 * _scale : 20;
+        var minCh = _scale > 0 ? 160 * _scale : 15;
+        left = Math.Clamp(left, ml, mr - minCw);
+        top = Math.Clamp(top, mt, mb - minCh);
+        right = Math.Clamp(right, left + minCw, mr);
+        bottom = Math.Clamp(bottom, top + minCh, mb);
 
         CanvasX = left;
         CanvasY = top;
@@ -611,8 +696,8 @@ public partial class AdvancedSlot : ObservableObject
         {
             RealX = (int)((CanvasX - _monCanvasX) / _scale);
             RealY = (int)((CanvasY - _monCanvasY) / _scale);
-            RealWidth = Math.Max(100, (int)(CanvasWidth / _scale));
-            RealHeight = Math.Max(50, (int)(CanvasHeight / _scale));
+            RealWidth = Math.Max(160, (int)(CanvasWidth / _scale));
+            RealHeight = Math.Max(160, (int)(CanvasHeight / _scale));
         }
         _syncing = false;
     }
@@ -622,6 +707,9 @@ public partial class AdvancedSlot : ObservableObject
     {
         if (_syncing || _scale == 0) return;
         _syncing = true;
+        // Enforce minimum 160x160 real pixels
+        if (RealWidth < 160) RealWidth = 160;
+        if (RealHeight < 160) RealHeight = 160;
         var cx = Math.Max(_monCanvasX, RealX * _scale + _monCanvasX);
         var cy = Math.Max(_monCanvasY, RealY * _scale + _monCanvasY);
         var maxW = _monCanvasX + _monCanvasW - cx;
