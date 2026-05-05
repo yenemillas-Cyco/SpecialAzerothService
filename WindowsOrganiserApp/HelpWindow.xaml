@@ -82,6 +82,7 @@
                     <TextBlock Style="{StaticResource SectionTitle}" Text="⚔  Liste des fenêtres"/>
                     <TextBlock Style="{StaticResource Body}"
                                Text="L'application détecte automatiquement toutes les fenêtres WoW ouvertes au lancement et après chaque rafraîchissement."/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="☑ WoW uniquement : coché par défaut, ne détecte que les fenêtres WoW. Décocher pour organiser toutes les fenêtres Windows"/>
 
                     <TextBlock Style="{StaticResource Bullet}" Text="☑ Cocher / décocher une fenêtre pour l'inclure dans la disposition"/>
                     <TextBlock Style="{StaticResource Bullet}" Text="✏ Cliquer sur le nom pour le renommer (conservé après rafraîchissement)"/>
@@ -124,6 +125,46 @@
 
                     <Border Style="{StaticResource Sep}"/>
 
+                    <!-- MODE AVANCÉ -->
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="⚙  Mode Avancé"/>
+                    <TextBlock Style="{StaticResource Body}"
+                               Text="Le mode avancé offre un contrôle total sur la position et la taille de chaque fenêtre via un canvas interactif représentant votre bureau."/>
+
+                    <TextBlock Style="{StaticResource SubTitle}" Text="Canvas interactif"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Les écrans sont affichés avec leur nom au-dessus de leur zone"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Glisser une fenêtre pour la déplacer (curseur ✥)"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Attraper les coins pour redimensionner"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Aimantation automatique aux bords des écrans et des autres fenêtres"/>
+
+                    <TextBlock Style="{StaticResource SubTitle}" Text="Liste des fenêtres"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• ☑ Cocher / décocher pour afficher ou masquer une fenêtre sur le canvas"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• ✏ Cliquer sur le nom pour renommer"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• 👑 Bouton Leader pour définir la fenêtre principale"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• 🖥 Changer l'écran assigné via le menu déroulant de chaque fenêtre"/>
+
+                    <TextBlock Style="{StaticResource SubTitle}" Text="Réglage fin"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• X, Y, L, H : saisir manuellement la position et la taille en pixels de la fenêtre sélectionnée"/>
+
+                    <TextBlock Style="{StaticResource SubTitle}" Text="Positionnement auto"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• ▣ Principal — applique le layout classique (leader + secondaires)"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• ▥ Fractionné V — fenêtres côte à côte"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• ▤ Fractionné H — fenêtres empilées"/>
+
+                    <TextBlock Style="{StaticResource SubTitle}" Text="Outils"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• ✂ Copier taille — mémorise la taille de la fenêtre sélectionnée"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• 🖌 Coller taille — applique la taille mémorisée à la fenêtre sélectionnée"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• ⇔⇕ Appliquer à toutes — applique la taille de la fenêtre sélectionnée à toutes les autres"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• 🔀 Inverser — échange la position de deux fenêtres (cliquer, puis cliquer la cible)"/>
+
+                    <TextBlock Style="{StaticResource SubTitle}" Text="Configurations (presets)"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Sauvegarder un agencement nommé pour le restaurer plus tard"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• Charger ou supprimer des presets existants"/>
+
+                    <TextBlock Style="{StaticResource SubTitle}" Text="Auto-sélection du leader"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• À l'entrée en mode avancé, la plus grande fenêtre est automatiquement définie comme leader"/>
+
+                    <Border Style="{StaticResource Sep}"/>
+
                     <!-- MULTI-ÉCRAN -->
                     <TextBlock Style="{StaticResource SectionTitle}" Text="🖥  Multi-écran"/>
                     <TextBlock Style="{StaticResource Body}"
@@ -134,6 +175,7 @@
                     <TextBlock Style="{StaticResource Bullet}" Text="• Aperçu miniature en temps réel par écran"/>
                     <TextBlock Style="{StaticResource Bullet}" Text="• Les panneaux s'affichent côte à côte avec défilement horizontal"/>
                     <TextBlock Style="{StaticResource Bullet}" Text="• Assigner chaque fenêtre à l'écran souhaité via le menu déroulant dans la liste"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="• En mode avancé : le canvas affiche tous les écrans avec leurs contours, les noms sont au-dessus de chaque zone"/>
 
                     <Border Style="{StaticResource Sep}"/>
 

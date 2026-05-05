@@ -297,6 +297,40 @@ public partial class MainWindow : Window
         ((MainViewModel)DataContext).UpdatePreview();
     }
 
+    // --- Advanced list rename ---
+
+    private void AdvName_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not TextBlock label) return;
+        var grid = (System.Windows.Controls.Grid)label.Parent;
+        var textBox = grid.Children.OfType<TextBox>().First();
+        label.Visibility = Visibility.Collapsed;
+        textBox.Visibility = Visibility.Visible;
+        textBox.Focus();
+        textBox.SelectAll();
+        e.Handled = true;
+    }
+
+    private void AdvRenameBox_LostFocus(object sender, RoutedEventArgs e) => FinishAdvRename((TextBox)sender);
+
+    private void AdvRenameBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.Return or Key.Escape)
+        {
+            FinishAdvRename((TextBox)sender);
+            e.Handled = true;
+        }
+    }
+
+    private void FinishAdvRename(TextBox textBox)
+    {
+        textBox.Visibility = Visibility.Collapsed;
+        var grid = (System.Windows.Controls.Grid)textBox.Parent;
+        var label = grid.Children.OfType<TextBlock>().First();
+        label.Visibility = Visibility.Visible;
+        RedrawAdvancedCanvas();
+    }
+
     // --- Preview monitor click ---
 
     private void PreviewRect_Click(object sender, MouseButtonEventArgs e)
@@ -726,13 +760,28 @@ public partial class MainWindow
         var advVm = vm.AdvancedVm;
         if (advVm is null) return;
 
-        // Draw monitor outlines
+        // Draw monitor outlines with labels above
         foreach (var mon in advVm.MonitorOutlines)
         {
             var monW = Math.Min(mon.CanvasWidth, AdvancedCanvas.Width - mon.CanvasX);
             var monH = Math.Min(mon.CanvasHeight, AdvancedCanvas.Height - mon.CanvasY);
             if (monW < 5 || monH < 5) continue;
 
+            // Label above the monitor zone — centered
+            var monLabel = new TextBlock
+            {
+                Text = $"🖥 {mon.Label}",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = (Brush)Application.Current.Resources["GoldBrush"],
+                Width = monW,
+                TextAlignment = TextAlignment.Center
+            };
+            Canvas.SetLeft(monLabel, mon.CanvasX);
+            Canvas.SetTop(monLabel, Math.Max(0, mon.CanvasY - 18));
+            AdvancedCanvas.Children.Add(monLabel);
+
+            // Monitor border (no child label inside)
             var monBorder = new Border
             {
                 Width = monW,
@@ -742,17 +791,6 @@ public partial class MainWindow
                 Background = new SolidColorBrush(Color.FromArgb(0x0A, 0xFF, 0xFF, 0xFF)),
                 CornerRadius = new CornerRadius(4)
             };
-            var monLabel = new TextBlock
-            {
-                Text = $"🖥 {mon.Label}",
-                FontSize = 11,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = (Brush)Application.Current.Resources["GoldBrush"],
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, 4, 0, 0)
-            };
-            monBorder.Child = monLabel;
             Canvas.SetLeft(monBorder, mon.CanvasX);
             Canvas.SetTop(monBorder, mon.CanvasY);
             AdvancedCanvas.Children.Add(monBorder);

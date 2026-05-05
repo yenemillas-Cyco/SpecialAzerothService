@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace WindowsOrganiserApp.Models;
@@ -17,9 +18,16 @@ public partial class WindowInfo : ObservableObject
     [ObservableProperty]
     private string _customName = string.Empty;
 
+    private static readonly string[] WowProcesses = ["Wow", "WowClassic", "WowT", "WowB"];
+
     public string DisplayName => string.IsNullOrWhiteSpace(CustomName)
-        ? $"WoW {LaunchOrder}"
+        ? WowProcesses.Any(p => ProcessName.Equals(p, StringComparison.OrdinalIgnoreCase))
+            ? $"WoW {LaunchOrder}"
+            : TruncateTitle(Title, 20)
         : CustomName;
+
+    private static string TruncateTitle(string title, int max) =>
+        title.Length <= max ? title : title[..(max - 1)] + "…";
 
     [ObservableProperty]
     private bool _isSelected;

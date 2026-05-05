@@ -5,7 +5,7 @@ namespace WindowsOrganiserApp.Services;
 public interface IWindowService
 {
     IntPtr OwnHandle { get; set; }
-    List<WindowInfo> GetOpenWindows();
+    List<WindowInfo> GetOpenWindows(bool wowOnly = true);
     void MoveAndResize(IntPtr handle, WindowRect rect);
     WindowRect GetWorkArea();
     WindowRect GetWindowRect(IntPtr handle);

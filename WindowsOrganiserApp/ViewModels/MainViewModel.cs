@@ -60,6 +60,14 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _currentThemeLabel;
 
+    [ObservableProperty]
+    private bool _wowOnly = true;
+
+    partial void OnWowOnlyChanged(bool value)
+    {
+        RefreshWindowsCommand.Execute(null);
+    }
+
     partial void OnCurrentThemeLabelChanged(string value)
     {
         if (!string.IsNullOrEmpty(value) && value != _themeService.CurrentTheme)
@@ -206,7 +214,7 @@ public partial class MainViewModel : ObservableObject
         // 5. Refresh windows
         AvailableWindows.Clear();
         var defaultMonitor = Monitors.FirstOrDefault(m => m.IsPrimary) ?? Monitors.FirstOrDefault();
-        var windows = _windowService.GetOpenWindows();
+        var windows = _windowService.GetOpenWindows(wowOnly: WowOnly);
         foreach (var w in windows)
         {
             w.IsSelected = true;
@@ -248,7 +256,11 @@ public partial class MainViewModel : ObservableObject
             {
                 if (e.PropertyName is nameof(WindowInfo.IsSelected) or nameof(WindowInfo.IsMainWindow)
                     or nameof(WindowInfo.AssignedMonitor))
+                {
                     UpdatePreview();
+                    if (IsAdvancedMode && e.PropertyName is nameof(WindowInfo.IsSelected) or nameof(WindowInfo.AssignedMonitor))
+                        AdvancedVm?.RefreshFromMain();
+                }
             };
             AvailableWindows.Add(w);
         }

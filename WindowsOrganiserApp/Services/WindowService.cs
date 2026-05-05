@@ -18,7 +18,7 @@ public class WindowService : IWindowService
         _logger = logger;
     }
 
-    public List<WindowInfo> GetOpenWindows()
+    public List<WindowInfo> GetOpenWindows(bool wowOnly = true)
     {
         var windows = new List<WindowInfo>();
         var shellWindow = NativeMethods.GetShellWindow();
@@ -44,14 +44,24 @@ public class WindowService : IWindowService
 
             var (processName, processId, startTime) = GetProcessInfo(hWnd);
 
-            // Uniquement les fenêtres World of Warcraft (+ msedge en DEBUG)
+            if (wowOnly)
+            {
 #if DEBUG
-            var allowed = new[] { "Wow", "WowClassic", "WowT", "WowB", "msedge" };
+                var allowed = new[] { "Wow", "WowClassic", "WowT", "WowB", "msedge" };
 #else
-            var allowed = new[] { "Wow", "WowClassic", "WowT", "WowB" };
+                var allowed = new[] { "Wow", "WowClassic", "WowT", "WowB" };
 #endif
-            if (!allowed.Any(a => processName.Equals(a, StringComparison.OrdinalIgnoreCase)))
-                return true;
+                if (!allowed.Any(a => processName.Equals(a, StringComparison.OrdinalIgnoreCase)))
+                    return true;
+            }
+            else
+            {
+                // Mode toutes fenêtres : exclure les process système courants
+                var excluded = new[] { "explorer", "SearchHost", "TextInputHost", "ShellExperienceHost",
+                    "StartMenuExperienceHost", "SystemSettings", "ApplicationFrameHost" };
+                if (excluded.Any(e => processName.Equals(e, StringComparison.OrdinalIgnoreCase)))
+                    return true;
+            }
 
             windows.Add(new WindowInfo
             {
@@ -70,7 +80,7 @@ public class WindowService : IWindowService
         for (var i = 0; i < windows.Count; i++)
             windows[i].LaunchOrder = i + 1;
 
-        _logger.Information("Enumerated {Count} WoW windows", windows.Count);
+        _logger.Information("Enumerated {Count} windows (wowOnly={WowOnly})", windows.Count, wowOnly);
         return windows;
     }
 
