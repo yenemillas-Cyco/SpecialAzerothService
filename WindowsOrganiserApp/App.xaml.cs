@@ -33,19 +33,15 @@ public partial class App : Application
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IPresetService, PresetService>();
-        services.AddSingleton<IRaidHelperService, RaidHelperService>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<AdvancedViewModel>();
-        services.AddSingleton<RaidCalendarViewModel>();
         services.AddTransient<MainWindow>();
 
         _serviceProvider = services.BuildServiceProvider();
 
         var mainVm = _serviceProvider.GetRequiredService<MainViewModel>();
         var advVm = _serviceProvider.GetRequiredService<AdvancedViewModel>();
-        var calVm = _serviceProvider.GetRequiredService<RaidCalendarViewModel>();
         mainVm.AdvancedVm = advVm;
-        mainVm.CalendarVm = calVm;
 
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
         mainWindow.Show();

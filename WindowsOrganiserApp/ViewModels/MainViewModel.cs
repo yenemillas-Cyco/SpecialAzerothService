@@ -41,12 +41,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isAdvancedMode;
 
-    [ObservableProperty]
-    private bool _isCalendarMode;
-
     partial void OnIsStandardModeChanged(bool value)
     {
-        if (value) { IsAdvancedMode = false; IsCalendarMode = false; }
+        if (value) IsAdvancedMode = false;
     }
 
     partial void OnIsAdvancedModeChanged(bool value)
@@ -54,18 +51,11 @@ public partial class MainViewModel : ObservableObject
         if (value)
         {
             IsStandardMode = false;
-            IsCalendarMode = false;
             AdvancedVm?.RefreshFromMain();
         }
     }
 
-    partial void OnIsCalendarModeChanged(bool value)
-    {
-        if (value) { IsStandardMode = false; IsAdvancedMode = false; }
-    }
-
     public AdvancedViewModel? AdvancedVm { get; set; }
-    public RaidCalendarViewModel? CalendarVm { get; set; }
 
     [ObservableProperty]
     private string _currentThemeLabel;

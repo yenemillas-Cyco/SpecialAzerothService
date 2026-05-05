@@ -331,24 +331,6 @@ public partial class MainWindow : Window
         RedrawAdvancedCanvas();
     }
 
-    private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
-    {
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
-        e.Handled = true;
-    }
-
-    private void CalendarEvent_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is not FrameworkElement el) return;
-        if (el.DataContext is not RaidEvent raidEvent) return;
-        var vm = (MainViewModel)DataContext;
-        if (vm.CalendarVm is not null)
-        {
-            vm.CalendarVm.SelectedDate = raidEvent.StartDateTime.Date;
-            vm.CalendarVm.SelectedEvent = raidEvent;
-        }
-    }
-
     // --- Preview monitor click ---
 
     private void PreviewRect_Click(object sender, MouseButtonEventArgs e)
