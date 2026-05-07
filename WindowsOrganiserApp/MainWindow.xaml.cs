@@ -102,6 +102,8 @@ public partial class MainWindow : Window
 
         System.Windows.Media.Brush Res(string key) =>
             (System.Windows.Media.Brush)Application.Current.Resources[key];
+        string Str(string key) =>
+            Application.Current.Resources[key] as string ?? key;
 
         var gold = Res("GoldBrush");
         var brightGold = Res("BrightGoldBrush");
@@ -114,7 +116,7 @@ public partial class MainWindow : Window
 
         var win = new Window
         {
-            Title = "À propos",
+            Title = Str("About_WindowTitle"),
             Width = 420,
             Height = 380,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -159,7 +161,7 @@ public partial class MainWindow : Window
 
         stack.Children.Add(new TextBlock
         {
-            Text = "Développé par Cyco (ancien stagiaire)",
+            Text = Str("About_Dev"),
             FontSize = 13, Foreground = text, FontWeight = FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 16)
@@ -167,7 +169,7 @@ public partial class MainWindow : Window
 
         stack.Children.Add(new TextBlock
         {
-            Text = "— Remerciements —",
+            Text = Str("About_Thanks"),
             FontSize = 12, Foreground = gold, FontWeight = FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 10)
@@ -180,7 +182,7 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 0, 0, 10)
         };
         optiBlock.Inlines.Add(new System.Windows.Documents.Run("Opti") { Foreground = brightGold, FontWeight = FontWeights.Bold });
-        optiBlock.Inlines.Add(new System.Windows.Documents.Run("  —  Bêta-testeur officiel, cobaye volontaire") { Foreground = text, FontSize = 12 });
+        optiBlock.Inlines.Add(new System.Windows.Documents.Run(Str("About_Opti")) { Foreground = text, FontSize = 12 });
         stack.Children.Add(optiBlock);
 
         var eloiBlock = new TextBlock
@@ -192,17 +194,17 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 0, 0, 4)
         };
         eloiBlock.Inlines.Add(new System.Windows.Documents.Run("Eloi") { Foreground = brightGold, FontWeight = FontWeights.Bold });
-        eloiBlock.Inlines.Add(new System.Windows.Documents.Run("  —  Grand Maître de la guilde,") { Foreground = text, FontSize = 12 });
+        eloiBlock.Inlines.Add(new System.Windows.Documents.Run(Str("About_Eloi")) { Foreground = text, FontSize = 12 });
         stack.Children.Add(eloiBlock);
         stack.Children.Add(new TextBlock
         {
-            Text = "dictateur d'Azeroth Service.",
+            Text = Str("About_Eloi2"),
             FontSize = 12, Foreground = text,
             HorizontalAlignment = HorizontalAlignment.Center
         });
         stack.Children.Add(new TextBlock
         {
-            Text = "On le remercie parce qu'on n'a pas vraiment le choix.",
+            Text = Str("About_Eloi3"),
             FontSize = 11, Foreground = subtext, FontStyle = FontStyles.Italic,
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 2, 0, 16)
@@ -210,7 +212,7 @@ public partial class MainWindow : Window
 
         stack.Children.Add(new TextBlock
         {
-            Text = "Contact : yenemillas@gmail.com",
+            Text = Str("About_Contact"),
             FontSize = 11, Foreground = subtext,
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 8)
@@ -222,7 +224,7 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 0, 0, 14)
         };
         var hyperlink = new System.Windows.Documents.Hyperlink(
-            new System.Windows.Documents.Run("Téléchargements & mises à jour"))
+            new System.Windows.Documents.Run(Str("About_Link")))
         {
             NavigateUri = new Uri("https://github.com/yenemillas-Cyco/SpecialAzerothService/releases"),
             Foreground = epic,
@@ -244,7 +246,7 @@ public partial class MainWindow : Window
 
         var closeBtn = new Button
         {
-            Content = "Fermer",
+            Content = Str("About_Close"),
             Padding = new Thickness(24, 8, 24, 8),
             FontSize = 13, FontWeight = FontWeights.Bold, Cursor = Cursors.Hand,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -332,19 +334,6 @@ public partial class MainWindow : Window
     }
 
     // --- Preview monitor click ---
-
-    private void PreviewRect_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is not FrameworkElement el) return;
-        if (el.DataContext is not PreviewRect preview) return;
-
-        var vm = (MainViewModel)DataContext;
-        if (preview.IsMonitorOutline && preview.MonitorConfig is not null)
-        {
-            vm.SelectMonitorConfigCommand.Execute(preview.MonitorConfig);
-            e.Handled = true;
-        }
-    }
 
     // --- Preview rename ---
 

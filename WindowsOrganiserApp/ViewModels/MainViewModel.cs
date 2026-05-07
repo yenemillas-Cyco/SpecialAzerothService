@@ -13,27 +13,34 @@ public partial class MainViewModel : ObservableObject
     private readonly ILayoutService _layoutService;
     private readonly ISettingsService _settingsService;
     private readonly IThemeService _themeService;
+    private readonly ILocalizationService _localizationService;
     private readonly ILogger _logger;
     private AppSettings? _loadedSettings;
 
     public MainViewModel(IWindowService windowService, ILayoutService layoutService,
-                         ISettingsService settingsService, IThemeService themeService, ILogger logger)
+                         ISettingsService settingsService, IThemeService themeService,
+                         ILocalizationService localizationService, ILogger logger)
     {
         _windowService = windowService;
         _layoutService = layoutService;
         _settingsService = settingsService;
         _themeService = themeService;
+        _localizationService = localizationService;
         _logger = logger;
         _loadedSettings = _settingsService.Load();
 
         if (!string.IsNullOrEmpty(_loadedSettings.Theme))
             _themeService.ApplyTheme(_loadedSettings.Theme);
+        if (!string.IsNullOrEmpty(_loadedSettings.Language))
+            _localizationService.ApplyLanguage(_loadedSettings.Language);
 
         _currentThemeLabel = _themeService.CurrentTheme;
+        _currentLanguage = _localizationService.CurrentLanguage;
         RefreshMonitors();
     }
 
     public string[] AvailableThemes => _themeService.AvailableThemes;
+    public string[] AvailableLanguages => _localizationService.AvailableLanguages;
 
     [ObservableProperty]
     private bool _isStandardMode = true;
@@ -61,6 +68,9 @@ public partial class MainViewModel : ObservableObject
     private string _currentThemeLabel;
 
     [ObservableProperty]
+    private string _currentLanguage;
+
+    [ObservableProperty]
     private bool _wowOnly = true;
 
     partial void OnWowOnlyChanged(bool value)
@@ -74,9 +84,19 @@ public partial class MainViewModel : ObservableObject
             _themeService.ApplyTheme(value);
     }
 
+    partial void OnCurrentLanguageChanged(string value)
+    {
+        if (!string.IsNullOrEmpty(value) && value != _localizationService.CurrentLanguage)
+            _localizationService.ApplyLanguage(value);
+    }
+
     public AppSettings GetCurrentSettings()
     {
-        var settings = new AppSettings { Theme = _themeService.CurrentTheme };
+        var settings = new AppSettings
+        {
+            Theme = _themeService.CurrentTheme,
+            Language = _localizationService.CurrentLanguage
+        };
 
         settings.MonitorConfigs = MonitorConfigs.Select(c => new MonitorConfigSettings
         {
@@ -328,6 +348,33 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ApplyLayoutForMonitor(MonitorInfo? monitor)
+    {
+        if (monitor is null) return;
+        var selected = AvailableWindows
+            .Where(w => w.IsSelected && w.AssignedMonitor?.Handle == monitor.Handle)
+            .ToList();
+        if (selected.Count == 0)
+        {
+            StatusMessage = $"Aucune fenêtre sur {monitor.DisplayLabel}";
+            return;
+        }
+
+        var config = GetConfigForMonitor(monitor);
+        var workArea = monitor.WorkArea;
+        var mainWindow = selected.FirstOrDefault(w => w.IsMainWindow) ?? selected[0];
+
+        var layout = config.Mode == LayoutMode.Main
+            ? _layoutService.CalculateMainLayout(selected, workArea, config.Size, config.Position, config.HasLateral, config.HasBandeau)
+            : _layoutService.CalculateSplitLayout(selected, workArea, config.SplitOrientation);
+
+        foreach (var (handle, rect) in layout)
+            _windowService.MoveAndResize(handle, rect);
+
+        StatusMessage = $"Layout appliqué sur {monitor.DisplayLabel} ({selected.Count} fenêtre(s))";
+    }
+
+    [RelayCommand]
     private void FullscreenWindow(WindowInfo? window)
     {
         if (window is null) return;
@@ -364,31 +411,6 @@ public partial class MainViewModel : ObservableObject
         UpdatePreview();
     }
 
-    [RelayCommand]
-    private void ToggleAdvancedLead()
-    {
-        AdvancedVm?.ToggleMainWindowCommand.Execute(null);
-    }
-
-    [RelayCommand]
-    private void MoveUp(WindowInfo? window)
-    {
-        if (window is null) return;
-        var idx = AvailableWindows.IndexOf(window);
-        if (idx <= 0) return;
-        AvailableWindows.Move(idx, idx - 1);
-        UpdatePreview();
-    }
-
-    [RelayCommand]
-    private void MoveDown(WindowInfo? window)
-    {
-        if (window is null) return;
-        var idx = AvailableWindows.IndexOf(window);
-        if (idx < 0 || idx >= AvailableWindows.Count - 1) return;
-        AvailableWindows.Move(idx, idx + 1);
-        UpdatePreview();
-    }
 
     public void UpdatePreview()
     {
@@ -458,8 +480,5 @@ public class PreviewRect
     public string Title { get; init; } = string.Empty;
     public int BadgeNumber { get; init; }
     public bool IsMain { get; init; }
-    public bool IsMonitorOutline { get; init; }
-    public bool IsSelectedMonitor { get; init; }
     public WindowInfo? Window { get; init; }
-    public MonitorLayoutConfig? MonitorConfig { get; init; }
 }

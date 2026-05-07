@@ -68,7 +68,6 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <!-- Header: Logo + Guild name + Player -->
@@ -90,22 +89,26 @@
                                     Command="{Binding RefreshWindowsCommand}" ToolTip="Rafraîchir la liste">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="⟳" FontSize="14" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <TextBlock Text="Rafraîchir" FontSize="12" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{DynamicResource Header_Refresh}" FontSize="12" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
                             <CheckBox IsChecked="{Binding WowOnly}" Margin="8,0,0,0"
                                       Style="{DynamicResource SelectionCheck}" VerticalAlignment="Center"
                                       ToolTip="Coché : uniquement WoW. Décoché : toutes les fenêtres"/>
-                            <TextBlock Text="WoW uniquement" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
+                            <TextBlock Text="{DynamicResource Header_WowOnly}" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
                                        Foreground="{DynamicResource SubtextBrush}"/>
                             <ComboBox Width="110" Height="28" Margin="6,0,0,0"
                                       ItemsSource="{Binding AvailableThemes}"
                                       SelectedItem="{Binding CurrentThemeLabel}"
                                       ToolTip="Changer de thème"/>
-                            <Button Content="📖 Aide" Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
-                                    Click="Help_Click" ToolTip="Guide d'utilisation" Margin="6,0,0,0"/>
+                            <ComboBox Width="90" Height="28" Margin="6,0,0,0"
+                                      ItemsSource="{Binding AvailableLanguages}"
+                                      SelectedItem="{Binding CurrentLanguage}"
+                                      ToolTip="{DynamicResource Lang_Label}"/>
+                            <Button Content="{DynamicResource Header_Help}" Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
+                                    Click="Help_Click" ToolTip="{DynamicResource Help_Title}" Margin="6,0,0,0"/>
                             <Button Content="?" Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
-                                    Click="About_Click" ToolTip="À propos" Margin="6,0,0,0"/>
+                                    Click="About_Click" ToolTip="{DynamicResource About_WindowTitle}" Margin="6,0,0,0"/>
                         </StackPanel>
                     </Grid>
 
@@ -116,14 +119,21 @@
 
                     <!-- Mode toggle -->
                     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
-                        <RadioButton Content="Standard" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
+                        <RadioButton Content="{DynamicResource Mode_Standard}" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
                                      IsChecked="{Binding IsStandardMode}" Margin="0,0,6,0"/>
-                        <RadioButton Content="Avancé" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
+                        <RadioButton Content="{DynamicResource Mode_Advanced}" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
                                      IsChecked="{Binding IsAdvancedMode}"/>
                     </StackPanel>
 
                     <!-- Standard content -->
-                    <Grid Grid.Row="3" Visibility="{Binding IsStandardMode, Converter={StaticResource BoolToVis}}">
+                    <DockPanel Grid.Row="3" Visibility="{Binding IsStandardMode, Converter={StaticResource BoolToVis}}">
+                        <!-- Apply button always visible at bottom -->
+                        <StackPanel DockPanel.Dock="Bottom" HorizontalAlignment="Center" Margin="0,12,0,0">
+                            <Button Content="{DynamicResource Layout_Apply}" Style="{DynamicResource WowButton}"
+                                    Command="{Binding ApplyLayoutCommand}" FontSize="15" Padding="40,12"/>
+                        </StackPanel>
+
+                        <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="470"/>
                             <ColumnDefinition Width="14"/>
@@ -135,15 +145,14 @@
                                 Padding="12" BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}">
                             <DockPanel>
                                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                                    <TextBlock Text="Fenêtres du groupe" FontSize="14" FontWeight="SemiBold"
+                                    <TextBlock Text="{DynamicResource List_Title}" FontSize="14" FontWeight="SemiBold"
                                                Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <Button Content="Tout" Style="{DynamicResource StoneButton}"
-                                                Command="{Binding SelectAllCommand}" FontSize="10" Padding="6,2"
-                                                ToolTip="Tout cocher"/>
-                                        <Button Content="Aucun" Style="{DynamicResource StoneButton}"
+                                        <Button Content="{DynamicResource List_All}" Style="{DynamicResource StoneButton}"
+                                                Command="{Binding SelectAllCommand}" FontSize="10" Padding="6,2"/>
+                                        <Button Content="{DynamicResource List_None}" Style="{DynamicResource StoneButton}"
                                                 Command="{Binding DeselectAllCommand}" FontSize="10" Padding="6,2"
-                                                Margin="4,0,0,0" ToolTip="Tout décocher"/>
+                                                Margin="4,0,0,0"/>
                                     </StackPanel>
                                 </DockPanel>
 
@@ -461,11 +470,20 @@
                                                                                            Foreground="#FFFFFF" HorizontalAlignment="Center"
                                                                                            VerticalAlignment="Center"/>
                                                                             </Border>
-                                                                            <TextBlock Text="{Binding Title}" FontSize="9"
-                                                                                       TextTrimming="CharacterEllipsis"
-                                                                                       Foreground="{DynamicResource TextBrush}"
-                                                                                       HorizontalAlignment="Center"
-                                                                                       VerticalAlignment="Center"/>
+                                                                            <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                                <TextBlock Text="{Binding Title}" FontSize="9"
+                                                                                           TextTrimming="CharacterEllipsis"
+                                                                                           Foreground="{DynamicResource TextBrush}"
+                                                                                           Cursor="Hand" ToolTip="Double-clic pour renommer"
+                                                                                           MouseLeftButtonDown="PreviewName_Click"/>
+                                                                                <TextBox FontSize="9" Padding="1" MinWidth="30"
+                                                                                         Visibility="Collapsed"
+                                                                                         Text="{Binding Window.CustomName, UpdateSourceTrigger=PropertyChanged}"
+                                                                                         Background="#1A1208" Foreground="{DynamicResource GoldBrush}"
+                                                                                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                                                                         LostFocus="PreviewRenameBox_LostFocus"
+                                                                                         KeyDown="PreviewRenameBox_KeyDown"/>
+                                                                            </Grid>
                                                                         </Grid>
                                                                     </Border>
                                                                 </DataTemplate>
@@ -481,13 +499,7 @@
                             </ScrollViewer>
                         </Border>
                     </Grid>
-
-                    <!-- Apply button (Standard mode) -->
-                    <StackPanel Grid.Row="4" HorizontalAlignment="Center" Margin="0,12,0,0"
-                                Visibility="{Binding IsStandardMode, Converter={StaticResource BoolToVis}}">
-                        <Button Content="Appliquer le layout" Style="{DynamicResource WowButton}"
-                                Command="{Binding ApplyLayoutCommand}" FontSize="15" Padding="40,12"/>
-                    </StackPanel>
+                    </DockPanel>
 
                     <!-- Advanced content -->
                     <Grid Grid.Row="3" Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVis}}">
@@ -500,197 +512,226 @@
                         <!-- Interactive Canvas -->
                         <Border Grid.Column="0" Background="{DynamicResource PanelBg}" CornerRadius="6"
                                 Padding="8" BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}">
-                            <Grid>
-                                <TextBlock Text="Aperçu interactif — Glisser pour déplacer, coins pour redimensionner"
-                                           FontSize="10" Foreground="{DynamicResource SubtextBrush}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,2,0,0"/>
-                                <Border Background="{DynamicResource OverlayBrush}" CornerRadius="4"
-                                        Margin="0,18,0,0" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}"
-                                        ClipToBounds="True">
-                                    <Canvas x:Name="AdvancedCanvas" Width="600" Height="340"
-                                            Background="Transparent"
-                                            ClipToBounds="True"
-                                            MouseLeftButtonDown="AdvCanvas_MouseDown"
-                                            MouseMove="AdvCanvas_MouseMove"
-                                            MouseLeftButtonUp="AdvCanvas_MouseUp"/>
-                                </Border>
-                            </Grid>
+                            <DockPanel>
+                                <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Monitors}" Margin="0,8,0,0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel HorizontalAlignment="Center"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}"
+                                                    Background="{DynamicResource PanelBg2}"
+                                                    CornerRadius="6" Padding="10,8" Margin="6,0">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding DisplayLabel}" FontSize="12" FontWeight="Bold"
+                                                               Foreground="{DynamicResource BrightGoldBrush}"
+                                                               HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                                    <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,6">
+                                                        <Button Content="▣ Principal" Style="{DynamicResource StoneButton}" FontSize="11" Padding="8,5" Margin="2,0"
+                                                                Command="{Binding DataContext.AdvancedVm.AutoLayoutMainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}"/>
+                                                        <Button Content="▥ Frac. V" Style="{DynamicResource StoneButton}" FontSize="11" Padding="8,5" Margin="2,0"
+                                                                Command="{Binding DataContext.AdvancedVm.AutoLayoutSplitVCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}"/>
+                                                        <Button Content="▤ Frac. H" Style="{DynamicResource StoneButton}" FontSize="11" Padding="8,5" Margin="2,0"
+                                                                Command="{Binding DataContext.AdvancedVm.AutoLayoutSplitHCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}"/>
+                                                    </WrapPanel>
+                                                    <Button Style="{DynamicResource WowButton}" Padding="16,8"
+                                                            Command="{Binding DataContext.AdvancedVm.ApplyMonitorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}">
+                                                        <StackPanel HorizontalAlignment="Center">
+                                                            <TextBlock Text="⚔ Appliquer le layout" FontSize="12" FontWeight="Bold"
+                                                                       HorizontalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding DisplayLabel}" FontSize="10"
+                                                                       HorizontalAlignment="Center" Opacity="0.8"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Grid>
+                                    <TextBlock Text="Aperçu interactif — Glisser pour déplacer, coins pour redimensionner"
+                                               FontSize="10" Foreground="{DynamicResource SubtextBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,2,0,0"/>
+                                    <Border Background="{DynamicResource OverlayBrush}" CornerRadius="4"
+                                            Margin="0,18,0,0" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}"
+                                            ClipToBounds="True">
+                                        <Canvas x:Name="AdvancedCanvas" Width="600" Height="340"
+                                                Background="Transparent"
+                                                ClipToBounds="True"
+                                                MouseLeftButtonDown="AdvCanvas_MouseDown"
+                                                MouseMove="AdvCanvas_MouseMove"
+                                                MouseLeftButtonUp="AdvCanvas_MouseUp"/>
+                                    </Border>
+                                </Grid>
+                            </DockPanel>
                         </Border>
 
                         <!-- Controls panel -->
                         <Border Grid.Column="2" Background="{DynamicResource PanelBg}" CornerRadius="6"
                                 Padding="12" BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}">
                             <DockPanel>
-                                <!-- Window list -->
-                                <TextBlock DockPanel.Dock="Top" Text="Fenêtres" FontSize="13" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
-                                <ScrollViewer DockPanel.Dock="Top" MaxHeight="160" Margin="0,0,0,8"
-                                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                    <ItemsControl ItemsSource="{Binding AvailableWindows}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Background="{DynamicResource PanelBg2}" CornerRadius="3"
-                                                        Padding="4,3" Margin="0,0,0,2"
-                                                        BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}"
-                                                                  Style="{DynamicResource SelectionCheck}" Margin="0,0,4,0"
-                                                                  VerticalAlignment="Center" ToolTip="Afficher/masquer"/>
-                                                        <Border Grid.Column="1" Width="16" Height="16" CornerRadius="8"
-                                                                Background="{DynamicResource GoldBrush}" Margin="0,0,4,0"
-                                                                VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding LaunchOrder}" FontSize="9" FontWeight="Bold"
-                                                                       Foreground="#FFFFFF" HorizontalAlignment="Center"
-                                                                       VerticalAlignment="Center"/>
-                                                        </Border>
-                                                        <Grid Grid.Column="2" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding DisplayName}" FontSize="10"
-                                                                       Foreground="{DynamicResource TextBrush}"
-                                                                       TextTrimming="CharacterEllipsis"
-                                                                       Cursor="Hand" ToolTip="Cliquer pour renommer"
-                                                                       MouseLeftButtonDown="AdvName_Click"/>
-                                                            <TextBox FontSize="10" Padding="0" MinWidth="50"
-                                                                     Visibility="Collapsed"
-                                                                     Text="{Binding CustomName, UpdateSourceTrigger=PropertyChanged}"
-                                                                     Background="#1A1208" Foreground="{DynamicResource GoldBrush}"
-                                                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                                                     LostFocus="AdvRenameBox_LostFocus"
-                                                                     KeyDown="AdvRenameBox_KeyDown"/>
-                                                        </Grid>
-                                                        <Button Grid.Column="3" FontSize="9" Height="18" Padding="4,1" Margin="2,0"
-                                                                Style="{DynamicResource StoneButton}"
-                                                                Command="{Binding DataContext.SetAsMainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                CommandParameter="{Binding}"
-                                                                Content="{Binding IsMainWindow, Converter={StaticResource MainLabelConverter}}"
-                                                                VerticalAlignment="Center" ToolTip="Définir comme leader"/>
-                                                        <ComboBox Grid.Column="4" Width="70" Height="20" FontSize="9"
-                                                                  ItemsSource="{Binding DataContext.Monitors, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                  SelectedItem="{Binding AssignedMonitor}"
-                                                                  VerticalAlignment="Center" VerticalContentAlignment="Center"
-                                                                  ToolTip="Écran cible"/>
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-
-                                <TextBlock DockPanel.Dock="Top" Text="Réglage fin" FontSize="13" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,8"/>
-
-                                <!-- Slot info -->
-                                <Border DockPanel.Dock="Top" Background="{DynamicResource PanelBg2}" CornerRadius="4"
-                                        Padding="8,6" Margin="0,0,0,8" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding AdvancedVm.SelectedSlot.Window.DisplayName, FallbackValue='Aucune sélection'}"
-                                                   FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrightGoldBrush}"/>
-                                        <Grid Margin="0,6,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="X" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,4,2"/>
-                                            <TextBox Grid.Row="0" Grid.Column="1" FontSize="11" Padding="4,2" Margin="0,0,8,2"
-                                                     Text="{Binding AdvancedVm.SelectedSlot.RealX, UpdateSourceTrigger=PropertyChanged}"
-                                                     Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
-                                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Y" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,4,2"/>
-                                            <TextBox Grid.Row="0" Grid.Column="3" FontSize="11" Padding="4,2" Margin="0,0,0,2"
-                                                     Text="{Binding AdvancedVm.SelectedSlot.RealY, UpdateSourceTrigger=PropertyChanged}"
-                                                     Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
-                                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="L" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,4,0"/>
-                                            <TextBox Grid.Row="1" Grid.Column="1" FontSize="11" Padding="4,2" Margin="0,0,8,0"
-                                                     Text="{Binding AdvancedVm.SelectedSlot.RealWidth, UpdateSourceTrigger=PropertyChanged}"
-                                                     Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
-                                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="2" Text="H" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,4,0"/>
-                                            <TextBox Grid.Row="1" Grid.Column="3" FontSize="11" Padding="4,2"
-                                                     Text="{Binding AdvancedVm.SelectedSlot.RealHeight, UpdateSourceTrigger=PropertyChanged}"
-                                                     Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
-                                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- Auto layout -->
-                                <TextBlock DockPanel.Dock="Top" Text="Positionnement auto" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource GoldBrush}" Margin="0,4,0,4"/>
-                                <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,4">
-                                    <Button Content="▣ Principal" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
-                                            Command="{Binding AdvancedVm.AutoLayoutMainCommand}" ToolTip="1 fenêtre principale + comptes en latéral"/>
-                                    <Button Content="▥ Fractionné V" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
-                                            Command="{Binding AdvancedVm.AutoLayoutSplitHCommand}" ToolTip="Fenêtres côte à côte"/>
-                                    <Button Content="▤ Fractionné H" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
-                                            Command="{Binding AdvancedVm.AutoLayoutSplitVCommand}" ToolTip="Fenêtres empilées"/>
-                                </WrapPanel>
-
-                                <!-- Copy size -->
-                                <TextBlock DockPanel.Dock="Top" Text="Outils" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource GoldBrush}" Margin="0,4,0,4"/>
-                                <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                                    <Button Content="✂ Copier taille" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
-                                            Command="{Binding AdvancedVm.CopySizeCommand}" ToolTip="Copie la taille de la fenêtre sélectionnée"/>
-                                    <Button Content="🖌 Coller taille" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
-                                            Command="{Binding AdvancedVm.PasteSizeCommand}"
-                                            IsEnabled="{Binding AdvancedVm.HasCopiedSize}"
-                                            ToolTip="Applique la taille copiée sur la fenêtre sélectionnée"/>
-                                    <Button Content="⇔⇕ Appliquer à toutes" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
-                                            Command="{Binding AdvancedVm.ApplySizeToAllCommand}"
-                                            ToolTip="Applique la largeur et hauteur de la fenêtre sélectionnée à toutes les autres"/>
-                                    <Button Content="🔀 Inverser" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
-                                            Command="{Binding AdvancedVm.StartSwapCommand}"
-                                            ToolTip="Échange la position de la fenêtre sélectionnée avec une autre"/>
-                                </WrapPanel>
-
-                                <!-- Presets -->
-                                <TextBlock DockPanel.Dock="Top" Text="Configurations" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource GoldBrush}" Margin="0,4,0,4"/>
-                                <ComboBox DockPanel.Dock="Top" ItemsSource="{Binding AdvancedVm.Presets}"
-                                          SelectedItem="{Binding AdvancedVm.SelectedPreset}"
-                                          DisplayMemberPath="Name" Height="28" Margin="0,0,0,4"/>
-                                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
-                                    <Button Content="Charger" Style="{DynamicResource StoneButton}" FontSize="10" Padding="8,4"
-                                            Command="{Binding AdvancedVm.LoadPresetCommand}"/>
-                                    <Button Content="Supprimer" Style="{DynamicResource StoneButton}" FontSize="10" Padding="8,4" Margin="4,0,0,0"
-                                            Command="{Binding AdvancedVm.DeletePresetCommand}"/>
-                                </StackPanel>
-                                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                                    <Button DockPanel.Dock="Right" Content="💾" Style="{DynamicResource StoneButton}" FontSize="12" Padding="8,4" Margin="4,0,0,0"
-                                            Command="{Binding AdvancedVm.SavePresetCommand}"/>
-                                    <TextBox Text="{Binding AdvancedVm.NewPresetName, UpdateSourceTrigger=PropertyChanged}"
-                                             FontSize="11" Padding="4,4" ToolTip="Nom du preset"
-                                             Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
-                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                                </DockPanel>
-
-                                <!-- Apply advanced -->
-                                <Button DockPanel.Dock="Bottom" Content="⚔ Appliquer" Style="{DynamicResource WowButton}"
+                                <!-- Apply + status at bottom -->
+                                <Button DockPanel.Dock="Bottom" Content="⚔ Appliquer (tous)" Style="{DynamicResource WowButton}"
                                         Command="{Binding AdvancedVm.ApplyAdvancedCommand}" FontSize="13" Padding="20,10"
                                         HorizontalAlignment="Stretch" Margin="0,8,0,0"/>
-
-                                <TextBlock Text="{Binding AdvancedVm.StatusMessage}" FontSize="10"
+                                <TextBlock DockPanel.Dock="Bottom" Text="{Binding AdvancedVm.StatusMessage}" FontSize="10"
                                            Foreground="{DynamicResource SubtextBrush}" Margin="0,4,0,0"
                                            TextWrapping="Wrap"/>
+
+                                <!-- Scrollable content above -->
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <StackPanel>
+                                        <!-- Window list -->
+                                        <TextBlock Text="{DynamicResource Adv_Windows}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
+                                        <ItemsControl ItemsSource="{Binding AvailableWindows}" Margin="0,0,0,8">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{DynamicResource PanelBg2}" CornerRadius="3"
+                                                            Padding="4,3" Margin="0,0,0,2"
+                                                            BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}"
+                                                                      Style="{DynamicResource SelectionCheck}" Margin="0,0,4,0"
+                                                                      VerticalAlignment="Center" ToolTip="Afficher/masquer"/>
+                                                            <Border Grid.Column="1" Width="16" Height="16" CornerRadius="8"
+                                                                    Background="{DynamicResource GoldBrush}" Margin="0,0,4,0"
+                                                                    VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding LaunchOrder}" FontSize="9" FontWeight="Bold"
+                                                                           Foreground="#FFFFFF" HorizontalAlignment="Center"
+                                                                           VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <Grid Grid.Column="2" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding DisplayName}" FontSize="10"
+                                                                           Foreground="{DynamicResource TextBrush}"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           Cursor="Hand" ToolTip="Cliquer pour renommer"
+                                                                           MouseLeftButtonDown="AdvName_Click"/>
+                                                                <TextBox FontSize="10" Padding="0" MinWidth="50"
+                                                                         Visibility="Collapsed"
+                                                                         Text="{Binding CustomName, UpdateSourceTrigger=PropertyChanged}"
+                                                                         Background="#1A1208" Foreground="{DynamicResource GoldBrush}"
+                                                                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                                                         LostFocus="AdvRenameBox_LostFocus"
+                                                                         KeyDown="AdvRenameBox_KeyDown"/>
+                                                            </Grid>
+                                                            <Button Grid.Column="3" FontSize="9" Height="18" Padding="4,1" Margin="2,0"
+                                                                    Style="{DynamicResource StoneButton}"
+                                                                    Command="{Binding DataContext.SetAsMainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Content="{Binding IsMainWindow, Converter={StaticResource MainLabelConverter}}"
+                                                                    VerticalAlignment="Center" ToolTip="Définir comme leader"/>
+                                                            <ComboBox Grid.Column="4" Width="70" Height="20" FontSize="9"
+                                                                      ItemsSource="{Binding DataContext.Monitors, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                      SelectedItem="{Binding AssignedMonitor}"
+                                                                      VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                                                      ToolTip="Écran cible"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <TextBlock Text="{DynamicResource Adv_FineTune}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,8"/>
+
+                                        <!-- Slot info -->
+                                        <Border Background="{DynamicResource PanelBg2}" CornerRadius="4"
+                                                Padding="8,6" Margin="0,0,0,8" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding AdvancedVm.SelectedSlot.Window.DisplayName, FallbackValue='Aucune sélection'}"
+                                                           FontSize="12" FontWeight="Bold" Foreground="{DynamicResource BrightGoldBrush}"/>
+                                                <Grid Margin="0,6,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="X" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,4,2"/>
+                                                    <TextBox Grid.Row="0" Grid.Column="1" FontSize="11" Padding="4,2" Margin="0,0,8,2"
+                                                             Text="{Binding AdvancedVm.SelectedSlot.RealX, UpdateSourceTrigger=PropertyChanged}"
+                                                             Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Y" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,4,2"/>
+                                                    <TextBox Grid.Row="0" Grid.Column="3" FontSize="11" Padding="4,2" Margin="0,0,0,2"
+                                                             Text="{Binding AdvancedVm.SelectedSlot.RealY, UpdateSourceTrigger=PropertyChanged}"
+                                                             Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="L" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,4,0"/>
+                                                    <TextBox Grid.Row="1" Grid.Column="1" FontSize="11" Padding="4,2" Margin="0,0,8,0"
+                                                             Text="{Binding AdvancedVm.SelectedSlot.RealWidth, UpdateSourceTrigger=PropertyChanged}"
+                                                             Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="H" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,4,0"/>
+                                                    <TextBox Grid.Row="1" Grid.Column="3" FontSize="11" Padding="4,2"
+                                                             Text="{Binding AdvancedVm.SelectedSlot.RealHeight, UpdateSourceTrigger=PropertyChanged}"
+                                                             Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Copy size -->
+                                        <TextBlock Text="{DynamicResource Adv_Tools}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource GoldBrush}" Margin="0,4,0,4"/>
+                                        <WrapPanel Margin="0,0,0,8">
+                                            <Button Content="{DynamicResource Adv_CopySize}" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
+                                                    Command="{Binding AdvancedVm.CopySizeCommand}"/>
+                                            <Button Content="{DynamicResource Adv_PasteSize}" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
+                                                    Command="{Binding AdvancedVm.PasteSizeCommand}"
+                                                    IsEnabled="{Binding AdvancedVm.HasCopiedSize}"/>
+                                            <Button Content="{DynamicResource Adv_ApplyAll}" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
+                                                    Command="{Binding AdvancedVm.ApplySizeToAllCommand}"/>
+                                            <Button Content="{DynamicResource Adv_Swap}" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="0,0,3,3"
+                                                    Command="{Binding AdvancedVm.StartSwapCommand}"/>
+                                        </WrapPanel>
+
+                                        <!-- Presets -->
+                                        <TextBlock Text="{DynamicResource Adv_Presets}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource GoldBrush}" Margin="0,4,0,4"/>
+                                        <ComboBox ItemsSource="{Binding AdvancedVm.Presets}"
+                                                  SelectedItem="{Binding AdvancedVm.SelectedPreset}"
+                                                  DisplayMemberPath="Name" Height="28" Margin="0,0,0,4"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                            <Button Content="Charger" Style="{DynamicResource StoneButton}" FontSize="10" Padding="8,4"
+                                                    Command="{Binding AdvancedVm.LoadPresetCommand}"/>
+                                            <Button Content="Supprimer" Style="{DynamicResource StoneButton}" FontSize="10" Padding="8,4" Margin="4,0,0,0"
+                                                    Command="{Binding AdvancedVm.DeletePresetCommand}"/>
+                                        </StackPanel>
+                                        <DockPanel Margin="0,0,0,8">
+                                            <Button DockPanel.Dock="Right" Content="💾" Style="{DynamicResource StoneButton}" FontSize="12" Padding="8,4" Margin="4,0,0,0"
+                                                    Command="{Binding AdvancedVm.SavePresetCommand}"/>
+                                            <TextBox Text="{Binding AdvancedVm.NewPresetName, UpdateSourceTrigger=PropertyChanged}"
+                                                     FontSize="11" Padding="4,4" ToolTip="Nom du preset"
+                                                     Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                                        </DockPanel>
+                                    </StackPanel>
+                                </ScrollViewer>
                             </DockPanel>
                         </Border>
                     </Grid>
 
                             <!-- Status bar -->
-                            <Border Grid.Row="5" Background="{DynamicResource PanelBg}" CornerRadius="4"
+                            <Border Grid.Row="4" Background="{DynamicResource PanelBg}" CornerRadius="4"
                                     Padding="12,5" Margin="0,8,0,0" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
                                 <DockPanel>
                                     <TextBlock DockPanel.Dock="Right" Text="{Binding AppVersion}"

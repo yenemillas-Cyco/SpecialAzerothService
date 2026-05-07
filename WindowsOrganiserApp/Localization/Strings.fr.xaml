@@ -1,0 +1,156 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <sys:String x:Key="App_Title">Special Azeroth Service</sys:String>
+    <sys:String x:Key="App_Subtitle">Special Azeroth Service — Multibox Organiser</sys:String>
+
+    <!-- Header -->
+    <sys:String x:Key="Header_Refresh">Rafraîchir</sys:String>
+    <sys:String x:Key="Header_WowOnly">WoW uniquement</sys:String>
+    <sys:String x:Key="Header_Help">📖 Aide</sys:String>
+
+    <!-- Modes -->
+    <sys:String x:Key="Mode_Standard">Standard</sys:String>
+    <sys:String x:Key="Mode_Advanced">Avancé</sys:String>
+
+    <!-- Window list -->
+    <sys:String x:Key="List_Title">Fenêtres du groupe</sys:String>
+    <sys:String x:Key="List_All">Tout</sys:String>
+    <sys:String x:Key="List_None">Aucun</sys:String>
+
+    <!-- Layout -->
+    <sys:String x:Key="Layout_Apply">Appliquer le layout</sys:String>
+    <sys:String x:Key="Layout_Main">Principal</sys:String>
+    <sys:String x:Key="Layout_Split">Fractionné</sys:String>
+    <sys:String x:Key="Layout_SplitV">Fractionné V</sys:String>
+    <sys:String x:Key="Layout_SplitH">Fractionné H</sys:String>
+    <sys:String x:Key="Layout_Size">Taille</sys:String>
+    <sys:String x:Key="Layout_Position">Position</sys:String>
+    <sys:String x:Key="Layout_Lateral">Latéral</sys:String>
+    <sys:String x:Key="Layout_Bandeau">Bandeau</sys:String>
+
+    <!-- Advanced -->
+    <sys:String x:Key="Adv_Windows">Fenêtres</sys:String>
+    <sys:String x:Key="Adv_FineTune">Réglage fin</sys:String>
+    <sys:String x:Key="Adv_AutoPosition">Positionnement auto</sys:String>
+    <sys:String x:Key="Adv_Tools">Outils</sys:String>
+    <sys:String x:Key="Adv_CopySize">✂ Copier taille</sys:String>
+    <sys:String x:Key="Adv_PasteSize">🖌 Coller taille</sys:String>
+    <sys:String x:Key="Adv_ApplyAll">⇔⇕ Appliquer à toutes</sys:String>
+    <sys:String x:Key="Adv_Swap">🔀 Inverser</sys:String>
+    <sys:String x:Key="Adv_Presets">Configurations</sys:String>
+    <sys:String x:Key="Adv_Save">💾 Sauver</sys:String>
+    <sys:String x:Key="Adv_Load">📂 Charger</sys:String>
+    <sys:String x:Key="Adv_Delete">🗑 Supprimer</sys:String>
+    <sys:String x:Key="Adv_Apply">⚔ Appliquer</sys:String>
+    <sys:String x:Key="Adv_NoSelection">Aucune sélection</sys:String>
+
+    <!-- Status -->
+    <sys:String x:Key="Status_Ready">Prêt</sys:String>
+    <sys:String x:Key="Status_WindowsDetected">{0} fenêtres détectées — {1} écran(s)</sys:String>
+    <sys:String x:Key="Status_LayoutApplied">Layout appliqué à {0} fenêtre(s)</sys:String>
+    <sys:String x:Key="Status_SelectAtLeastOne">Sélectionnez au moins une fenêtre</sys:String>
+
+    <!-- Tooltips -->
+    <sys:String x:Key="Tip_ShowHide">Afficher/masquer</sys:String>
+    <sys:String x:Key="Tip_Rename">Cliquer pour renommer</sys:String>
+    <sys:String x:Key="Tip_Leader">Définir comme leader</sys:String>
+    <sys:String x:Key="Tip_Monitor">Écran cible</sys:String>
+    <sys:String x:Key="Tip_DoubleClickRename">Double-clic pour renommer</sys:String>
+
+    <!-- Language -->
+    <sys:String x:Key="Lang_Label">Langue</sys:String>
+
+    <!-- About window -->
+    <sys:String x:Key="About_WindowTitle">À propos</sys:String>
+    <sys:String x:Key="About_Dev">Développé par Cyco (ancien stagiaire)</sys:String>
+    <sys:String x:Key="About_Thanks">— Remerciements —</sys:String>
+    <sys:String x:Key="About_Opti">  —  Bêta-testeur officiel, cobaye volontaire</sys:String>
+    <sys:String x:Key="About_Eloi">  —  Grand Maître de la guilde,</sys:String>
+    <sys:String x:Key="About_Eloi2">dictateur d'Azeroth Service.</sys:String>
+    <sys:String x:Key="About_Eloi3">On le remercie parce qu'on n'a pas vraiment le choix.</sys:String>
+    <sys:String x:Key="About_Contact">Contact : yenemillas@gmail.com</sys:String>
+    <sys:String x:Key="About_Link">Téléchargements &amp; mises à jour</sys:String>
+    <sys:String x:Key="About_Close">Fermer</sys:String>
+
+    <!-- Help window -->
+    <sys:String x:Key="Help_Title">📖  Guide d'utilisation</sys:String>
+    <sys:String x:Key="Help_Close">Fermer</sys:String>
+
+    <sys:String x:Key="Help_S1_Title">⚔  Liste des fenêtres</sys:String>
+    <sys:String x:Key="Help_S1_Body">L'application détecte automatiquement toutes les fenêtres WoW ouvertes au lancement et après chaque rafraîchissement.</sys:String>
+    <sys:String x:Key="Help_S1_B1">☑ WoW uniquement : coché par défaut, ne détecte que les fenêtres WoW. Décocher pour organiser toutes les fenêtres Windows</sys:String>
+    <sys:String x:Key="Help_S1_B2">☑ Cocher / décocher une fenêtre pour l'inclure dans la disposition</sys:String>
+    <sys:String x:Key="Help_S1_B3">✏ Cliquer sur le nom pour le renommer (conservé après rafraîchissement)</sys:String>
+    <sys:String x:Key="Help_S1_B4">👑 Leader : désigner la fenêtre principale d'un écran (zone dominante en mode Principal)</sys:String>
+    <sys:String x:Key="Help_S1_B5">⛶ Plein écran : bascule en plein écran, un second clic restaure la position</sys:String>
+    <sys:String x:Key="Help_S1_B6">🖥 Écran : choisir sur quel moniteur placer chaque fenêtre</sys:String>
+    <sys:String x:Key="Help_S1_B7">↕ Glisser-déposer pour réorganiser l'ordre des fenêtres</sys:String>
+
+    <sys:String x:Key="Help_S2_Title">🏰  Mode Principal</sys:String>
+    <sys:String x:Key="Help_S2_Body">La fenêtre Leader occupe la zone dominante de l'écran, les autres fenêtres se répartissent autour.</sys:String>
+    <sys:String x:Key="Help_S2_Size">Taille (G / M / P)</sys:String>
+    <sys:String x:Key="Help_S2_SizeL">• Grand — le leader occupe 75% de l'écran</sys:String>
+    <sys:String x:Key="Help_S2_SizeM">• Moyen — le leader occupe 67% de l'écran</sys:String>
+    <sys:String x:Key="Help_S2_SizeS">• Petit — le leader occupe 50% de l'écran</sys:String>
+    <sys:String x:Key="Help_S2_Pos">Position (↖ ↗ ↘ ↙)</sys:String>
+    <sys:String x:Key="Help_S2_PosBody">Choisir dans quel coin de l'écran placer le leader. Les secondaires occupent l'espace restant.</sys:String>
+    <sys:String x:Key="Help_S2_Zones">Zones</sys:String>
+    <sys:String x:Key="Help_S2_ZoneLat">• Latéral — les secondaires s'empilent verticalement à côté du leader</sys:String>
+    <sys:String x:Key="Help_S2_ZoneBand">• Bandeau — les secondaires s'alignent horizontalement sous ou sur le leader</sys:String>
+    <sys:String x:Key="Help_S2_ZoneBoth">• Les deux — disposition mixte : latéral + bandeau (grille avancée)</sys:String>
+
+    <sys:String x:Key="Help_S3_Title">⊞  Mode Fractionné</sys:String>
+    <sys:String x:Key="Help_S3_Body">Toutes les fenêtres ont la même taille, réparties en grille régulière.</sys:String>
+    <sys:String x:Key="Help_S3_Ori">Orientation</sys:String>
+    <sys:String x:Key="Help_S3_OriH">• ▥ Côte à côte (Horizontal) — privilégie les colonnes</sys:String>
+    <sys:String x:Key="Help_S3_OriV">• ▤ Empilé (Vertical) — privilégie les lignes</sys:String>
+
+    <sys:String x:Key="Help_S4_Title">⚙  Mode Avancé</sys:String>
+    <sys:String x:Key="Help_S4_Body">Le mode avancé offre un contrôle total sur la position et la taille de chaque fenêtre via un canvas interactif représentant votre bureau.</sys:String>
+    <sys:String x:Key="Help_S4_Canvas">Canvas interactif</sys:String>
+    <sys:String x:Key="Help_S4_C1">• Les écrans sont affichés avec leur nom au-dessus de leur zone</sys:String>
+    <sys:String x:Key="Help_S4_C2">• Glisser une fenêtre pour la déplacer (curseur ✥)</sys:String>
+    <sys:String x:Key="Help_S4_C3">• Attraper les coins pour redimensionner</sys:String>
+    <sys:String x:Key="Help_S4_C4">• Aimantation automatique aux bords des écrans et des autres fenêtres</sys:String>
+    <sys:String x:Key="Help_S4_List">Liste des fenêtres</sys:String>
+    <sys:String x:Key="Help_S4_L1">• ☑ Cocher / décocher pour afficher ou masquer sur le canvas</sys:String>
+    <sys:String x:Key="Help_S4_L2">• ✏ Cliquer sur le nom pour renommer</sys:String>
+    <sys:String x:Key="Help_S4_L3">• 👑 Bouton Leader pour définir la fenêtre principale</sys:String>
+    <sys:String x:Key="Help_S4_L4">• 🖥 Changer l'écran assigné via le menu déroulant</sys:String>
+    <sys:String x:Key="Help_S4_Fine">Réglage fin</sys:String>
+    <sys:String x:Key="Help_S4_F1">• X, Y, L, H : position et taille en pixels</sys:String>
+    <sys:String x:Key="Help_S4_Auto">Positionnement auto</sys:String>
+    <sys:String x:Key="Help_S4_A1">• ▣ Principal — layout classique</sys:String>
+    <sys:String x:Key="Help_S4_A2">• ▥ Fractionné V — côte à côte</sys:String>
+    <sys:String x:Key="Help_S4_A3">• ▤ Fractionné H — empilées</sys:String>
+    <sys:String x:Key="Help_S4_Tools">Outils</sys:String>
+    <sys:String x:Key="Help_S4_T1">• ✂ Copier taille — mémorise la taille</sys:String>
+    <sys:String x:Key="Help_S4_T2">• 🖌 Coller taille — applique la taille mémorisée</sys:String>
+    <sys:String x:Key="Help_S4_T3">• ⇔⇕ Appliquer à toutes — applique à toutes les fenêtres</sys:String>
+    <sys:String x:Key="Help_S4_T4">• 🔀 Inverser — échange la position de deux fenêtres</sys:String>
+    <sys:String x:Key="Help_S4_Presets">Configurations (presets)</sys:String>
+    <sys:String x:Key="Help_S4_P1">• Sauvegarder un agencement nommé pour le restaurer plus tard</sys:String>
+    <sys:String x:Key="Help_S4_P2">• Charger ou supprimer des presets existants</sys:String>
+    <sys:String x:Key="Help_S4_Leader">Auto-sélection du leader</sys:String>
+    <sys:String x:Key="Help_S4_LeaderBody">• À l'entrée en mode avancé, la plus grande fenêtre est automatiquement définie comme leader</sys:String>
+
+    <sys:String x:Key="Help_S5_Title">🖥  Multi-écran</sys:String>
+    <sys:String x:Key="Help_S5_Body">Tous les moniteurs connectés sont détectés automatiquement. Chaque écran dispose de son propre panneau de configuration.</sys:String>
+    <sys:String x:Key="Help_S5_B1">• Choix indépendant du mode par écran</sys:String>
+    <sys:String x:Key="Help_S5_B2">• Options propres à chaque écran</sys:String>
+    <sys:String x:Key="Help_S5_B3">• Aperçu miniature en temps réel</sys:String>
+    <sys:String x:Key="Help_S5_B4">• Panneaux côte à côte avec défilement</sys:String>
+    <sys:String x:Key="Help_S5_B5">• Assigner chaque fenêtre à l'écran souhaité</sys:String>
+    <sys:String x:Key="Help_S5_B6">• Mode avancé : canvas avec contours de tous les écrans</sys:String>
+
+    <sys:String x:Key="Help_S6_Title">👁  Aperçu</sys:String>
+    <sys:String x:Key="Help_S6_Body">Chaque panneau d'écran inclut un aperçu miniature montrant la position et la taille de chaque fenêtre. L'aperçu se met à jour automatiquement.</sys:String>
+
+    <sys:String x:Key="Help_S7_Title">⚔  Appliquer le layout</sys:String>
+    <sys:String x:Key="Help_S7_Body">Cliquer sur « ⚔ Appliquer » pour déplacer et redimensionner toutes les fenêtres sélectionnées selon la configuration définie.</sys:String>
+
+    <sys:String x:Key="Help_Footer">Développé par Cyco — yenemillas@gmail.com</sys:String>
+
+</ResourceDictionary>

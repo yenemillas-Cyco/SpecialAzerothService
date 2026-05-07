@@ -63,7 +63,7 @@
             <!-- Title bar -->
             <Border Grid.Row="0" Padding="16,10" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
-                    <TextBlock Text="📖  Guide d'utilisation" FontSize="16" FontWeight="Bold"
+                    <TextBlock Text="{DynamicResource Help_Title}" FontSize="16" FontWeight="Bold"
                                Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
                     <Button Content="✕" HorizontalAlignment="Right" VerticalAlignment="Center"
                             FontSize="14" Foreground="{DynamicResource SubtextBrush}" Background="Transparent" BorderThickness="0"
@@ -77,128 +77,93 @@
             <!-- Content -->
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20,0,20,10">
                 <StackPanel>
-
-                    <!-- LISTE DES FENÊTRES -->
-                    <TextBlock Style="{StaticResource SectionTitle}" Text="⚔  Liste des fenêtres"/>
-                    <TextBlock Style="{StaticResource Body}"
-                               Text="L'application détecte automatiquement toutes les fenêtres WoW ouvertes au lancement et après chaque rafraîchissement."/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="☑ WoW uniquement : coché par défaut, ne détecte que les fenêtres WoW. Décocher pour organiser toutes les fenêtres Windows"/>
-
-                    <TextBlock Style="{StaticResource Bullet}" Text="☑ Cocher / décocher une fenêtre pour l'inclure dans la disposition"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="✏ Cliquer sur le nom pour le renommer (conservé après rafraîchissement)"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="👑 Leader : désigner la fenêtre principale d'un écran (zone dominante en mode Principal)"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="⛶ Plein écran : bascule en plein écran, un second clic restaure la position"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="🖥 Écran : choisir sur quel moniteur placer chaque fenêtre"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="↕ Glisser-déposer pour réorganiser l'ordre des fenêtres"/>
-
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="{DynamicResource Help_S1_Title}"/>
+                    <TextBlock Style="{StaticResource Body}" Text="{DynamicResource Help_S1_Body}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S1_B1}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S1_B2}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S1_B3}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S1_B4}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S1_B5}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S1_B6}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S1_B7}"/>
                     <Border Style="{StaticResource Sep}"/>
 
-                    <!-- MODE PRINCIPAL -->
-                    <TextBlock Style="{StaticResource SectionTitle}" Text="🏰  Mode Principal"/>
-                    <TextBlock Style="{StaticResource Body}"
-                               Text="La fenêtre Leader occupe la zone dominante de l'écran, les autres fenêtres se répartissent autour."/>
-
-                    <TextBlock Style="{StaticResource SubTitle}" Text="Taille (G / M / P)"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Grand — le leader occupe 75% de l'écran"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Moyen — le leader occupe 67% de l'écran"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Petit — le leader occupe 50% de l'écran"/>
-
-                    <TextBlock Style="{StaticResource SubTitle}" Text="Position (↖ ↗ ↘ ↙)"/>
-                    <TextBlock Style="{StaticResource Body}"
-                               Text="Choisir dans quel coin de l'écran placer le leader. Les secondaires occupent l'espace restant."/>
-
-                    <TextBlock Style="{StaticResource SubTitle}" Text="Zones"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Latéral — les secondaires s'empilent verticalement à côté du leader"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Bandeau — les secondaires s'alignent horizontalement sous ou sur le leader"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Les deux — disposition mixte : latéral + bandeau (grille avancée)"/>
-
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="{DynamicResource Help_S2_Title}"/>
+                    <TextBlock Style="{StaticResource Body}" Text="{DynamicResource Help_S2_Body}"/>
+                    <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S2_Size}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S2_SizeL}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S2_SizeM}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S2_SizeS}"/>
+                    <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S2_Pos}"/>
+                    <TextBlock Style="{StaticResource Body}" Text="{DynamicResource Help_S2_PosBody}"/>
+                    <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S2_Zones}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S2_ZoneLat}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S2_ZoneBand}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S2_ZoneBoth}"/>
                     <Border Style="{StaticResource Sep}"/>
 
-                    <!-- MODE FRACTIONNÉ -->
-                    <TextBlock Style="{StaticResource SectionTitle}" Text="⊞  Mode Fractionné"/>
-                    <TextBlock Style="{StaticResource Body}"
-                               Text="Toutes les fenêtres ont la même taille, réparties en grille régulière."/>
-
-                    <TextBlock Style="{StaticResource SubTitle}" Text="Orientation"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• ▥ Côte à côte (Horizontal) — privilégie les colonnes (ex. 6 fenêtres → 3 colonnes × 2 lignes)"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• ▤ Empilé (Vertical) — privilégie les lignes (ex. 6 fenêtres → 2 colonnes × 3 lignes)"/>
-
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="{DynamicResource Help_S3_Title}"/>
+                    <TextBlock Style="{StaticResource Body}" Text="{DynamicResource Help_S3_Body}"/>
+                    <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S3_Ori}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S3_OriH}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S3_OriV}"/>
                     <Border Style="{StaticResource Sep}"/>
 
-                    <!-- MODE AVANCÉ -->
-                    <TextBlock Style="{StaticResource SectionTitle}" Text="⚙  Mode Avancé"/>
-                    <TextBlock Style="{StaticResource Body}"
-                               Text="Le mode avancé offre un contrôle total sur la position et la taille de chaque fenêtre via un canvas interactif représentant votre bureau."/>
-
-                    <TextBlock Style="{StaticResource SubTitle}" Text="Canvas interactif"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Les écrans sont affichés avec leur nom au-dessus de leur zone"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Glisser une fenêtre pour la déplacer (curseur ✥)"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Attraper les coins pour redimensionner"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Aimantation automatique aux bords des écrans et des autres fenêtres"/>
-
-                    <TextBlock Style="{StaticResource SubTitle}" Text="Liste des fenêtres"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• ☑ Cocher / décocher pour afficher ou masquer une fenêtre sur le canvas"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• ✏ Cliquer sur le nom pour renommer"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• 👑 Bouton Leader pour définir la fenêtre principale"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• 🖥 Changer l'écran assigné via le menu déroulant de chaque fenêtre"/>
-
-                    <TextBlock Style="{StaticResource SubTitle}" Text="Réglage fin"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• X, Y, L, H : saisir manuellement la position et la taille en pixels de la fenêtre sélectionnée"/>
-
-                    <TextBlock Style="{StaticResource SubTitle}" Text="Positionnement auto"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• ▣ Principal — applique le layout classique (leader + secondaires)"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• ▥ Fractionné V — fenêtres côte à côte"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• ▤ Fractionné H — fenêtres empilées"/>
-
-                    <TextBlock Style="{StaticResource SubTitle}" Text="Outils"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• ✂ Copier taille — mémorise la taille de la fenêtre sélectionnée"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• 🖌 Coller taille — applique la taille mémorisée à la fenêtre sélectionnée"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• ⇔⇕ Appliquer à toutes — applique la taille de la fenêtre sélectionnée à toutes les autres"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• 🔀 Inverser — échange la position de deux fenêtres (cliquer, puis cliquer la cible)"/>
-
-                    <TextBlock Style="{StaticResource SubTitle}" Text="Configurations (presets)"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Sauvegarder un agencement nommé pour le restaurer plus tard"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Charger ou supprimer des presets existants"/>
-
-                    <TextBlock Style="{StaticResource SubTitle}" Text="Auto-sélection du leader"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• À l'entrée en mode avancé, la plus grande fenêtre est automatiquement définie comme leader"/>
-
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="{DynamicResource Help_S4_Title}"/>
+                    <TextBlock Style="{StaticResource Body}" Text="{DynamicResource Help_S4_Body}"/>
+                    <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S4_Canvas}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_C1}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_C2}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_C3}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_C4}"/>
+                    <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S4_List}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_L1}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_L2}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_L3}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_L4}"/>
+                    <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S4_Fine}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_F1}"/>
+                    <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S4_Auto}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_A1}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_A2}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_A3}"/>
+                    <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S4_Tools}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_T1}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_T2}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_T3}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_T4}"/>
+                    <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S4_Presets}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_P1}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_P2}"/>
+                    <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S4_Leader}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_LeaderBody}"/>
                     <Border Style="{StaticResource Sep}"/>
 
-                    <!-- MULTI-ÉCRAN -->
-                    <TextBlock Style="{StaticResource SectionTitle}" Text="🖥  Multi-écran"/>
-                    <TextBlock Style="{StaticResource Body}"
-                               Text="Tous les moniteurs connectés sont détectés automatiquement. Chaque écran dispose de son propre panneau de configuration :"/>
-
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Choix indépendant du mode (Principal / Fractionné) par écran"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Options de taille, position et zones propres à chaque écran"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Aperçu miniature en temps réel par écran"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Les panneaux s'affichent côte à côte avec défilement horizontal"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• Assigner chaque fenêtre à l'écran souhaité via le menu déroulant dans la liste"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="• En mode avancé : le canvas affiche tous les écrans avec leurs contours, les noms sont au-dessus de chaque zone"/>
-
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="{DynamicResource Help_S5_Title}"/>
+                    <TextBlock Style="{StaticResource Body}" Text="{DynamicResource Help_S5_Body}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S5_B1}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S5_B2}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S5_B3}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S5_B4}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S5_B5}"/>
+                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S5_B6}"/>
                     <Border Style="{StaticResource Sep}"/>
 
-                    <!-- APERÇU -->
-                    <TextBlock Style="{StaticResource SectionTitle}" Text="👁  Aperçu"/>
-                    <TextBlock Style="{StaticResource Body}"
-                               Text="Chaque panneau d'écran inclut un aperçu miniature montrant le contour de l'écran, la position et la taille de chaque fenêtre assignée, ainsi que son nom. L'aperçu se met à jour automatiquement à chaque changement d'option."/>
-
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="{DynamicResource Help_S6_Title}"/>
+                    <TextBlock Style="{StaticResource Body}" Text="{DynamicResource Help_S6_Body}"/>
                     <Border Style="{StaticResource Sep}"/>
 
-                    <!-- APPLIQUER -->
-                    <TextBlock Style="{StaticResource SectionTitle}" Text="⚔  Appliquer le layout"/>
-                    <TextBlock Style="{StaticResource Body}"
-                               Text="Cliquer sur « ⚔ Appliquer » pour déplacer et redimensionner toutes les fenêtres sélectionnées selon la configuration définie. Chaque écran applique sa propre disposition indépendamment."/>
+                    <TextBlock Style="{StaticResource SectionTitle}" Text="{DynamicResource Help_S7_Title}"/>
+                    <TextBlock Style="{StaticResource Body}" Text="{DynamicResource Help_S7_Body}"/>
 
                     <TextBlock Style="{StaticResource Body}" Margin="12,16,0,4" Foreground="{DynamicResource SubtextBrush}" FontStyle="Italic"
-                               Text="Développé par Cyco — yenemillas@gmail.com"/>
+                               Text="{DynamicResource Help_Footer}"/>
                 </StackPanel>
             </ScrollViewer>
 
             <!-- Footer -->
             <Border Grid.Row="2" Padding="16,8">
-                <Button Content="Fermer" HorizontalAlignment="Center"
+                <Button Content="{DynamicResource Help_Close}" HorizontalAlignment="Center"
                         Style="{DynamicResource WowButton}"
                         FontSize="13" FontWeight="Bold" Cursor="Hand"
                         Padding="24,8" Click="Close_Click"/>

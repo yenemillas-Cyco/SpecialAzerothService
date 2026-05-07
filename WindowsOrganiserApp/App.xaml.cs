@@ -22,8 +22,12 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        var logPath = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "SpecialAzerothService", "logs", "app-.log");
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Fatal()
+            .MinimumLevel.Information()
+            .WriteTo.File(logPath, rollingInterval: Serilog.RollingInterval.Day, retainedFileCountLimit: 7)
             .CreateLogger();
 
         var services = new ServiceCollection();
@@ -33,6 +37,7 @@ public partial class App : Application
         services.AddSingleton<ISettingsService, SettingsService>();
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IPresetService, PresetService>();
+        services.AddSingleton<ILocalizationService, LocalizationService>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<AdvancedViewModel>();
         services.AddTransient<MainWindow>();

@@ -7,7 +7,6 @@ public interface IThemeService
     string CurrentTheme { get; }
     string[] AvailableThemes { get; }
     void ApplyTheme(string themeName);
-    void CycleTheme();
 }
 
 public class ThemeService : IThemeService
@@ -30,17 +29,14 @@ public class ThemeService : IThemeService
         var app = Application.Current;
         var mergedDicts = app.Resources.MergedDictionaries;
 
-        mergedDicts.Clear();
-        mergedDicts.Add(new ResourceDictionary { Source = new Uri(file, UriKind.Relative) });
+        var existing = mergedDicts.FirstOrDefault(d =>
+            d.Source?.OriginalString.Contains("Themes/") == true);
+        if (existing is not null)
+            mergedDicts.Remove(existing);
+
+        mergedDicts.Insert(0, new ResourceDictionary { Source = new Uri(file, UriKind.Relative) });
 
         CurrentTheme = themeName;
     }
 
-    public void CycleTheme()
-    {
-        var keys = AvailableThemes;
-        var idx = Array.IndexOf(keys, CurrentTheme);
-        var next = keys[(idx + 1) % keys.Length];
-        ApplyTheme(next);
-    }
 }

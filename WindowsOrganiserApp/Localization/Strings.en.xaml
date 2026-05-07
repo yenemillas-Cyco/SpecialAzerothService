@@ -1,0 +1,156 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <sys:String x:Key="App_Title">Special Azeroth Service</sys:String>
+    <sys:String x:Key="App_Subtitle">Special Azeroth Service — Multibox Organiser</sys:String>
+
+    <!-- Header -->
+    <sys:String x:Key="Header_Refresh">Refresh</sys:String>
+    <sys:String x:Key="Header_WowOnly">WoW only</sys:String>
+    <sys:String x:Key="Header_Help">📖 Help</sys:String>
+
+    <!-- Modes -->
+    <sys:String x:Key="Mode_Standard">Standard</sys:String>
+    <sys:String x:Key="Mode_Advanced">Advanced</sys:String>
+
+    <!-- Window list -->
+    <sys:String x:Key="List_Title">Group windows</sys:String>
+    <sys:String x:Key="List_All">All</sys:String>
+    <sys:String x:Key="List_None">None</sys:String>
+
+    <!-- Layout -->
+    <sys:String x:Key="Layout_Apply">Apply layout</sys:String>
+    <sys:String x:Key="Layout_Main">Main</sys:String>
+    <sys:String x:Key="Layout_Split">Split</sys:String>
+    <sys:String x:Key="Layout_SplitV">Split V</sys:String>
+    <sys:String x:Key="Layout_SplitH">Split H</sys:String>
+    <sys:String x:Key="Layout_Size">Size</sys:String>
+    <sys:String x:Key="Layout_Position">Position</sys:String>
+    <sys:String x:Key="Layout_Lateral">Sidebar</sys:String>
+    <sys:String x:Key="Layout_Bandeau">Banner</sys:String>
+
+    <!-- Advanced -->
+    <sys:String x:Key="Adv_Windows">Windows</sys:String>
+    <sys:String x:Key="Adv_FineTune">Fine-tuning</sys:String>
+    <sys:String x:Key="Adv_AutoPosition">Auto positioning</sys:String>
+    <sys:String x:Key="Adv_Tools">Tools</sys:String>
+    <sys:String x:Key="Adv_CopySize">✂ Copy size</sys:String>
+    <sys:String x:Key="Adv_PasteSize">🖌 Paste size</sys:String>
+    <sys:String x:Key="Adv_ApplyAll">⇔⇕ Apply to all</sys:String>
+    <sys:String x:Key="Adv_Swap">🔀 Swap</sys:String>
+    <sys:String x:Key="Adv_Presets">Presets</sys:String>
+    <sys:String x:Key="Adv_Save">💾 Save</sys:String>
+    <sys:String x:Key="Adv_Load">📂 Load</sys:String>
+    <sys:String x:Key="Adv_Delete">🗑 Delete</sys:String>
+    <sys:String x:Key="Adv_Apply">⚔ Apply</sys:String>
+    <sys:String x:Key="Adv_NoSelection">No selection</sys:String>
+
+    <!-- Status -->
+    <sys:String x:Key="Status_Ready">Ready</sys:String>
+    <sys:String x:Key="Status_WindowsDetected">{0} windows detected — {1} monitor(s)</sys:String>
+    <sys:String x:Key="Status_LayoutApplied">Layout applied to {0} window(s)</sys:String>
+    <sys:String x:Key="Status_SelectAtLeastOne">Select at least one window</sys:String>
+
+    <!-- Tooltips -->
+    <sys:String x:Key="Tip_ShowHide">Show/Hide</sys:String>
+    <sys:String x:Key="Tip_Rename">Click to rename</sys:String>
+    <sys:String x:Key="Tip_Leader">Set as leader</sys:String>
+    <sys:String x:Key="Tip_Monitor">Target monitor</sys:String>
+    <sys:String x:Key="Tip_DoubleClickRename">Double-click to rename</sys:String>
+
+    <!-- Language -->
+    <sys:String x:Key="Lang_Label">Language</sys:String>
+
+    <!-- About window -->
+    <sys:String x:Key="About_WindowTitle">About</sys:String>
+    <sys:String x:Key="About_Dev">Developed by Cyco (former intern)</sys:String>
+    <sys:String x:Key="About_Thanks">— Acknowledgements —</sys:String>
+    <sys:String x:Key="About_Opti">  —  Official beta tester, willing guinea pig</sys:String>
+    <sys:String x:Key="About_Eloi">  —  Guild Grand Master,</sys:String>
+    <sys:String x:Key="About_Eloi2">dictator of Azeroth Service.</sys:String>
+    <sys:String x:Key="About_Eloi3">We thank him because we don't really have a choice.</sys:String>
+    <sys:String x:Key="About_Contact">Contact: yenemillas@gmail.com</sys:String>
+    <sys:String x:Key="About_Link">Downloads &amp; updates</sys:String>
+    <sys:String x:Key="About_Close">Close</sys:String>
+
+    <!-- Help window -->
+    <sys:String x:Key="Help_Title">📖  User Guide</sys:String>
+    <sys:String x:Key="Help_Close">Close</sys:String>
+
+    <sys:String x:Key="Help_S1_Title">⚔  Window List</sys:String>
+    <sys:String x:Key="Help_S1_Body">The application automatically detects all open WoW windows at launch and after each refresh.</sys:String>
+    <sys:String x:Key="Help_S1_B1">☑ WoW only: checked by default, only detects WoW windows. Uncheck to organize all Windows applications</sys:String>
+    <sys:String x:Key="Help_S1_B2">☑ Check / uncheck a window to include it in the layout</sys:String>
+    <sys:String x:Key="Help_S1_B3">✏ Click on the name to rename it (preserved after refresh)</sys:String>
+    <sys:String x:Key="Help_S1_B4">👑 Leader: designate the main window for a monitor (dominant area in Main mode)</sys:String>
+    <sys:String x:Key="Help_S1_B5">⛶ Fullscreen: toggle fullscreen, second click restores position</sys:String>
+    <sys:String x:Key="Help_S1_B6">🖥 Monitor: choose which display to place each window on</sys:String>
+    <sys:String x:Key="Help_S1_B7">↕ Drag and drop to reorder windows</sys:String>
+
+    <sys:String x:Key="Help_S2_Title">🏰  Main Mode</sys:String>
+    <sys:String x:Key="Help_S2_Body">The Leader window takes the dominant area of the screen, other windows fill the remaining space.</sys:String>
+    <sys:String x:Key="Help_S2_Size">Size (L / M / S)</sys:String>
+    <sys:String x:Key="Help_S2_SizeL">• Large — leader takes 75% of the screen</sys:String>
+    <sys:String x:Key="Help_S2_SizeM">• Medium — leader takes 67% of the screen</sys:String>
+    <sys:String x:Key="Help_S2_SizeS">• Small — leader takes 50% of the screen</sys:String>
+    <sys:String x:Key="Help_S2_Pos">Position (↖ ↗ ↘ ↙)</sys:String>
+    <sys:String x:Key="Help_S2_PosBody">Choose which corner of the screen to place the leader. Secondary windows fill the remaining space.</sys:String>
+    <sys:String x:Key="Help_S2_Zones">Zones</sys:String>
+    <sys:String x:Key="Help_S2_ZoneLat">• Sidebar — secondary windows stack vertically beside the leader</sys:String>
+    <sys:String x:Key="Help_S2_ZoneBand">• Banner — secondary windows align horizontally above/below the leader</sys:String>
+    <sys:String x:Key="Help_S2_ZoneBoth">• Both — mixed layout: sidebar + banner (advanced grid)</sys:String>
+
+    <sys:String x:Key="Help_S3_Title">⊞  Split Mode</sys:String>
+    <sys:String x:Key="Help_S3_Body">All windows share equal size, arranged in a regular grid.</sys:String>
+    <sys:String x:Key="Help_S3_Ori">Orientation</sys:String>
+    <sys:String x:Key="Help_S3_OriH">• ▥ Side by side (Horizontal) — favors columns</sys:String>
+    <sys:String x:Key="Help_S3_OriV">• ▤ Stacked (Vertical) — favors rows</sys:String>
+
+    <sys:String x:Key="Help_S4_Title">⚙  Advanced Mode</sys:String>
+    <sys:String x:Key="Help_S4_Body">Advanced mode gives you full control over position and size of each window via an interactive canvas representing your desktop.</sys:String>
+    <sys:String x:Key="Help_S4_Canvas">Interactive Canvas</sys:String>
+    <sys:String x:Key="Help_S4_C1">• Monitors are displayed with their name above their area</sys:String>
+    <sys:String x:Key="Help_S4_C2">• Drag a window to move it (✥ cursor)</sys:String>
+    <sys:String x:Key="Help_S4_C3">• Grab corners to resize</sys:String>
+    <sys:String x:Key="Help_S4_C4">• Auto-snap to monitor edges and other windows</sys:String>
+    <sys:String x:Key="Help_S4_List">Window List</sys:String>
+    <sys:String x:Key="Help_S4_L1">• ☑ Check / uncheck to show or hide on canvas</sys:String>
+    <sys:String x:Key="Help_S4_L2">• ✏ Click name to rename</sys:String>
+    <sys:String x:Key="Help_S4_L3">• 👑 Leader button to set as main window</sys:String>
+    <sys:String x:Key="Help_S4_L4">• 🖥 Change assigned monitor via dropdown</sys:String>
+    <sys:String x:Key="Help_S4_Fine">Fine-tuning</sys:String>
+    <sys:String x:Key="Help_S4_F1">• X, Y, W, H: position and size in pixels</sys:String>
+    <sys:String x:Key="Help_S4_Auto">Auto positioning</sys:String>
+    <sys:String x:Key="Help_S4_A1">• ▣ Main — classic layout</sys:String>
+    <sys:String x:Key="Help_S4_A2">• ▥ Split V — side by side</sys:String>
+    <sys:String x:Key="Help_S4_A3">• ▤ Split H — stacked</sys:String>
+    <sys:String x:Key="Help_S4_Tools">Tools</sys:String>
+    <sys:String x:Key="Help_S4_T1">• ✂ Copy size — memorize size</sys:String>
+    <sys:String x:Key="Help_S4_T2">• 🖌 Paste size — apply memorized size</sys:String>
+    <sys:String x:Key="Help_S4_T3">• ⇔⇕ Apply to all — apply to all windows</sys:String>
+    <sys:String x:Key="Help_S4_T4">• 🔀 Swap — exchange position of two windows</sys:String>
+    <sys:String x:Key="Help_S4_Presets">Presets</sys:String>
+    <sys:String x:Key="Help_S4_P1">• Save a named layout to restore later</sys:String>
+    <sys:String x:Key="Help_S4_P2">• Load or delete existing presets</sys:String>
+    <sys:String x:Key="Help_S4_Leader">Auto leader selection</sys:String>
+    <sys:String x:Key="Help_S4_LeaderBody">• When entering advanced mode, the largest window is automatically set as leader</sys:String>
+
+    <sys:String x:Key="Help_S5_Title">🖥  Multi-monitor</sys:String>
+    <sys:String x:Key="Help_S5_Body">All connected monitors are automatically detected. Each monitor has its own configuration panel.</sys:String>
+    <sys:String x:Key="Help_S5_B1">• Independent mode choice per monitor</sys:String>
+    <sys:String x:Key="Help_S5_B2">• Separate options for each monitor</sys:String>
+    <sys:String x:Key="Help_S5_B3">• Real-time mini preview</sys:String>
+    <sys:String x:Key="Help_S5_B4">• Side-by-side panels with scrolling</sys:String>
+    <sys:String x:Key="Help_S5_B5">• Assign each window to the desired monitor</sys:String>
+    <sys:String x:Key="Help_S5_B6">• Advanced mode: canvas shows all monitor outlines</sys:String>
+
+    <sys:String x:Key="Help_S6_Title">👁  Preview</sys:String>
+    <sys:String x:Key="Help_S6_Body">Each monitor panel includes a mini preview showing position and size of each window. The preview updates automatically.</sys:String>
+
+    <sys:String x:Key="Help_S7_Title">⚔  Apply layout</sys:String>
+    <sys:String x:Key="Help_S7_Body">Click "⚔ Apply" to move and resize all selected windows according to the defined configuration.</sys:String>
+
+    <sys:String x:Key="Help_Footer">Developed by Cyco — yenemillas@gmail.com</sys:String>
+
+</ResourceDictionary>

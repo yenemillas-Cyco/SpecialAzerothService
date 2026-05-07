@@ -28,6 +28,7 @@ public class WindowService : IWindowService
             if (hWnd == shellWindow) return true;
             if (hWnd == OwnHandle) return true;
             if (!NativeMethods.IsWindowVisible(hWnd)) return true;
+            if (NativeMethods.IsWindowCloaked(hWnd)) return true;
 
             var length = NativeMethods.GetWindowTextLength(hWnd);
             if (length == 0) return true;
@@ -63,13 +64,20 @@ public class WindowService : IWindowService
                     return true;
             }
 
+            var style = NativeMethods.GetWindowLongA(hWnd, NativeMethods.GWL_STYLE);
+            var canResize = (style & (int)NativeMethods.WS_THICKFRAME) != 0;
+            var (minW, minH) = canResize ? NativeMethods.GetWindowMinSize(hWnd) : (0, 0);
+
             windows.Add(new WindowInfo
             {
                 Handle = hWnd,
                 Title = title,
                 ProcessName = processName,
                 ProcessId = processId,
-                StartTime = startTime
+                StartTime = startTime,
+                CanResize = canResize,
+                MinWidth = minW,
+                MinHeight = minH
             });
 
             return true;

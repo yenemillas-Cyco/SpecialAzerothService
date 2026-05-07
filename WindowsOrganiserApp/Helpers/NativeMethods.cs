@@ -79,6 +79,7 @@ internal static partial class NativeMethods
     public const long WS_VISIBLE = 0x10000000L;
     public const long WS_CAPTION = 0x00C00000L;
     public const long WS_MAXIMIZE = 0x01000000L;
+    public const long WS_THICKFRAME = 0x00040000L;
     public const long WS_EX_APPWINDOW = 0x00040000L;
     public const long WS_EX_TOOLWINDOW = 0x00000080L;
     public const uint SPI_GETWORKAREA = 0x0030;
@@ -121,4 +122,54 @@ internal static partial class NativeMethods
     }
 
     public const uint MONITORINFOF_PRIMARY = 1;
+
+    public const int DWMWA_CLOAKED = 14;
+
+    [LibraryImport("dwmapi.dll")]
+    public static partial int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
+
+    public static bool IsWindowCloaked(IntPtr hWnd)
+    {
+        DwmGetWindowAttribute(hWnd, DWMWA_CLOAKED, out int cloaked, sizeof(int));
+        return cloaked != 0;
+    }
+
+    public const int WM_GETMINMAXINFO = 0x0024;
+
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+    public static partial IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MINMAXINFO
+    {
+        public POINT ptReserved;
+        public POINT ptMaxSize;
+        public POINT ptMaxPosition;
+        public POINT ptMinTrackSize;
+        public POINT ptMaxTrackSize;
+    }
+
+    public static (int minWidth, int minHeight) GetWindowMinSize(IntPtr hWnd)
+    {
+        var mmi = new MINMAXINFO();
+        var ptr = Marshal.AllocHGlobal(Marshal.SizeOf<MINMAXINFO>());
+        try
+        {
+            Marshal.StructureToPtr(mmi, ptr, false);
+            SendMessage(hWnd, WM_GETMINMAXINFO, IntPtr.Zero, ptr);
+            mmi = Marshal.PtrToStructure<MINMAXINFO>(ptr);
+            return (mmi.ptMinTrackSize.X, mmi.ptMinTrackSize.Y);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(ptr);
+        }
+    }
 }

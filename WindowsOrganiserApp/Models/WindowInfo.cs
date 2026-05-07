@@ -11,6 +11,9 @@ public partial class WindowInfo : ObservableObject
     public string ProcessName { get; init; } = string.Empty;
     public DateTime StartTime { get; init; }
     public uint ProcessId { get; init; }
+    public bool CanResize { get; init; } = true;
+    public int MinWidth { get; init; }
+    public int MinHeight { get; init; }
 
     [ObservableProperty]
     private int _launchOrder;
@@ -34,9 +37,6 @@ public partial class WindowInfo : ObservableObject
 
     [ObservableProperty]
     private bool _isMainWindow;
-
-    [ObservableProperty]
-    private int _order;
 
     [ObservableProperty]
     private MonitorInfo? _assignedMonitor;

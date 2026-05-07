@@ -7,6 +7,7 @@ public sealed class AppSettings
     public double WindowLeft { get; set; } = double.NaN;
     public double WindowTop { get; set; } = double.NaN;
     public string Theme { get; set; } = "Classic";
+    public string Language { get; set; } = "Français";
 
     public List<MonitorConfigSettings> MonitorConfigs { get; set; } = [];
     public List<WindowSettings> Windows { get; set; } = [];

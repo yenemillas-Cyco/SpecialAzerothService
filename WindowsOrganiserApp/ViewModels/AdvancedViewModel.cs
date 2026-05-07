@@ -300,27 +300,78 @@ public partial class AdvancedViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedSlot));
     }
 
-    // --- Auto-layout commands ---
+    // --- Auto-layout commands (per monitor) ---
 
     [RelayCommand]
-    private void AutoLayoutMain()
-    {
-        ApplyAutoLayout((windows, wa) =>
+    private void AutoLayoutMain(MonitorInfo? monitor) =>
+        ApplyAutoLayoutForMonitor(monitor, (windows, wa) =>
             _layoutService.CalculateMainLayout(windows, wa, MainSize.Grand, MainPosition.TopLeft, true, false));
-    }
 
     [RelayCommand]
-    private void AutoLayoutSplitH()
-    {
-        ApplyAutoLayout((windows, wa) =>
+    private void AutoLayoutSplitH(MonitorInfo? monitor) =>
+        ApplyAutoLayoutForMonitor(monitor, (windows, wa) =>
             _layoutService.CalculateSplitLayout(windows, wa, SplitOrientation.Vertical));
-    }
 
     [RelayCommand]
-    private void AutoLayoutSplitV()
-    {
-        ApplyAutoLayout((windows, wa) =>
+    private void AutoLayoutSplitV(MonitorInfo? monitor) =>
+        ApplyAutoLayoutForMonitor(monitor, (windows, wa) =>
             _layoutService.CalculateSplitLayout(windows, wa, SplitOrientation.Horizontal));
+
+    private void ApplyAutoLayoutForMonitor(MonitorInfo? monitor, Func<List<WindowInfo>, WindowRect, Dictionary<IntPtr, WindowRect>> layoutFunc)
+    {
+        if (monitor is null) return;
+        var windows = _mainVm.AvailableWindows
+            .Where(w => w.IsSelected && w.AssignedMonitor?.Handle == monitor.Handle)
+            .ToList();
+        if (windows.Count == 0) return;
+
+        var monitors = _mainVm.Monitors.ToList();
+        var wa = monitor.WorkArea;
+        var layout = layoutFunc(windows, wa);
+
+        var minX = monitors.Min(m => m.WorkArea.X);
+        var minY = monitors.Min(m => m.WorkArea.Y);
+        var canvasOffX = (CanvasWidth - (monitors.Max(m => m.WorkArea.X + m.WorkArea.Width) - minX) * _globalScale) / 2;
+        var canvasOffY = (CanvasHeight - (monitors.Max(m => m.WorkArea.Y + m.WorkArea.Height) - minY) * _globalScale) / 2;
+        var monCx = (wa.X - minX) * _globalScale + canvasOffX;
+        var monCy = (wa.Y - minY) * _globalScale + canvasOffY;
+        var monCw = wa.Width * _globalScale;
+        var monCh = wa.Height * _globalScale;
+
+        // Remove existing slots for this monitor
+        var toRemove = Slots.Where(s => s.MonitorDeviceName == monitor.DeviceName).ToList();
+        foreach (var s in toRemove) Slots.Remove(s);
+
+        // Add new slots
+        foreach (var kvp in layout)
+        {
+            var win = windows.FirstOrDefault(w => w.Handle == kvp.Key);
+            if (win is null) continue;
+
+            var rect = kvp.Value;
+            var realX = rect.X - wa.X;
+            var realY = rect.Y - wa.Y;
+            var slot = new AdvancedSlot
+            {
+                Window = win,
+                MonitorDeviceName = monitor.DeviceName,
+                MonitorWorkArea = wa,
+                RealX = realX, RealY = realY,
+                RealWidth = rect.Width, RealHeight = rect.Height
+            };
+            slot.SetCanvasDirect(
+                monCx + realX * _globalScale,
+                monCy + realY * _globalScale,
+                rect.Width * _globalScale,
+                rect.Height * _globalScale,
+                _globalScale, monCx, monCy, monCw, monCh);
+            slot.PropertyChanged += (_, _) => OnPropertyChanged(nameof(Slots));
+            Slots.Add(slot);
+        }
+
+        SelectedSlot = Slots.FirstOrDefault();
+        OnPropertyChanged(nameof(Slots));
+        StatusMessage = $"Layout auto appliqué sur {monitor.DisplayLabel}";
     }
 
     private double _copiedCanvasW;
@@ -404,63 +455,26 @@ public partial class AdvancedViewModel : ObservableObject
         StatusMessage = $"Taille appliquée à {Slots.Count - 1} fenêtre(s)";
     }
 
-    private void ApplyAutoLayout(Func<List<WindowInfo>, WindowRect, Dictionary<IntPtr, WindowRect>> layoutFunc)
-    {
-        var windows = _mainVm.AvailableWindows.Where(w => w.IsSelected).ToList();
-        var monitors = _mainVm.Monitors.ToList();
-        if (monitors.Count == 0 || windows.Count == 0) return;
-
-        // Use the first monitor (primary) for auto-layout
-        var monitor = monitors.FirstOrDefault(m => m.IsPrimary) ?? monitors[0];
-        var wa = monitor.WorkArea;
-        var layout = layoutFunc(windows, wa);
-
-        // Rebuild monitor canvas map
-        var minX = monitors.Min(m => m.WorkArea.X);
-        var minY = monitors.Min(m => m.WorkArea.Y);
-        var canvasOffX = (CanvasWidth - (monitors.Max(m => m.WorkArea.X + m.WorkArea.Width) - minX) * _globalScale) / 2;
-        var canvasOffY = (CanvasHeight - (monitors.Max(m => m.WorkArea.Y + m.WorkArea.Height) - minY) * _globalScale) / 2;
-        var monCx = (wa.X - minX) * _globalScale + canvasOffX;
-        var monCy = (wa.Y - minY) * _globalScale + canvasOffY;
-        var monCw = wa.Width * _globalScale;
-        var monCh = wa.Height * _globalScale;
-
-        Slots.Clear();
-        foreach (var kvp in layout)
-        {
-            var win = windows.FirstOrDefault(w => w.Handle == kvp.Key);
-            if (win is null) continue;
-
-            var rect = kvp.Value;
-            var realX = rect.X - wa.X;
-            var realY = rect.Y - wa.Y;
-            var slot = new AdvancedSlot
-            {
-                Window = win,
-                MonitorDeviceName = monitor.DeviceName,
-                MonitorWorkArea = wa,
-                RealX = realX, RealY = realY,
-                RealWidth = rect.Width, RealHeight = rect.Height
-            };
-            slot.SetCanvasDirect(
-                monCx + realX * _globalScale,
-                monCy + realY * _globalScale,
-                rect.Width * _globalScale,
-                rect.Height * _globalScale,
-                _globalScale, monCx, monCy, monCw, monCh);
-            slot.PropertyChanged += (_, _) => OnPropertyChanged(nameof(Slots));
-            Slots.Add(slot);
-        }
-
-        SelectedSlot = Slots.FirstOrDefault();
-        OnPropertyChanged(nameof(Slots));
-        StatusMessage = "Layout auto appliqué";
-    }
 
     [RelayCommand]
     private void ApplyAdvanced()
     {
-        foreach (var slot in Slots)
+        ApplyForMonitorSlots(Slots);
+        StatusMessage = $"Layout avancé appliqué à {Slots.Count} fenêtre(s)";
+    }
+
+    [RelayCommand]
+    private void ApplyMonitor(MonitorInfo monitor)
+    {
+        if (monitor is null) return;
+        var monSlots = Slots.Where(s => s.MonitorDeviceName == monitor.DeviceName).ToList();
+        ApplyForMonitorSlots(monSlots);
+        StatusMessage = $"Layout appliqué à {monSlots.Count} fenêtre(s) sur {monitor.DisplayLabel}";
+    }
+
+    private void ApplyForMonitorSlots(IReadOnlyList<AdvancedSlot> slots)
+    {
+        foreach (var slot in slots)
         {
             var monitor = _mainVm.Monitors.FirstOrDefault(m => m.DeviceName == slot.MonitorDeviceName);
             if (monitor is null) continue;
@@ -473,8 +487,6 @@ public partial class AdvancedViewModel : ObservableObject
                 slot.RealHeight);
             _windowService.MoveAndResize(slot.Window.Handle, rect);
         }
-
-        StatusMessage = $"Layout avancé appliqué à {Slots.Count} fenêtre(s)";
     }
 
     [RelayCommand]
