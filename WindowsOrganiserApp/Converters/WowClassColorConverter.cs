@@ -75,7 +75,17 @@ public class ListSummaryConverter : IValueConverter
             "prof" when value is List<ProfessionInfo> profs =>
                 string.Join(", ", profs.Select(p => $"{p.Type}")),
             "cd" when value is List<CooldownEntry> cds =>
-                string.Join(", ", cds.Select(c => c.IsReady ? $"{c.Type}:✅" : $"{c.Type}:⏳")),
+                string.Join(", ", cds.Select(c =>
+                {
+                    var name = CdShortName(c.Type);
+                    if (c.IsReady) return $"{name}:✅";
+                    var r = c.TimeRemaining;
+                    if (r == null) return $"{name}:—";
+                    var txt = r.Value.TotalHours >= 1
+                        ? $"{(int)r.Value.TotalHours}h{r.Value.Minutes:D2}"
+                        : $"{r.Value.Minutes}m";
+                    return $"{name}:{txt}";
+                })),
             "qi" when value is List<QuestItemEntry> qis =>
                 string.Join(", ", qis.Select(q => q.Type switch
                 {
@@ -88,6 +98,15 @@ public class ListSummaryConverter : IValueConverter
             _ => ""
         };
     }
+
+    private static string CdShortName(CooldownType t) => t switch
+    {
+        CooldownType.Arcanite => "Arcanite",
+        CooldownType.Transmute_Elementaire => "Elem",
+        CooldownType.Mooncloth => "Moon",
+        CooldownType.Sel_raffine => "Sel",
+        _ => t.ToString()
+    };
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();

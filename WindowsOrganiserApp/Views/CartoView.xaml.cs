@@ -27,148 +27,56 @@ public partial class CartoView : UserControl
                 {
                     if (e.PropertyName is nameof(CartoViewModel.FilteredCharacters)
                         or nameof(CartoViewModel.SelectedCharacter))
+                    {
+                        RedrawAll();
+                        SummaryGrid.Items.Refresh();
+                    }
+                    else if (e.PropertyName == nameof(CartoViewModel.Timers))
                         RedrawAll();
                     else if (e.PropertyName == nameof(CartoViewModel.OverlayChanged))
                         RedrawAll();
                 };
+                vm.TimerExpired += OnTimerExpired;
                 RedrawAll();
             }
         };
         Loaded += (_, _) =>
         {
             MapImage.SizeChanged += (_, _) => RedrawAll();
+            MapBorder.SizeChanged += (_, _) => CenterMapIfNeeded();
             RedrawAll();
+            CenterMapIfNeeded();
         };
     }
 
     private double MapWidth => MapImage.ActualWidth > 0 ? MapImage.ActualWidth : 1024;
     private double MapHeight => MapImage.ActualHeight > 0 ? MapImage.ActualHeight : 768;
 
+    private bool _mapCentered;
+    private WowCharacter? _draggingCharacter;
+    private MapTimer? _draggingTimer;
+    private bool _isDragging;
+
+    private void CenterMapIfNeeded()
+    {
+        if (_mapCentered || MapImage.ActualWidth == 0 || MapBorder.ActualWidth == 0) return;
+        _mapCentered = true;
+        var zoom = Vm.MapZoom;
+        Vm.MapOffsetX = (MapBorder.ActualWidth - MapImage.ActualWidth * zoom) / 2;
+        Vm.MapOffsetY = (MapBorder.ActualHeight - MapImage.ActualHeight * zoom) / 2;
+    }
+
     private void RedrawAll()
     {
         RedrawOverlays();
         RedrawMarkers();
+        RedrawTimerMarkers();
+        RebuildCharTree();
+        UpdateTimerCountdowns();
     }
 
     private void RedrawOverlays()
     {
-        if (Vm == null) return;
-
-        // Remove old overlays
-        for (int i = MapCanvas.Children.Count - 1; i >= 0; i--)
-        {
-            if (MapCanvas.Children[i] is FrameworkElement { Tag: "overlay" or "fp_line" or "fp_node" })
-                MapCanvas.Children.RemoveAt(i);
-        }
-
-        var w = MapWidth;
-        var h = MapHeight;
-
-        // Zone names
-        if (Vm.ShowZoneNames)
-        {
-            foreach (var zone in MapOverlayData.Zones)
-            {
-                var name = Vm.UseFrencNames ? zone.NameFR : zone.NameEN;
-                var levelText = (Vm.ShowZoneLevels && zone.LevelMin > 0) ? $" ({zone.LevelMin}-{zone.LevelMax})" : "";
-
-                Color textColor;
-                double fontSize;
-                if (zone.IsCapital)
-                {
-                    textColor = zone.CapitalFaction == Faction.Alliance
-                        ? Color.FromRgb(100, 180, 255)
-                        : zone.CapitalFaction == Faction.Horde
-                            ? Color.FromRgb(255, 100, 100)
-                            : Color.FromRgb(255, 215, 0);
-                    fontSize = 11;
-                }
-                else
-                {
-                    textColor = Color.FromArgb(220, 255, 210, 100);
-                    fontSize = 9;
-                }
-
-                var tb = new TextBlock
-                {
-                    Text = name + levelText,
-                    FontSize = fontSize,
-                    Foreground = new SolidColorBrush(textColor),
-                    FontWeight = zone.IsCapital ? FontWeights.Bold : FontWeights.SemiBold,
-                    Tag = "overlay"
-                };
-                tb.Effect = new System.Windows.Media.Effects.DropShadowEffect
-                {
-                    Color = Colors.Black, BlurRadius = 3, ShadowDepth = 1, Opacity = 0.9
-                };
-                Canvas.SetLeft(tb, zone.X * w);
-                Canvas.SetTop(tb, zone.Y * h);
-                MapCanvas.Children.Add(tb);
-            }
-        }
-
-        // Alliance flight paths
-        if (Vm.ShowAllianceFlightPaths)
-        {
-            DrawFlightPaths(MapOverlayData.AllianceRoutes, MapOverlayData.FlightNodes,
-                Color.FromRgb(68, 136, 255), Faction.Alliance, w, h);
-        }
-
-        // Horde flight paths
-        if (Vm.ShowHordeFlightPaths)
-        {
-            DrawFlightPaths(MapOverlayData.HordeRoutes, MapOverlayData.FlightNodes,
-                Color.FromRgb(255, 68, 68), Faction.Horde, w, h);
-        }
-    }
-
-    private void DrawFlightPaths(FlightRoute[] routes, FlightNode[] nodes, Color color,
-        Faction faction, double w, double h)
-    {
-        var brush = new SolidColorBrush(color);
-        var lineBrush = new SolidColorBrush(Color.FromArgb(140, color.R, color.G, color.B));
-
-        // Draw routes as lines
-        foreach (var route in routes)
-        {
-            if (route.FromIndex >= nodes.Length || route.ToIndex >= nodes.Length) continue;
-            var from = nodes[route.FromIndex];
-            var to = nodes[route.ToIndex];
-
-            var line = new Line
-            {
-                X1 = from.X * w, Y1 = from.Y * h,
-                X2 = to.X * w, Y2 = to.Y * h,
-                Stroke = lineBrush,
-                StrokeThickness = 1.5,
-                StrokeDashArray = [4, 2],
-                Tag = "fp_line"
-            };
-            MapCanvas.Children.Add(line);
-        }
-
-        // Draw nodes
-        foreach (var node in nodes)
-        {
-            if (node.Faction != faction && node.Faction != Faction.Neutral) continue;
-
-            var nodeBrush = node.Faction == Faction.Neutral
-                ? new SolidColorBrush(Color.FromRgb(255, 215, 0))
-                : brush;
-
-            var dot = new Ellipse
-            {
-                Width = 8, Height = 8,
-                Fill = nodeBrush,
-                Stroke = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
-                StrokeThickness = 0.5,
-                Tag = "fp_node",
-                ToolTip = Vm.UseFrencNames ? node.NameFR : node.NameEN
-            };
-            Canvas.SetLeft(dot, node.X * w - 4);
-            Canvas.SetTop(dot, node.Y * h - 4);
-            MapCanvas.Children.Add(dot);
-        }
     }
 
     private void RedrawMarkers()
@@ -190,12 +98,17 @@ public partial class CartoView : UserControl
             var isSelected = ch == Vm.SelectedCharacter;
             var size = isSelected ? 16.0 : 12.0;
 
+            Brush strokeBrush;
+            if (isSelected) strokeBrush = Brushes.White;
+            else if (ch.IsExternal) strokeBrush = Brushes.CornflowerBlue;
+            else strokeBrush = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0));
+
             var marker = new Ellipse
             {
                 Width = size, Height = size,
                 Fill = brush,
-                Stroke = isSelected ? Brushes.White : new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
-                StrokeThickness = isSelected ? 2 : 1,
+                Stroke = strokeBrush,
+                StrokeThickness = ch.IsExternal ? 2 : (isSelected ? 2 : 1),
                 Cursor = Cursors.Hand,
                 Tag = ch
             };
@@ -206,7 +119,9 @@ public partial class CartoView : UserControl
 
             // Name label above the point
             var accountName = Vm.Accounts.FirstOrDefault(a => a.Id == ch.AccountId)?.Name;
-            var labelText = accountName != null ? $"{ch.Name} ({accountName})" : ch.Name;
+            var labelText = ch.IsExternal
+                ? $"[{ch.ExternalSource}] {ch.Name}"
+                : (accountName != null ? $"{ch.Name} ({accountName})" : ch.Name);
             var label = new Border
             {
                 Tag = "marker",
@@ -226,122 +141,137 @@ public partial class CartoView : UserControl
             Canvas.SetTop(label, ch.MapY - size / 2 - 16);
             MapCanvas.Children.Add(label);
         }
-
-        UpdateSelectedCharacterPanel();
     }
 
-    private void UpdateSelectedCharacterPanel()
+    private void RedrawTimerMarkers()
     {
-        if (Vm.SelectedCharacter is { } ch)
+        if (Vm == null) return;
+        for (int i = MapCanvas.Children.Count - 1; i >= 0; i--)
         {
-            var accountName = Vm.Accounts.FirstOrDefault(a => a.Id == ch.AccountId)?.Name ?? "—";
-            SelectedCharInfo.Text = $"{ch.Name} — {ch.Class} Lv.{ch.Level}\nCompte: {accountName}";
+            if (MapCanvas.Children[i] is FrameworkElement fe
+                && (fe.Tag is "timer" || fe.Tag is MapTimer))
+                MapCanvas.Children.RemoveAt(i);
+        }
 
-            // Rebuild cooldowns list
-            CooldownsList.Items.Clear();
-            foreach (var cd in ch.Cooldowns)
+        foreach (var t in Vm.Timers)
+        {
+            Brush timerColor;
+            if (t.IsRunning) timerColor = Brushes.DeepSkyBlue;
+            else if (t.IsPaused) timerColor = Brushes.Gold;
+            else timerColor = Brushes.LimeGreen;
+
+            // Draggable ring
+            var ring = new Ellipse
             {
-                var panel = new DockPanel { Margin = new Thickness(0, 0, 0, 2) };
+                Width = 22, Height = 22,
+                Fill = new SolidColorBrush(Color.FromArgb(40, 0, 180, 255)),
+                Stroke = timerColor, StrokeThickness = 2.5,
+                StrokeDashArray = new DoubleCollection([2, 1]),
+                Tag = t, Cursor = Cursors.SizeAll, Opacity = 0.9
+            };
+            Canvas.SetLeft(ring, t.MapX - 11);
+            Canvas.SetTop(ring, t.MapY - 11);
+            MapCanvas.Children.Add(ring);
 
-                // Delete button
-                var btnDel = new Button
-                {
-                    Content = "✕", FontSize = 9,
-                    Padding = new Thickness(3, 0, 3, 0), Tag = cd,
-                    ToolTip = "Supprimer ce cooldown"
+            // Label + countdown
+            string remaining;
+            if (t.IsRunning)
+                remaining = FormatTimeSpan((TimeSpan?)t.Remaining);
+            else if (t.IsPaused)
+                remaining = $"⏸ {FormatTimeSpan((TimeSpan?)t.Remaining)}";
+            else
+                remaining = "⏹";
+
+            var labelPanel = new StackPanel { Orientation = Orientation.Horizontal, Tag = "timer" };
+            labelPanel.Children.Add(new TextBlock
+            {
+                Text = $"⏱ {t.Label}: {remaining}",
+                FontSize = 8, Foreground = timerColor, VerticalAlignment = VerticalAlignment.Center
+            });
+
+            // Action buttons on map (contextual)
+            Button MakeMapBtn(string text, Brush fg, Action action) {
+                var b = new Button {
+                    Content = text, FontSize = 9, Padding = new Thickness(3, 0, 3, 0),
+                    Margin = new Thickness(3, 0, 0, 0), Cursor = Cursors.Hand,
+                    Foreground = fg, Background = Brushes.Transparent,
+                    BorderThickness = new Thickness(0), Tag = t,
+                    MinWidth = 0, MinHeight = 0
                 };
-                btnDel.Click += RemoveCooldown_Click;
-                DockPanel.SetDock(btnDel, Dock.Right);
-                panel.Children.Add(btnDel);
-
-                // Edit timer button
-                var btnEdit = new Button
-                {
-                    Content = "✎", FontSize = 9,
-                    Padding = new Thickness(3, 0, 3, 0), Tag = cd, Margin = new Thickness(2, 0, 0, 0),
-                    ToolTip = "Modifier le timer"
-                };
-                btnEdit.Click += EditCooldownTimer_Click;
-                DockPanel.SetDock(btnEdit, Dock.Right);
-                panel.Children.Add(btnEdit);
-
-                // Activate button
-                var btn = new Button
-                {
-                    Content = "↻", FontSize = 10,
-                    Padding = new Thickness(4, 1, 4, 1), Tag = cd, Margin = new Thickness(2, 0, 0, 0),
-                    ToolTip = "Lancer le cooldown"
-                };
-                btn.Click += ActivateCooldown_Click;
-                DockPanel.SetDock(btn, Dock.Right);
-                panel.Children.Add(btn);
-
-                var status = cd.IsReady ? "✅ PRÊT" : $"⏳ {FormatTimeSpan(cd.TimeRemaining)}";
-                panel.Children.Add(new TextBlock
-                {
-                    Text = $"{cd.Type}: {status}",
-                    FontSize = 10,
-                    Foreground = cd.IsReady
-                        ? new SolidColorBrush(Color.FromRgb(100, 255, 100))
-                        : new SolidColorBrush(Color.FromRgb(255, 200, 100)),
-                    VerticalAlignment = VerticalAlignment.Center
-                });
-                CooldownsList.Items.Add(panel);
+                b.Click += (_, _) => { action(); RedrawAll(); };
+                return b;
             }
 
-            // Rebuild quest items list
-            QuestItemsList.Items.Clear();
-            foreach (var qi in ch.QuestItems)
+            if (t.IsRunning)
             {
-                var panel = new DockPanel { Margin = new Thickness(0, 0, 0, 2) };
-                var btnDone = new Button
-                {
-                    Content = "✓",
-                    FontSize = 10,
-                    Padding = new Thickness(4, 1, 4, 1),
-                    Tag = qi
-                };
-                btnDone.Click += MarkQuestItemDone_Click;
-                DockPanel.SetDock(btnDone, Dock.Right);
-                panel.Children.Add(btnDone);
-
-                var planned = qi.PlannedTurnIn.HasValue
-                    ? $" → {qi.PlannedTurnIn.Value:dd/MM HH:mm}"
-                    : "";
-                panel.Children.Add(new TextBlock
-                {
-                    Text = $"{FormatQuestItem(qi.Type)}{planned}",
-                    FontSize = 10,
-                    Foreground = new SolidColorBrush(Color.FromRgb(255, 215, 0)),
-                    VerticalAlignment = VerticalAlignment.Center
-                });
-                QuestItemsList.Items.Add(panel);
+                labelPanel.Children.Add(MakeMapBtn("⏸", Brushes.Gold,
+                    () => Vm.StopTimerCommand.Execute(t)));
+            }
+            else if (t.IsPaused)
+            {
+                labelPanel.Children.Add(MakeMapBtn("▶", Brushes.LimeGreen,
+                    () => Vm.ResumeTimerCommand.Execute(t)));
             }
 
-            // Rebuild professions list
-            ProfessionsList.Items.Clear();
-            foreach (var p in ch.Professions)
+            labelPanel.Children.Add(MakeMapBtn("↻", Brushes.LightSkyBlue,
+                () => Vm.RestartTimerCommand.Execute(t)));
+            labelPanel.Children.Add(MakeMapBtn("✕", Brushes.OrangeRed,
+                () => Vm.RemoveTimerCommand.Execute(t)));
+
+            var timerLabel = new Border
             {
-                ProfessionsList.Items.Add(new TextBlock
-                {
-                    Text = $"{p.Type} ({p.Skill}/300)",
-                    FontSize = 10,
-                    Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
-                    Margin = new Thickness(0, 0, 0, 1)
-                });
+                Tag = "timer", Child = labelPanel,
+                Background = new SolidColorBrush(Color.FromArgb(220, 10, 10, 10)),
+                CornerRadius = new CornerRadius(3),
+                Padding = new Thickness(5, 2, 5, 2)
+            };
+            Canvas.SetLeft(timerLabel, t.MapX - 30);
+            Canvas.SetTop(timerLabel, t.MapY + 13);
+            MapCanvas.Children.Add(timerLabel);
+        }
+    }
+
+    private void UpdateTimerCountdowns()
+    {
+        if (TimerList == null) return;
+        foreach (var container in TimerList.Items.Cast<object>()
+            .Select((_, i) => TimerList.ItemContainerGenerator.ContainerFromIndex(i))
+            .OfType<ContentPresenter>())
+        {
+            var timer = container.Content as MapTimer;
+            if (timer == null) continue;
+            var tb = FindVisualChildren<TextBlock>(container)
+                .FirstOrDefault(t => t.Tag == timer);
+            if (tb != null)
+            {
+                tb.Text = timer.IsRunning
+                    ? FormatTimeSpan((TimeSpan?)timer.Remaining)
+                    : (timer.IsExpired ? "Terminé" : "⏸");
             }
         }
-        else
+    }
+
+    private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
         {
-            SelectedCharInfo.Text = "";
-            CooldownsList.Items.Clear();
-            QuestItemsList.Items.Clear();
-            ProfessionsList.Items.Clear();
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T t) yield return t;
+            foreach (var sub in FindVisualChildren<T>(child)) yield return sub;
         }
     }
 
     private void MapCanvas_MouseDown(object sender, MouseButtonEventArgs e)
     {
+        if (Vm.IsPlacingTimer)
+        {
+            var pos = e.GetPosition(MapImage);
+            Vm.PlaceTimerAt(pos.X, pos.Y);
+            RedrawAll();
+            e.Handled = true;
+            return;
+        }
+
         if (Vm.IsPlacingCharacter)
         {
             var pos = e.GetPosition(MapImage);
@@ -351,19 +281,24 @@ public partial class CartoView : UserControl
             return;
         }
 
-        // Toggle tooltip on marker click
+        // Marker click: drag or tooltip toggle
         if (e.OriginalSource is Ellipse { Tag: WowCharacter ch })
         {
-            if (_tooltipCharacter == ch && CharPopup.IsOpen)
-            {
-                CloseCharacterTooltip();
-            }
-            else
-            {
-                Vm.SelectedCharacter = ch;
-                RedrawAll();
-                ShowCharacterTooltip(ch);
-            }
+            _draggingCharacter = ch;
+            _isDragging = false;
+            _panStart = e.GetPosition(MapBorder);
+            MapBorder.CaptureMouse();
+            e.Handled = true;
+            return;
+        }
+
+        // Timer ring: drag
+        if (e.OriginalSource is Ellipse { Tag: MapTimer timer })
+        {
+            _draggingTimer = timer;
+            _isDragging = false;
+            _panStart = e.GetPosition(MapBorder);
+            MapBorder.CaptureMouse();
             e.Handled = true;
             return;
         }
@@ -388,18 +323,98 @@ public partial class CartoView : UserControl
             Vm.CancelPlacement();
             e.Handled = true;
         }
+        else if (Vm.IsPlacingTimer)
+        {
+            Vm.IsPlacingTimer = false;
+            e.Handled = true;
+        }
     }
 
     private void MapCanvas_MouseMove(object sender, MouseEventArgs e)
     {
-        if (!_isPanning) return;
         var pos = e.GetPosition(MapBorder);
+
+        // Drag character marker
+        if (_draggingCharacter != null)
+        {
+            var delta = pos - _panStart;
+            if (!_isDragging && (Math.Abs(delta.X) > 4 || Math.Abs(delta.Y) > 4))
+                _isDragging = true;
+
+            if (_isDragging)
+            {
+                var mapPos = e.GetPosition(MapImage);
+                _draggingCharacter.MapX = Math.Clamp(mapPos.X, 0, MapWidth);
+                _draggingCharacter.MapY = Math.Clamp(mapPos.Y, 0, MapHeight);
+                RedrawMarkers();
+            }
+            return;
+        }
+
+        // Drag timer
+        if (_draggingTimer != null)
+        {
+            var delta = pos - _panStart;
+            if (!_isDragging && (Math.Abs(delta.X) > 4 || Math.Abs(delta.Y) > 4))
+                _isDragging = true;
+
+            if (_isDragging)
+            {
+                var mapPos = e.GetPosition(MapImage);
+                _draggingTimer.MapX = Math.Clamp(mapPos.X, 0, MapWidth);
+                _draggingTimer.MapY = Math.Clamp(mapPos.Y, 0, MapHeight);
+                RedrawTimerMarkers();
+            }
+            return;
+        }
+
+        if (!_isPanning) return;
         Vm.MapOffsetX = _panStartOffsetX + (pos.X - _panStart.X);
         Vm.MapOffsetY = _panStartOffsetY + (pos.Y - _panStart.Y);
     }
 
     private void MapCanvas_MouseUp(object sender, MouseButtonEventArgs e)
     {
+        // End timer drag
+        if (_draggingTimer != null)
+        {
+            if (_isDragging)
+                Vm.Save();
+            _draggingTimer = null;
+            _isDragging = false;
+            MapBorder.ReleaseMouseCapture();
+            RedrawAll();
+            e.Handled = true;
+            return;
+        }
+
+        // End character drag
+        if (_draggingCharacter != null)
+        {
+            if (_isDragging)
+            {
+                Vm.Save();
+                RedrawAll();
+            }
+            else
+            {
+                var ch = _draggingCharacter;
+                if (_tooltipCharacter == ch && CharPopup.IsOpen)
+                    CloseCharacterTooltip();
+                else
+                {
+                    Vm.SelectedCharacter = ch;
+                    RedrawAll();
+                    ShowCharacterTooltip(ch);
+                }
+            }
+            _draggingCharacter = null;
+            _isDragging = false;
+            MapBorder.ReleaseMouseCapture();
+            e.Handled = true;
+            return;
+        }
+
         _isPanning = false;
         MapBorder.ReleaseMouseCapture();
     }
@@ -413,58 +428,211 @@ public partial class CartoView : UserControl
         e.Handled = true;
     }
 
-    private void AddCooldown_Click(object sender, RoutedEventArgs e)
+    private void RebuildCharTree()
     {
-        if (CdTypeCombo.SelectedItem is CooldownType type)
-            Vm.AddCooldownCommand.Execute(type);
-        RedrawMarkers();
-    }
+        if (Vm == null) return;
+        CharTreeView.Items.Clear();
 
-    private void AddQuestItem_Click(object sender, RoutedEventArgs e)
-    {
-        if (QiTypeCombo.SelectedItem is QuestItemType type)
-            Vm.AddQuestItemCommand.Execute(type);
-        RedrawMarkers();
-    }
+        var grouped = Vm.Characters
+            .Where(c => !c.IsExternal)
+            .GroupBy(c => c.AccountId ?? "__none__");
 
-    private void AddProfession_Click(object sender, RoutedEventArgs e)
-    {
-        if (ProfTypeCombo.SelectedItem is ProfessionType type)
-            Vm.AddProfessionCommand.Execute(type);
-        RedrawMarkers();
-    }
-
-    private void ActivateCooldown_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: CooldownEntry cd })
+        foreach (var group in grouped)
         {
-            Vm.ActivateCooldownCommand.Execute(cd);
-            RedrawMarkers();
+            var accountName = Vm.Accounts.FirstOrDefault(a => a.Id == group.Key)?.Name ?? "Sans compte";
+            var parentItem = new TreeViewItem
+            {
+                Header = $"👤 {accountName} ({group.Count()})",
+                IsExpanded = true,
+                Foreground = Brushes.Gold,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold
+            };
+
+            foreach (var ch in group.OrderByDescending(c => c.Level))
+                parentItem.Items.Add(BuildCharTreeItem(ch, false));
+
+            CharTreeView.Items.Add(parentItem);
+        }
+
+        var externals = Vm.Characters.Where(c => c.IsExternal).ToList();
+        if (externals.Count > 0)
+        {
+            var extItem = new TreeViewItem
+            {
+                Header = $"🌐 Importés ({externals.Count})",
+                IsExpanded = false,
+                Foreground = Brushes.CornflowerBlue,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold
+            };
+            foreach (var ch in externals.OrderBy(c => c.ExternalSource).ThenByDescending(c => c.Level))
+                extItem.Items.Add(BuildCharTreeItem(ch, true));
+
+            CharTreeView.Items.Add(extItem);
         }
     }
 
-    private void MarkQuestItemDone_Click(object sender, RoutedEventArgs e)
+    private TreeViewItem BuildCharTreeItem(WowCharacter ch, bool isExternal)
     {
-        if (sender is Button { Tag: QuestItemEntry qi })
+        var classHex = WowClassColors.GetHexColor(ch.Class);
+        var classBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(classHex));
+
+        var panel = new StackPanel { Orientation = Orientation.Horizontal };
+
+        // Class colored dot
+        panel.Children.Add(new Ellipse
         {
-            Vm.MarkQuestItemTurnedInCommand.Execute(qi);
-            RedrawMarkers();
+            Width = 8, Height = 8, Fill = classBrush,
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0)
+        });
+
+        // Name
+        var prefix = isExternal ? $"[{ch.ExternalSource}] " : "";
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"{prefix}{ch.Name}", FontSize = 10,
+            Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center
+        });
+
+        // Class
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"  {ch.Class}", FontSize = 9,
+            Foreground = classBrush, FontStyle = FontStyles.Italic,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+
+        // Level
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"  Lv.{ch.Level}", FontSize = 9,
+            Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 180)),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+
+        // Placed indicator
+        if (ch.MapX == 0 && ch.MapY == 0)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = "  ⚠ non placé", FontSize = 8,
+                Foreground = Brushes.OrangeRed, VerticalAlignment = VerticalAlignment.Center
+            });
+        }
+
+        return new TreeViewItem
+        {
+            Header = panel, Tag = ch,
+            FontSize = 10, FontWeight = FontWeights.Normal
+        };
+    }
+
+    private void CharTreeView_DoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (CharTreeView.SelectedItem is TreeViewItem { Tag: WowCharacter ch })
+            ShowCharacterTooltip(ch);
+    }
+
+    private static readonly System.Media.SoundPlayer _chimePlayer = new(@"C:\Windows\Media\chimes.wav");
+
+    private void OnTimerExpired(MapTimer t)
+    {
+        try { _chimePlayer.Play(); } catch { }
+        RedrawAll();
+    }
+
+    private void TimerRestart_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: MapTimer t })
+        { Vm.RestartTimerCommand.Execute(t); RedrawAll(); }
+    }
+
+    private void TimerResume_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: MapTimer t })
+        { Vm.ResumeTimerCommand.Execute(t); RefreshTimerListButtons(); RedrawAll(); }
+    }
+
+    private void TimerStop_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: MapTimer t })
+        { Vm.StopTimerCommand.Execute(t); RefreshTimerListButtons(); RedrawAll(); }
+    }
+
+    private void TimerRemove_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: MapTimer t })
+        { Vm.RemoveTimerCommand.Execute(t); RedrawAll(); }
+    }
+
+    private void TimerPlayPauseBtn_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is MapTimer t)
+        {
+            var content = btn.Content as string;
+            if (content == "▶") btn.Visibility = t.IsRunning ? Visibility.Collapsed : Visibility.Visible;
+            else if (content == "⏸") btn.Visibility = t.IsRunning ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 
-    private void RemoveCharacter_Click(object sender, RoutedEventArgs e)
+    private void RefreshTimerListButtons()
     {
-        if (Vm.SelectedCharacter != null)
+        foreach (var cp in Enumerable.Range(0, TimerList.Items.Count)
+            .Select(i => TimerList.ItemContainerGenerator.ContainerFromIndex(i))
+            .OfType<ContentPresenter>())
         {
-            Vm.RemoveCharacterCommand.Execute(Vm.SelectedCharacter);
-            RedrawMarkers();
+            if (cp.Content is not MapTimer t) continue;
+            foreach (var btn in FindVisualChildren<Button>(cp))
+            {
+                var content = btn.Content as string;
+                if (content == "▶") btn.Visibility = t.IsRunning ? Visibility.Collapsed : Visibility.Visible;
+                else if (content == "⏸") btn.Visibility = t.IsRunning ? Visibility.Visible : Visibility.Collapsed;
+            }
         }
     }
 
-    private void MoveCharacter_Click(object sender, RoutedEventArgs e)
+    private void TimerDurationPanel_Loaded(object sender, RoutedEventArgs e)
     {
-        if (Vm.SelectedCharacter != null)
-            Vm.MoveCharacterCommand.Execute(Vm.SelectedCharacter);
+        if (sender is not StackPanel sp || sp.DataContext is not MapTimer t) return;
+        var ts = TimeSpan.FromSeconds(t.DurationSeconds);
+        foreach (var box in sp.Children.OfType<TextBox>())
+        {
+            switch (box.Tag as string)
+            {
+                case "h": box.Text = ((int)ts.TotalHours).ToString(); break;
+                case "m": box.Text = ts.Minutes.ToString(); break;
+                case "s": box.Text = ts.Seconds.ToString(); break;
+            }
+        }
+    }
+
+    private void TimerDuration_Changed(object sender, RoutedEventArgs e)
+    {
+        if (sender is not TextBox tb || tb.DataContext is not MapTimer t) return;
+        var parent = tb.Parent as StackPanel;
+        if (parent == null) return;
+
+        var boxes = parent.Children.OfType<TextBox>().ToList();
+        int h = 0, m = 0, s = 0;
+        foreach (var box in boxes)
+        {
+            int.TryParse(box.Text, out var val);
+            switch (box.Tag as string)
+            {
+                case "h": h = val; break;
+                case "m": m = val; break;
+                case "s": s = val; break;
+            }
+        }
+        var total = h * 3600 + m * 60 + s;
+        if (total <= 0) return;
+
+        t.DurationSeconds = total;
+        t.IsRunning = false;
+        t.StartedAt = null;
+        Vm.Save();
+        RedrawAll();
     }
 
     private void AddAccount_Click(object sender, RoutedEventArgs e) => DoAddAccount();
@@ -494,54 +662,6 @@ public partial class CartoView : UserControl
             Vm.RemoveAccountCommand.Execute(account);
     }
 
-    private void RemoveCooldown_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: CooldownEntry cd })
-        {
-            Vm.RemoveCooldownCommand.Execute(cd);
-            RedrawAll();
-        }
-    }
-
-    private void EditCooldownTimer_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: CooldownEntry cd })
-        {
-            var defaultVal = cd.TimeRemaining?.TotalHours.ToString("F1") ?? "0";
-            var input = PromptInput("Modifier le timer", "Heures restantes (ex: 12.5) :", defaultVal);
-            if (input != null && double.TryParse(input, System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var hours))
-            {
-                cd.LastUsed = DateTime.Now - (cd.Duration - TimeSpan.FromHours(hours));
-                cd.Note = null;
-                Vm.Save();
-                RedrawAll();
-            }
-        }
-    }
-
-    private static string? PromptInput(string title, string message, string defaultValue)
-    {
-        var win = new Window
-        {
-            Title = title, Width = 320, Height = 150,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ResizeMode = ResizeMode.NoResize, WindowStyle = WindowStyle.ToolWindow
-        };
-        var stack = new StackPanel { Margin = new Thickness(12) };
-        stack.Children.Add(new TextBlock { Text = message, Margin = new Thickness(0, 0, 0, 8) });
-        var tb = new TextBox { Text = defaultValue };
-        stack.Children.Add(tb);
-        var btn = new Button { Content = "OK", Margin = new Thickness(0, 8, 0, 0), Padding = new Thickness(20, 4, 20, 4), HorizontalAlignment = HorizontalAlignment.Center };
-        string? result = null;
-        btn.Click += (_, _) => { result = tb.Text; win.Close(); };
-        stack.Children.Add(btn);
-        win.Content = stack;
-        tb.Focus();
-        tb.SelectAll();
-        win.ShowDialog();
-        return result;
-    }
 
     private void SummaryGrid_DoubleClick(object sender, MouseButtonEventArgs e)
     {
@@ -570,63 +690,143 @@ public partial class CartoView : UserControl
         var stack = CharPopupContent;
         var classColor = (Color)ColorConverter.ConvertFromString(WowClassColors.GetHexColor(ch.Class));
         var classBrush = new SolidColorBrush(classColor);
-        var goldBrush = Brushes.Gold;
-        var dimBrush = new SolidColorBrush(Color.FromRgb(180, 180, 180));
-        var bgInput = new SolidColorBrush(Color.FromRgb(40, 35, 20));
+        var goldBrush = new SolidColorBrush(Color.FromRgb(218, 165, 32));
+        var dimBrush = new SolidColorBrush(Color.FromRgb(160, 155, 140));
+        var bgInput = new SolidColorBrush(Color.FromRgb(30, 26, 18));
+        var sectionBorder = new SolidColorBrush(Color.FromRgb(80, 65, 30));
 
-        // ── Header ──
-        stack.Children.Add(new TextBlock
+        // ═══ HEADER BANNER ═══
+        var banner = new Border
         {
-            Text = $"{ch.Name}  —  {ch.Class}  Lv.{ch.Level}",
-            FontSize = 12, FontWeight = FontWeights.Bold, Foreground = classBrush
-        });
-        var accountName = Vm.Accounts.FirstOrDefault(a => a.Id == ch.AccountId)?.Name ?? "—";
-        stack.Children.Add(new TextBlock
-        {
-            Text = $"Compte: {accountName}", FontSize = 10, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 4)
-        });
-
-        // ── Actions (toujours visible en haut) ──
-        var actionsPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
-        var btnMove = new Button { Content = "↕ Déplacer", FontSize = 9, Padding = new Thickness(6, 2, 6, 2) };
-        btnMove.Click += (_, _) => { CloseCharacterTooltip(); Vm.MoveCharacterCommand.Execute(ch); };
-        var btnDelete = new Button { Content = "🗑 Suppr", FontSize = 9, Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(4, 0, 0, 0), Foreground = Brushes.Red };
-        btnDelete.Click += (_, _) =>
-        {
-            var result = MessageBox.Show(
-                $"Supprimer le personnage \"{ch.Name}\" ?",
-                "Confirmation", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (result == MessageBoxResult.Yes)
-            {
-                CloseCharacterTooltip();
-                Vm.RemoveCharacterCommand.Execute(ch);
-                RedrawAll();
-            }
+            Background = new LinearGradientBrush(
+                Color.FromArgb(220, 40, 32, 15), Color.FromArgb(180, 20, 16, 8), 0),
+            BorderBrush = classBrush, BorderThickness = new Thickness(0, 0, 0, 2),
+            CornerRadius = new CornerRadius(4, 4, 0, 0),
+            Padding = new Thickness(10, 8, 10, 8), Margin = new Thickness(-10, -10, -10, 8)
         };
-        var btnClose = new Button { Content = "✓ Fermer", FontSize = 9, Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(4, 0, 0, 0) };
-        btnClose.Click += (_, _) => CloseCharacterTooltip();
-        actionsPanel.Children.Add(btnMove);
-        actionsPanel.Children.Add(btnDelete);
-        actionsPanel.Children.Add(btnClose);
-        stack.Children.Add(actionsPanel);
+        var bannerStack = new StackPanel();
 
-        // ── Shards (Démoniste only) ──
+        // Class icon + editable name
+        var nameRow = new DockPanel();
+        nameRow.Children.Add(new Ellipse
+        {
+            Width = 14, Height = 14, Fill = classBrush,
+            Stroke = new SolidColorBrush(Color.FromArgb(120, 255, 255, 255)),
+            StrokeThickness = 1, VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0)
+        });
+        var nameBox = new TextBox
+        {
+            Text = ch.Name, FontSize = 14, FontWeight = FontWeights.Bold,
+            Background = Brushes.Transparent, Foreground = classBrush,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 215, 0)),
+            Padding = new Thickness(2, 0, 2, 2), CaretBrush = Brushes.White
+        };
+        nameBox.LostFocus += (_, _) => { ch.Name = nameBox.Text; Vm.Save(); RedrawAll(); };
+        nameRow.Children.Add(nameBox);
+        bannerStack.Children.Add(nameRow);
+
+        // Class + level + account row
+        var infoRow = new WrapPanel { Margin = new Thickness(22, 4, 0, 0) };
+        var classCombo = new ComboBox
+        {
+            ItemsSource = Enum.GetValues(typeof(WowClass)),
+            SelectedItem = ch.Class,
+            FontSize = 9, Height = 20, MinWidth = 75,
+            Background = bgInput, Foreground = classBrush,
+            BorderBrush = sectionBorder, BorderThickness = new Thickness(1),
+            Margin = new Thickness(0, 0, 8, 0)
+        };
+        classCombo.SelectionChanged += (_, _) =>
+        {
+            if (classCombo.SelectedItem is WowClass wc)
+            { ch.Class = wc; Vm.Save(); RebuildTooltipContent(ch); RedrawAll(); }
+        };
+        infoRow.Children.Add(classCombo);
+        infoRow.Children.Add(new TextBlock
+        {
+            Text = "Lv.", FontSize = 9, Foreground = dimBrush,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        var lvlBox = new TextBox
+        {
+            Text = ch.Level.ToString(), FontSize = 10, Width = 28,
+            Background = Brushes.Transparent, Foreground = Brushes.White,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+            Padding = new Thickness(2, 0, 2, 1), Margin = new Thickness(2, 0, 10, 0),
+            TextAlignment = TextAlignment.Center, CaretBrush = Brushes.White
+        };
+        lvlBox.LostFocus += (_, _) =>
+        {
+            if (int.TryParse(lvlBox.Text, out var lv) && lv is >= 1 and <= 60)
+                ch.Level = lv;
+            else
+                lvlBox.Text = ch.Level.ToString();
+            Vm.Save(); RedrawAll();
+        };
+        infoRow.Children.Add(lvlBox);
+
+        var accountCombo = new ComboBox
+        {
+            ItemsSource = Vm.Accounts, DisplayMemberPath = "Name",
+            SelectedValuePath = "Id", SelectedValue = ch.AccountId,
+            FontSize = 9, Height = 20, MinWidth = 80,
+            Background = bgInput, Foreground = Brushes.White,
+            BorderBrush = sectionBorder, BorderThickness = new Thickness(1)
+        };
+        accountCombo.SelectionChanged += (_, _) =>
+        {
+            if (accountCombo.SelectedValue is string id)
+            { ch.AccountId = id; Vm.Save(); RedrawAll(); }
+        };
+        infoRow.Children.Add(accountCombo);
+        bannerStack.Children.Add(infoRow);
+        banner.Child = bannerStack;
+        stack.Children.Add(banner);
+
+        // ═══ QUEST ITEMS (display at top — important info) ═══
+        if (ch.QuestItems.Count > 0)
+        {
+            var qiTopPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            foreach (var qi in ch.QuestItems.ToList())
+            {
+                var badge = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(50, 255, 215, 0)),
+                    BorderBrush = Brushes.Goldenrod, BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 2, 6, 2),
+                    Margin = new Thickness(0, 0, 4, 3)
+                };
+                var badgeDock = new DockPanel();
+                var btnQiDel = MakeSmallButton("✕", Brushes.OrangeRed,
+                    () => { ch.QuestItems.Remove(qi); Vm.Save(); RebuildTooltipContent(ch); });
+                DockPanel.SetDock(btnQiDel, Dock.Right);
+                badgeDock.Children.Add(btnQiDel);
+                badgeDock.Children.Add(new TextBlock
+                {
+                    Text = $"🏆 {FormatQuestItem(qi.Type)}", FontSize = 10,
+                    Foreground = Brushes.Gold, FontWeight = FontWeights.SemiBold,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                badge.Child = badgeDock;
+                qiTopPanel.Children.Add(badge);
+            }
+            stack.Children.Add(qiTopPanel);
+        }
+
+        // ═══ SHARDS (Warlock) ═══
         if (ch.Class == WowClass.Demoniste)
         {
-            var shardPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-            shardPanel.Children.Add(new TextBlock
-            {
-                Text = "💎 Shards:", FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(148, 130, 201)),
-                VerticalAlignment = VerticalAlignment.Center
-            });
+            var shardSection = MakeSection("💎 Shards", new SolidColorBrush(Color.FromRgb(148, 130, 201)));
             var shardBox = new TextBox
             {
-                Text = ch.ShardCount.ToString(), Width = 45, FontSize = 10,
-                Padding = new Thickness(3, 1, 3, 1), Margin = new Thickness(6, 0, 0, 0),
+                Text = ch.ShardCount.ToString(), Width = 50, FontSize = 11,
                 Background = bgInput, Foreground = Brushes.White,
                 BorderBrush = new SolidColorBrush(Color.FromRgb(148, 130, 201)),
-                BorderThickness = new Thickness(1), VerticalAlignment = VerticalAlignment.Center
+                BorderThickness = new Thickness(1), Padding = new Thickness(4, 2, 4, 2),
+                TextAlignment = TextAlignment.Center, CaretBrush = Brushes.White
             };
             shardBox.LostFocus += (_, _) =>
             {
@@ -636,130 +836,227 @@ public partial class CartoView : UserControl
                     shardBox.Text = ch.ShardCount.ToString();
                 Vm.Save();
             };
-            shardPanel.Children.Add(shardBox);
-            stack.Children.Add(shardPanel);
+            ((StackPanel)shardSection.Child).Children.Add(shardBox);
+            stack.Children.Add(shardSection);
         }
 
-        // ── Note (editable) ──
-        stack.Children.Add(new TextBlock { Text = "📝 Note", FontSize = 10, Foreground = goldBrush, Margin = new Thickness(0, 2, 0, 2) });
-        var noteBox = new TextBox
-        {
-            Text = ch.Note ?? "", AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
-            MinHeight = 28, MaxHeight = 60, FontSize = 10,
-            Background = bgInput, Foreground = Brushes.White, BorderBrush = Brushes.DarkGoldenrod,
-            BorderThickness = new Thickness(1), Padding = new Thickness(3)
-        };
-        noteBox.LostFocus += (_, _) => { ch.Note = noteBox.Text; Vm.Save(); };
-        stack.Children.Add(noteBox);
+        // ═══ PROFESSIONS (2 combos côte à côte) ═══
+        ProfessionType[] excludedProfs = [ProfessionType.Peche, ProfessionType.Cuisine, ProfessionType.Secourisme];
+        var profItems = new List<object> { "Aucun" };
+        profItems.AddRange(Enum.GetValues(typeof(ProfessionType)).Cast<ProfessionType>()
+            .Where(pt => !excludedProfs.Contains(pt)).Cast<object>());
 
-        // ── Cooldowns ──
-        stack.Children.Add(new TextBlock { Text = "⏱ Cooldowns", FontSize = 10, Foreground = goldBrush, Margin = new Thickness(0, 6, 0, 2) });
+        var profSection = MakeSection("🔨 Métiers", goldBrush);
+        var profPanel = new StackPanel { Orientation = Orientation.Horizontal };
+
+        for (int i = 0; i < 2; i++)
+        {
+            var idx = i;
+            object current = ch.Professions.Count > idx ? ch.Professions[idx].Type : "Aucun";
+            var combo = new ComboBox
+            {
+                ItemsSource = profItems, FontSize = 9, Width = 120, Height = 22,
+                SelectedItem = current,
+                Background = bgInput, Foreground = Brushes.White,
+                BorderBrush = sectionBorder, BorderThickness = new Thickness(1),
+                Margin = new Thickness(0, 0, 6, 0)
+            };
+            combo.SelectionChanged += (_, _) =>
+            {
+                if (combo.SelectedItem is ProfessionType type)
+                {
+                    if (ch.Professions.Count > idx)
+                        ch.Professions[idx] = new ProfessionInfo { Type = type };
+                    else
+                        ch.Professions.Add(new ProfessionInfo { Type = type });
+                }
+                else if (combo.SelectedItem is string && ch.Professions.Count > idx)
+                {
+                    ch.Professions.RemoveAt(idx);
+                }
+                Vm.Save(); RebuildTooltipContent(ch);
+            };
+            profPanel.Children.Add(combo);
+        }
+        ((StackPanel)profSection.Child).Children.Add(profPanel);
+        stack.Children.Add(profSection);
+
+        // ═══ COOLDOWNS ═══
+        var cdSection = MakeSection("⏱ Cooldowns", goldBrush);
+        var cdStack = (StackPanel)cdSection.Child;
         foreach (var cd in ch.Cooldowns.ToList())
         {
-            var cdRow = new DockPanel { Margin = new Thickness(0, 1, 0, 1) };
-            var btnDel = new Button { Content = "✕", FontSize = 8, Padding = new Thickness(3, 0, 3, 0), Margin = new Thickness(2, 0, 0, 0), ToolTip = "Supprimer" };
-            btnDel.Click += (_, _) => { ch.Cooldowns.Remove(cd); Vm.Save(); RebuildTooltipContent(ch); };
-            var btnActivate = new Button { Content = "↻", FontSize = 9, Padding = new Thickness(3, 0, 3, 0), Margin = new Thickness(2, 0, 0, 0), ToolTip = "Activer maintenant" };
-            btnActivate.Click += (_, _) => { cd.LastUsed = DateTime.Now; cd.Note = null; Vm.Save(); RebuildTooltipContent(ch); };
+            var cdRow = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(40, 255, 200, 0)),
+                CornerRadius = new CornerRadius(3), Padding = new Thickness(6, 3, 6, 3),
+                Margin = new Thickness(0, 0, 0, 3)
+            };
+            var cdDock = new DockPanel();
+            var btnDel = MakeSmallButton("✕", Brushes.IndianRed,
+                () => { ch.Cooldowns.Remove(cd); Vm.Save(); RebuildTooltipContent(ch); });
+            var btnAct = MakeSmallButton("↻", Brushes.LightSkyBlue,
+                () => { cd.LastUsed = DateTime.Now; cd.Note = null; Vm.Save(); RebuildTooltipContent(ch); });
             DockPanel.SetDock(btnDel, Dock.Right);
-            DockPanel.SetDock(btnActivate, Dock.Right);
-            cdRow.Children.Add(btnDel);
-            cdRow.Children.Add(btnActivate);
+            DockPanel.SetDock(btnAct, Dock.Right);
+            cdDock.Children.Add(btnDel);
+            cdDock.Children.Add(btnAct);
 
             var status = cd.IsReady ? "✅ PRÊT" : $"⏳ {FormatTimeSpan(cd.TimeRemaining)}";
-            cdRow.Children.Add(new TextBlock
+            cdDock.Children.Add(new TextBlock
             {
-                Text = $"{cd.Type}: {status}", FontSize = 10,
+                Text = $"{cd.Type.DisplayName()}: {status}", FontSize = 10,
                 Foreground = cd.IsReady ? Brushes.LightGreen : Brushes.Orange,
                 VerticalAlignment = VerticalAlignment.Center
             });
-            stack.Children.Add(cdRow);
+            cdRow.Child = cdDock;
+            cdStack.Children.Add(cdRow);
         }
-        // Add cooldown
-        var cdAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
-        var cdCombo = new ComboBox { ItemsSource = Enum.GetValues(typeof(CooldownType)), FontSize = 9, Width = 120, Height = 22 };
-        var cdAddBtn = new Button { Content = "+", FontSize = 9, Padding = new Thickness(5, 0, 5, 0), Margin = new Thickness(4, 0, 0, 0) };
-        cdAddBtn.Click += (_, _) =>
+        var availableCds = GetAvailableCooldowns(ch);
+        var cdDisplayItems = availableCds.Select(ct => new { Value = ct, Label = ct.DisplayName() }).ToArray();
+        var cdAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0) };
+        var cdCombo = new ComboBox
         {
-            if (cdCombo.SelectedItem is CooldownType type && !ch.Cooldowns.Any(c => c.Type == type))
-            {
-                ch.Cooldowns.Add(new CooldownEntry { Type = type });
-                Vm.Save(); RebuildTooltipContent(ch);
-            }
+            ItemsSource = cdDisplayItems, DisplayMemberPath = "Label",
+            SelectedValuePath = "Value",
+            FontSize = 9, Width = 180, Height = 22,
+            Background = bgInput, Foreground = Brushes.White, BorderBrush = sectionBorder
         };
+        var cdAddBtn = MakeSmallButton("+", Brushes.LightGreen,
+            () => { if (cdCombo.SelectedValue is CooldownType type && !ch.Cooldowns.Any(c => c.Type == type))
+            { ch.Cooldowns.Add(new CooldownEntry { Type = type }); Vm.Save(); RebuildTooltipContent(ch); } });
         cdAddPanel.Children.Add(cdCombo);
         cdAddPanel.Children.Add(cdAddBtn);
-        stack.Children.Add(cdAddPanel);
+        cdStack.Children.Add(cdAddPanel);
+        stack.Children.Add(cdSection);
 
-        // ── Quest Items ──
-        stack.Children.Add(new TextBlock { Text = "🏆 Items de quête", FontSize = 10, Foreground = goldBrush, Margin = new Thickness(0, 6, 0, 2) });
-        foreach (var qi in ch.QuestItems.ToList())
+        // ═══ QUEST ITEMS (add only) ═══
+        var qiSection = MakeSection("🏆 Ajouter item de quête", goldBrush);
+        var qiStack = (StackPanel)qiSection.Child;
+        var qiAddPanel = new StackPanel { Orientation = Orientation.Horizontal };
+        var qiCombo = new ComboBox
         {
-            var qiRow = new DockPanel { Margin = new Thickness(0, 2, 0, 2) };
-            var btnQiDel = new Button
-            {
-                Content = "Retirer", FontSize = 9,
-                Padding = new Thickness(5, 1, 5, 1), Margin = new Thickness(6, 0, 0, 0),
-                Foreground = Brushes.OrangeRed, Background = new SolidColorBrush(Color.FromRgb(60, 30, 20)),
-                BorderBrush = Brushes.OrangeRed, BorderThickness = new Thickness(1)
-            };
-            btnQiDel.Click += (_, _) => { ch.QuestItems.Remove(qi); Vm.Save(); RebuildTooltipContent(ch); };
-            DockPanel.SetDock(btnQiDel, Dock.Right);
-            qiRow.Children.Add(btnQiDel);
-            qiRow.Children.Add(new TextBlock
-            {
-                Text = FormatQuestItem(qi.Type), FontSize = 10, Foreground = Brushes.Gold,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            stack.Children.Add(qiRow);
-        }
-        var qiAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
-        var qiCombo = new ComboBox { ItemsSource = Enum.GetValues(typeof(QuestItemType)), FontSize = 9, Width = 120, Height = 22 };
-        var qiAddBtn = new Button { Content = "+", FontSize = 9, Padding = new Thickness(5, 0, 5, 0), Margin = new Thickness(4, 0, 0, 0) };
-        qiAddBtn.Click += (_, _) =>
-        {
-            if (qiCombo.SelectedItem is QuestItemType type && !ch.QuestItems.Any(q => q.Type == type))
-            {
-                ch.QuestItems.Add(new QuestItemEntry { Type = type, HasItem = true });
-                Vm.Save(); RebuildTooltipContent(ch);
-            }
+            ItemsSource = Enum.GetValues(typeof(QuestItemType)), FontSize = 9, Width = 130, Height = 22,
+            Background = bgInput, Foreground = Brushes.White, BorderBrush = sectionBorder
         };
+        var qiAddBtn = MakeSmallButton("+", Brushes.LightGreen,
+            () => { if (qiCombo.SelectedItem is QuestItemType type && !ch.QuestItems.Any(q => q.Type == type))
+            { ch.QuestItems.Add(new QuestItemEntry { Type = type, HasItem = true }); Vm.Save(); RebuildTooltipContent(ch); } });
         qiAddPanel.Children.Add(qiCombo);
         qiAddPanel.Children.Add(qiAddBtn);
-        stack.Children.Add(qiAddPanel);
+        qiStack.Children.Add(qiAddPanel);
+        stack.Children.Add(qiSection);
 
-        // ── Professions ──
-        stack.Children.Add(new TextBlock { Text = "🔨 Métiers", FontSize = 10, Foreground = goldBrush, Margin = new Thickness(0, 6, 0, 2) });
-        foreach (var p in ch.Professions)
+        // ═══ NOTE ═══
+        var noteSection = MakeSection("📝 Note", goldBrush);
+        var noteBox = new TextBox
         {
-            stack.Children.Add(new TextBlock
-            {
-                Text = $"  {p.Type} ({p.Skill}/300)", FontSize = 10, Foreground = dimBrush
-            });
-        }
-        var profAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
-        var profCombo = new ComboBox { ItemsSource = Enum.GetValues(typeof(ProfessionType)), FontSize = 9, Width = 120, Height = 22 };
-        var profAddBtn = new Button { Content = "+", FontSize = 9, Padding = new Thickness(5, 0, 5, 0), Margin = new Thickness(4, 0, 0, 0) };
-        profAddBtn.Click += (_, _) =>
-        {
-            if (profCombo.SelectedItem is ProfessionType type && !ch.Professions.Any(pp => pp.Type == type))
-            {
-                ch.Professions.Add(new ProfessionInfo { Type = type, Skill = 1 });
-                Vm.Save(); RebuildTooltipContent(ch);
-            }
+            Text = ch.Note ?? "", AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
+            MinHeight = 32, MaxHeight = 70, FontSize = 10,
+            Background = bgInput, Foreground = Brushes.White,
+            BorderBrush = sectionBorder, BorderThickness = new Thickness(1),
+            Padding = new Thickness(6, 4, 6, 4), CaretBrush = Brushes.White
         };
-        profAddPanel.Children.Add(profCombo);
-        profAddPanel.Children.Add(profAddBtn);
-        stack.Children.Add(profAddPanel);
+        noteBox.LostFocus += (_, _) => { ch.Note = noteBox.Text; Vm.Save(); };
+        ((StackPanel)noteSection.Child).Children.Add(noteBox);
+        stack.Children.Add(noteSection);
 
+        // ═══ ACTION BUTTONS (bas du tooltip) ═══
+        var actionsPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+        actionsPanel.Children.Add(MakeActionButton("🗑 Suppr", "#FFCC3333", () =>
+        {
+            if (MessageBox.Show($"Supprimer \"{ch.Name}\" ?", "Confirmation",
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            { CloseCharacterTooltip(); Vm.RemoveCharacterCommand.Execute(ch); RedrawAll(); }
+        }));
+        actionsPanel.Children.Add(MakeActionButton("✓ Fermer", "#FF4A8C3F", CloseCharacterTooltip));
+        stack.Children.Add(actionsPanel);
+    }
+
+    private static Border MakeSection(string title, Brush titleBrush)
+    {
+        var border = new Border
+        {
+            BorderBrush = new SolidColorBrush(Color.FromRgb(60, 50, 25)),
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
+            Background = new SolidColorBrush(Color.FromArgb(30, 255, 215, 0)),
+            Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(0, 0, 0, 6)
+        };
+        var sp = new StackPanel();
+        sp.Children.Add(new TextBlock
+        {
+            Text = title, FontSize = 10, FontWeight = FontWeights.SemiBold,
+            Foreground = titleBrush, Margin = new Thickness(0, 0, 0, 4)
+        });
+        border.Child = sp;
+        return border;
+    }
+
+    private static Button MakeSmallButton(string content, Brush fg, Action onClick)
+    {
+        var btn = new Button
+        {
+            Content = content, FontSize = 9, Padding = new Thickness(4, 1, 4, 1),
+            Margin = new Thickness(3, 0, 0, 0), Foreground = fg,
+            Background = new SolidColorBrush(Color.FromRgb(35, 30, 20)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(70, 60, 40)),
+            BorderThickness = new Thickness(1), Cursor = Cursors.Hand
+        };
+        btn.Click += (_, _) => onClick();
+        return btn;
+    }
+
+    private static Button MakeActionButton(string content, string colorHex, Action onClick)
+    {
+        var color = (Color)ColorConverter.ConvertFromString(colorHex);
+        var btn = new Button
+        {
+            Content = content, FontSize = 9, FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(0, 0, 6, 0),
+            Foreground = new SolidColorBrush(color),
+            Background = new SolidColorBrush(Color.FromArgb(40, color.R, color.G, color.B)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(120, color.R, color.G, color.B)),
+            BorderThickness = new Thickness(1), Cursor = Cursors.Hand
+        };
+        btn.Click += (_, _) => onClick();
+        return btn;
+    }
+
+    private static TextBlock MakeLabel(string text, int row, int col, Brush fg)
+    {
+        var tb = new TextBlock
+        {
+            Text = text, FontSize = 10, Foreground = fg,
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 2)
+        };
+        Grid.SetRow(tb, row);
+        Grid.SetColumn(tb, col);
+        return tb;
     }
 
     private static string FormatTimeSpan(TimeSpan? ts)
     {
         if (ts == null) return "—";
-        return ts.Value.TotalHours >= 1
-            ? $"{(int)ts.Value.TotalHours}h{ts.Value.Minutes:D2}"
-            : $"{ts.Value.Minutes}m";
+        if (ts.Value.TotalHours >= 1)
+            return $"{(int)ts.Value.TotalHours}h{ts.Value.Minutes:D2}";
+        if (ts.Value.TotalSeconds < 60)
+            return $"{ts.Value.Seconds}s";
+        return $"{(int)ts.Value.TotalMinutes}m{ts.Value.Seconds:D2}s";
+    }
+
+    private static CooldownType[] GetAvailableCooldowns(WowCharacter ch)
+    {
+        var profs = ch.Professions.Select(p => p.Type).ToHashSet();
+        var result = new List<CooldownType>();
+
+        if (profs.Contains(ProfessionType.Alchimie))
+            result.AddRange([CooldownType.Arcanite, CooldownType.Transmute_Elementaire]);
+        if (profs.Contains(ProfessionType.Couture))
+            result.Add(CooldownType.Mooncloth);
+        if (profs.Contains(ProfessionType.Travail_du_cuir))
+            result.Add(CooldownType.Sel_raffine);
+
+        return result.Where(ct => !ch.Cooldowns.Any(c => c.Type == ct)).ToArray();
     }
 
     private static string FormatQuestItem(QuestItemType type) => type switch

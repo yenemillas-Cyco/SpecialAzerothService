@@ -1,7 +1,10 @@
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Text.Json;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Win32;
 using WindowsOrganiserApp.Converters;
 using WindowsOrganiserApp.Models.Carto;
 using WindowsOrganiserApp.Services;
@@ -21,12 +24,15 @@ public partial class CartoViewModel : ObservableObject
 
         Accounts = new ObservableCollection<WowAccount>(_data.Accounts);
         Characters = new ObservableCollection<WowCharacter>(_data.Characters);
+        Timers = new ObservableCollection<MapTimer>(_data.Timers);
         AccountIdToNameConverter.Accounts = _data.Accounts;
 
-        _cooldownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+        _cooldownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _cooldownTimer.Tick += (_, _) =>
         {
             OnPropertyChanged(nameof(FilteredCharacters));
+            OnPropertyChanged(nameof(Timers));
+            CheckTimerAlerts();
             CheckCooldownNotifications();
         };
         _cooldownTimer.Start();
@@ -36,9 +42,11 @@ public partial class CartoViewModel : ObservableObject
 
     public ObservableCollection<WowAccount> Accounts { get; }
     public ObservableCollection<WowCharacter> Characters { get; }
+    public ObservableCollection<MapTimer> Timers { get; }
 
     [ObservableProperty]
     private ObservableCollection<WowCharacter> _filteredCharacters = [];
+
 
     [ObservableProperty]
     private WowCharacter? _selectedCharacter;
@@ -84,6 +92,21 @@ public partial class CartoViewModel : ObservableObject
     private bool _isPlacingCharacter;
 
     [ObservableProperty]
+    private bool _isPlacingTimer;
+
+    [ObservableProperty]
+    private int _newTimerHours;
+
+    [ObservableProperty]
+    private int _newTimerMinutes = 15;
+
+    [ObservableProperty]
+    private int _newTimerSeconds;
+
+    [ObservableProperty]
+    private string _newTimerLabel = "New_Timer";
+
+    [ObservableProperty]
     private string? _editNote = string.Empty;
 
     [ObservableProperty]
@@ -125,8 +148,14 @@ public partial class CartoViewModel : ObservableObject
     }
 
     public Array WowClasses => Enum.GetValues(typeof(WowClass));
-    public Array ProfessionTypes => Enum.GetValues(typeof(ProfessionType));
-    public Array CooldownTypes => Enum.GetValues(typeof(CooldownType));
+    public ProfessionType[] ProfessionTypes => Enum.GetValues(typeof(ProfessionType))
+        .Cast<ProfessionType>()
+        .Where(p => p is not (ProfessionType.Peche or ProfessionType.Cuisine or ProfessionType.Secourisme))
+        .ToArray();
+    public CooldownType[] CooldownTypes => Enum.GetValues(typeof(CooldownType))
+        .Cast<CooldownType>()
+        .Where(ct => ct is not (CooldownType.Transmutation or CooldownType.Etoffe_lunaire or CooldownType.Etoffe_de_lombre))
+        .ToArray();
     public Array QuestItemTypes => Enum.GetValues(typeof(QuestItemType));
 
     private void ApplyFilters()
@@ -354,11 +383,153 @@ public partial class CartoViewModel : ObservableObject
 
     public event EventHandler<(WowCharacter Character, CooldownEntry Cooldown)>? CooldownReady;
 
+    [RelayCommand]
+    private void ExportData()
+    {
+        var dlg = new SaveFileDialog
+        {
+            Title = "Exporter mes données Carto",
+            Filter = "JSON|*.json",
+            FileName = "carto_export.json"
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        var myChars = Characters.Where(c => !c.IsExternal).ToList();
+        var export = new CartoData { Accounts = [.. Accounts], Characters = myChars };
+        var json = JsonSerializer.Serialize(export, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        File.WriteAllText(dlg.FileName, json);
+    }
+
+    [RelayCommand]
+    private void ImportData()
+    {
+        var dlg = new OpenFileDialog
+        {
+            Title = "Importer les données d'un ami",
+            Filter = "JSON|*.json"
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        try
+        {
+            var json = File.ReadAllText(dlg.FileName);
+            var imported = JsonSerializer.Deserialize<CartoData>(json, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+            if (imported == null) return;
+
+            var sourceName = Path.GetFileNameWithoutExtension(dlg.FileName);
+
+            // Remove previously imported chars from this source
+            var toRemove = Characters.Where(c => c.IsExternal && c.ExternalSource == sourceName).ToList();
+            foreach (var ch in toRemove) Characters.Remove(ch);
+
+            // Tag and add imported characters
+            foreach (var ch in imported.Characters)
+            {
+                ch.IsExternal = true;
+                ch.ExternalSource = sourceName;
+                ch.Id = Guid.NewGuid().ToString();
+                Characters.Add(ch);
+            }
+
+            ApplyFilters();
+            Save();
+        }
+        catch { /* Invalid file — ignore */ }
+    }
+
+    [RelayCommand]
+    private void ClearImported()
+    {
+        var toRemove = Characters.Where(c => c.IsExternal).ToList();
+        foreach (var ch in toRemove) Characters.Remove(ch);
+        ApplyFilters();
+        Save();
+    }
+
+    // ─── Timers ───────────────────────────────────────────────
+
+    public event Action<MapTimer>? TimerExpired;
+
+    [RelayCommand]
+    private void StartPlaceTimer()
+    {
+        IsPlacingTimer = true;
+    }
+
+    public void PlaceTimerAt(double x, double y)
+    {
+        var totalSeconds = NewTimerHours * 3600 + NewTimerMinutes * 60 + NewTimerSeconds;
+        if (totalSeconds <= 0) totalSeconds = 60;
+        var timer = new MapTimer
+        {
+            Label = NewTimerLabel,
+            MapX = x, MapY = y,
+            DurationSeconds = totalSeconds,
+            StartedAt = DateTime.Now,
+            IsRunning = true
+        };
+        Timers.Add(timer);
+        IsPlacingTimer = false;
+        Save();
+    }
+
+    [RelayCommand]
+    private void RestartTimer(MapTimer t)
+    {
+        t.StartedAt = DateTime.Now;
+        t.IsRunning = true;
+        Save();
+    }
+
+    [RelayCommand]
+    private void StopTimer(MapTimer t)
+    {
+        if (t.IsRunning && t.StartedAt.HasValue)
+            t.PausedRemainingSeconds = Math.Max(0, (int)t.Remaining.TotalSeconds);
+        t.IsRunning = false;
+        Save();
+    }
+
+    [RelayCommand]
+    private void ResumeTimer(MapTimer t)
+    {
+        var remaining = t.PausedRemainingSeconds ?? t.DurationSeconds;
+        t.DurationSeconds = remaining;
+        t.StartedAt = DateTime.Now;
+        t.PausedRemainingSeconds = null;
+        t.IsRunning = true;
+        Save();
+    }
+
+    [RelayCommand]
+    private void RemoveTimer(MapTimer t)
+    {
+        Timers.Remove(t);
+        Save();
+    }
+
+    private readonly HashSet<string> _alertedTimerIds = [];
+
+    private void CheckTimerAlerts()
+    {
+        foreach (var t in Timers.Where(t => t.IsRunning && t.IsExpired))
+        {
+            if (_alertedTimerIds.Add(t.Id))
+            {
+                t.IsRunning = false;
+                TimerExpired?.Invoke(t);
+                Save();
+            }
+        }
+    }
+
     public void Save()
     {
         _data.Accounts = [.. Accounts];
         _data.Characters = [.. Characters];
+        _data.Timers = [.. Timers];
         AccountIdToNameConverter.Accounts = _data.Accounts;
         _cartoService.Save(_data);
+        ApplyFilters();
     }
 }

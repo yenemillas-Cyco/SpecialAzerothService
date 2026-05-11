@@ -18,16 +18,41 @@ public enum ProfessionType
 
 public enum CooldownType
 {
+    Arcanite,
+    Transmute_Elementaire,
+    Mooncloth,
+    Sel_raffine,
+
+    // Legacy (kept for backward compat)
     Transmutation,
     Etoffe_lunaire,
     Etoffe_de_lombre,
-    Sel_raffine
+    Air_to_Fire,
+    Fire_to_Earth,
+    Earth_to_Water,
+    Water_to_Air,
+    Undeath_to_Water,
+    Water_to_Undeath,
+    Life_to_Earth,
+    Earth_to_Life
 }
 
 public sealed class ProfessionInfo
 {
     public ProfessionType Type { get; set; }
     public int Skill { get; set; }
+}
+
+public static class CooldownTypeExtensions
+{
+    public static string DisplayName(this CooldownType type) => type switch
+    {
+        CooldownType.Arcanite => "Transmute: Arcanite (48h)",
+        CooldownType.Transmute_Elementaire => "Transmute élémentaire (24h)",
+        CooldownType.Mooncloth => "Mooncloth (4j)",
+        CooldownType.Sel_raffine => "Sel raffiné (3j)",
+        _ => type.ToString()
+    };
 }
 
 public sealed class CooldownEntry
@@ -38,8 +63,9 @@ public sealed class CooldownEntry
 
     public TimeSpan Duration => Type switch
     {
-        CooldownType.Transmutation => TimeSpan.FromHours(24),
-        CooldownType.Etoffe_lunaire => TimeSpan.FromDays(4),
+        CooldownType.Arcanite => TimeSpan.FromHours(48),
+        CooldownType.Transmute_Elementaire => TimeSpan.FromHours(24),
+        CooldownType.Mooncloth or CooldownType.Etoffe_lunaire => TimeSpan.FromDays(4),
         CooldownType.Etoffe_de_lombre => TimeSpan.FromDays(4),
         CooldownType.Sel_raffine => TimeSpan.FromDays(3),
         _ => TimeSpan.FromHours(24)

@@ -16,4 +16,6 @@ public sealed class WowCharacter
     public List<QuestItemEntry> QuestItems { get; set; } = [];
     public string Note { get; set; } = string.Empty;
     public int ShardCount { get; set; }
+    public bool IsExternal { get; set; }
+    public string? ExternalSource { get; set; }
 }
