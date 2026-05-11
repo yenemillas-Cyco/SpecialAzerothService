@@ -49,3 +49,31 @@ public class NullableEnumConverter : IValueConverter
     public object? ConvertBack(object? value, Type targetType, object parameter, CultureInfo culture)
         => value;
 }
+
+public class ListSummaryConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var param = parameter as string;
+        return param switch
+        {
+            "prof" when value is List<ProfessionInfo> profs =>
+                string.Join(", ", profs.Select(p => $"{p.Type}")),
+            "cd" when value is List<CooldownEntry> cds =>
+                string.Join(", ", cds.Select(c => c.IsReady ? $"{c.Type}:✅" : $"{c.Type}:⏳")),
+            "qi" when value is List<QuestItemEntry> qis =>
+                string.Join(", ", qis.Select(q => q.Type switch
+                {
+                    QuestItemType.Tete_de_Rend => "Rend",
+                    QuestItemType.Tete_dOnyxia => "Ony",
+                    QuestItemType.Tete_de_Nefarian => "Nef",
+                    QuestItemType.Coeur_de_Hakkar => "Hakkar",
+                    _ => q.Type.ToString()
+                })),
+            _ => ""
+        };
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}

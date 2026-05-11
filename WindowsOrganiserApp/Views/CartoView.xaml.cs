@@ -69,14 +69,31 @@ public partial class CartoView : UserControl
             foreach (var zone in MapOverlayData.Zones)
             {
                 var name = Vm.UseFrencNames ? zone.NameFR : zone.NameEN;
-                var levelText = Vm.ShowZoneLevels ? $" ({zone.LevelMin}-{zone.LevelMax})" : "";
+                var levelText = (Vm.ShowZoneLevels && zone.LevelMin > 0) ? $" ({zone.LevelMin}-{zone.LevelMax})" : "";
+
+                Color textColor;
+                double fontSize;
+                if (zone.IsCapital)
+                {
+                    textColor = zone.CapitalFaction == Faction.Alliance
+                        ? Color.FromRgb(100, 180, 255)
+                        : zone.CapitalFaction == Faction.Horde
+                            ? Color.FromRgb(255, 100, 100)
+                            : Color.FromRgb(255, 215, 0);
+                    fontSize = 11;
+                }
+                else
+                {
+                    textColor = Color.FromArgb(220, 255, 210, 100);
+                    fontSize = 9;
+                }
 
                 var tb = new TextBlock
                 {
                     Text = name + levelText,
-                    FontSize = 9,
-                    Foreground = new SolidColorBrush(Color.FromArgb(220, 255, 210, 100)),
-                    FontWeight = FontWeights.SemiBold,
+                    FontSize = fontSize,
+                    Foreground = new SolidColorBrush(textColor),
+                    FontWeight = zone.IsCapital ? FontWeights.Bold : FontWeights.SemiBold,
                     Tag = "overlay"
                 };
                 tb.Effect = new System.Windows.Media.Effects.DropShadowEffect
@@ -170,40 +187,42 @@ public partial class CartoView : UserControl
             var color = WowClassColors.GetHexColor(ch.Class);
             var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
             var isSelected = ch == Vm.SelectedCharacter;
+            var size = isSelected ? 16.0 : 12.0;
 
             var marker = new Ellipse
             {
-                Width = isSelected ? 16 : 12,
-                Height = isSelected ? 16 : 12,
+                Width = size, Height = size,
                 Fill = brush,
                 Stroke = isSelected ? Brushes.White : new SolidColorBrush(Color.FromArgb(180, 0, 0, 0)),
                 StrokeThickness = isSelected ? 2 : 1,
                 Cursor = Cursors.Hand,
                 Tag = ch
             };
-            marker.ToolTip = $"{ch.Name} ({ch.Class}) Lv.{ch.Level}";
 
-            Canvas.SetLeft(marker, ch.MapX - marker.Width / 2);
-            Canvas.SetTop(marker, ch.MapY - marker.Height / 2);
+            Canvas.SetLeft(marker, ch.MapX - size / 2);
+            Canvas.SetTop(marker, ch.MapY - size / 2);
             MapCanvas.Children.Add(marker);
 
-            // Name label
+            // Name label above the point
+            var accountName = Vm.Accounts.FirstOrDefault(a => a.Id == ch.AccountId)?.Name;
+            var labelText = accountName != null ? $"{ch.Name} ({accountName})" : ch.Name;
             var label = new Border
             {
                 Tag = "marker",
                 Child = new TextBlock
                 {
-                    Text = ch.Name,
+                    Text = labelText,
                     FontSize = 9,
                     Foreground = brush,
-                    FontWeight = isSelected ? FontWeights.Bold : FontWeights.Normal
+                    FontWeight = isSelected ? FontWeights.Bold : FontWeights.Normal,
+                    TextAlignment = TextAlignment.Center
                 },
-                Background = new SolidColorBrush(Color.FromArgb(180, 20, 15, 5)),
+                Background = new SolidColorBrush(Color.FromArgb(200, 15, 12, 5)),
                 CornerRadius = new CornerRadius(2),
-                Padding = new Thickness(2, 0, 2, 0)
+                Padding = new Thickness(3, 1, 3, 1)
             };
-            Canvas.SetLeft(label, ch.MapX + 8);
-            Canvas.SetTop(label, ch.MapY - 8);
+            Canvas.SetLeft(label, ch.MapX - 20);
+            Canvas.SetTop(label, ch.MapY - size / 2 - 16);
             MapCanvas.Children.Add(label);
         }
 
@@ -331,11 +350,12 @@ public partial class CartoView : UserControl
             return;
         }
 
-        // Check if clicking on a marker
+        // Check if clicking on a marker — open edit popup
         if (e.OriginalSource is Ellipse { Tag: WowCharacter ch })
         {
             Vm.SelectedCharacter = ch;
             RedrawAll();
+            OpenCharacterPopup(ch);
             e.Handled = true;
             return;
         }
@@ -509,6 +529,163 @@ public partial class CartoView : UserControl
         tb.SelectAll();
         win.ShowDialog();
         return result;
+    }
+
+    private void SummaryGrid_DoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (SummaryGrid.SelectedItem is WowCharacter ch)
+            OpenCharacterPopup(ch);
+    }
+
+    private void OpenCharacterPopup(WowCharacter ch)
+    {
+        var parentWindow = Window.GetWindow(this);
+        var win = new Window
+        {
+            Title = $"{ch.Name} — {ch.Class} Lv.{ch.Level}",
+            Width = 420, Height = 500,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = parentWindow,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStyle = WindowStyle.ToolWindow,
+            Background = new SolidColorBrush(Color.FromRgb(30, 25, 15))
+        };
+
+        var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(12) };
+        var stack = new StackPanel();
+
+        // Header
+        var classColor = (Color)ColorConverter.ConvertFromString(WowClassColors.GetHexColor(ch.Class));
+        stack.Children.Add(new TextBlock
+        {
+            Text = $"{ch.Name}  —  {ch.Class}  Lv.{ch.Level}",
+            FontSize = 14, FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(classColor), Margin = new Thickness(0, 0, 0, 4)
+        });
+        var accountName = Vm.Accounts.FirstOrDefault(a => a.Id == ch.AccountId)?.Name ?? "—";
+        stack.Children.Add(new TextBlock
+        {
+            Text = $"Compte: {accountName}",
+            FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 8)
+        });
+
+        // Note
+        stack.Children.Add(new TextBlock { Text = "📝 Note:", FontSize = 11, Foreground = Brushes.Gold, Margin = new Thickness(0, 4, 0, 2) });
+        var noteBox = new TextBox
+        {
+            Text = ch.Note, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
+            MinHeight = 40, FontSize = 11,
+            Background = new SolidColorBrush(Color.FromRgb(40, 35, 20)),
+            Foreground = Brushes.White, BorderBrush = Brushes.DarkGoldenrod
+        };
+        stack.Children.Add(noteBox);
+
+        // Cooldowns
+        stack.Children.Add(new TextBlock { Text = "⏱ Cooldowns:", FontSize = 11, Foreground = Brushes.Gold, Margin = new Thickness(0, 8, 0, 2) });
+        foreach (var cd in ch.Cooldowns.ToList())
+        {
+            var cdPanel = new DockPanel { Margin = new Thickness(0, 0, 0, 2) };
+            var btnActivate = new Button { Content = "↻", FontSize = 10, Padding = new Thickness(4, 1, 4, 1), Margin = new Thickness(2, 0, 0, 0) };
+            btnActivate.Click += (_, _) => { cd.LastUsed = DateTime.Now; cd.Note = null; };
+            var btnDel = new Button { Content = "✕", FontSize = 9, Padding = new Thickness(3, 0, 3, 0), Margin = new Thickness(2, 0, 0, 0) };
+            btnDel.Click += (_, _) => { ch.Cooldowns.Remove(cd); };
+            DockPanel.SetDock(btnDel, Dock.Right);
+            DockPanel.SetDock(btnActivate, Dock.Right);
+            cdPanel.Children.Add(btnDel);
+            cdPanel.Children.Add(btnActivate);
+
+            var status = cd.IsReady ? "✅ PRÊT" : $"⏳ {FormatTimeSpan(cd.TimeRemaining)}";
+            cdPanel.Children.Add(new TextBlock
+            {
+                Text = $"{cd.Type}: {status}", FontSize = 10,
+                Foreground = cd.IsReady ? Brushes.LightGreen : Brushes.Orange,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            stack.Children.Add(cdPanel);
+        }
+
+        // Add cooldown
+        var cdCombo = new ComboBox { ItemsSource = Enum.GetValues(typeof(CooldownType)), FontSize = 10, Width = 140, Height = 24 };
+        var cdAddBtn = new Button { Content = "+ Ajouter CD", FontSize = 10, Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(4, 0, 0, 0) };
+        cdAddBtn.Click += (_, _) =>
+        {
+            if (cdCombo.SelectedItem is CooldownType type && !ch.Cooldowns.Any(c => c.Type == type))
+                ch.Cooldowns.Add(new CooldownEntry { Type = type });
+        };
+        var cdAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+        cdAddPanel.Children.Add(cdCombo);
+        cdAddPanel.Children.Add(cdAddBtn);
+        stack.Children.Add(cdAddPanel);
+
+        // Quest Items
+        stack.Children.Add(new TextBlock { Text = "🏆 Items de quête:", FontSize = 11, Foreground = Brushes.Gold, Margin = new Thickness(0, 8, 0, 2) });
+        foreach (var qi in ch.QuestItems.ToList())
+        {
+            var qiPanel = new DockPanel { Margin = new Thickness(0, 0, 0, 2) };
+            var btnQiDel = new Button { Content = "✕", FontSize = 9, Padding = new Thickness(3, 0, 3, 0) };
+            btnQiDel.Click += (_, _) => { ch.QuestItems.Remove(qi); };
+            DockPanel.SetDock(btnQiDel, Dock.Right);
+            qiPanel.Children.Add(btnQiDel);
+            qiPanel.Children.Add(new TextBlock
+            {
+                Text = FormatQuestItem(qi.Type), FontSize = 10, Foreground = Brushes.Gold,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            stack.Children.Add(qiPanel);
+        }
+
+        var qiCombo = new ComboBox { ItemsSource = Enum.GetValues(typeof(QuestItemType)), FontSize = 10, Width = 140, Height = 24 };
+        var qiAddBtn = new Button { Content = "+ Ajouter", FontSize = 10, Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(4, 0, 0, 0) };
+        qiAddBtn.Click += (_, _) =>
+        {
+            if (qiCombo.SelectedItem is QuestItemType type && !ch.QuestItems.Any(q => q.Type == type))
+                ch.QuestItems.Add(new QuestItemEntry { Type = type, HasItem = true });
+        };
+        var qiAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+        qiAddPanel.Children.Add(qiCombo);
+        qiAddPanel.Children.Add(qiAddBtn);
+        stack.Children.Add(qiAddPanel);
+
+        // Professions
+        stack.Children.Add(new TextBlock { Text = "🔨 Métiers:", FontSize = 11, Foreground = Brushes.Gold, Margin = new Thickness(0, 8, 0, 2) });
+        foreach (var p in ch.Professions)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"{p.Type} ({p.Skill}/300)", FontSize = 10, Foreground = Brushes.LightGray
+            });
+        }
+
+        var profCombo = new ComboBox { ItemsSource = Enum.GetValues(typeof(ProfessionType)), FontSize = 10, Width = 140, Height = 24 };
+        var profAddBtn = new Button { Content = "+ Ajouter", FontSize = 10, Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(4, 0, 0, 0) };
+        profAddBtn.Click += (_, _) =>
+        {
+            if (profCombo.SelectedItem is ProfessionType type && !ch.Professions.Any(pp => pp.Type == type))
+                ch.Professions.Add(new ProfessionInfo { Type = type, Skill = 1 });
+        };
+        var profAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+        profAddPanel.Children.Add(profCombo);
+        profAddPanel.Children.Add(profAddBtn);
+        stack.Children.Add(profAddPanel);
+
+        // Actions
+        var actionsPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
+        var btnMove = new Button { Content = "↕ Déplacer", FontSize = 11, Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(0, 0, 4, 0) };
+        btnMove.Click += (_, _) => { Vm.MoveCharacterCommand.Execute(ch); win.Close(); };
+        var btnDelete = new Button { Content = "🗑 Supprimer", FontSize = 11, Padding = new Thickness(8, 4, 8, 4), Foreground = Brushes.Red };
+        btnDelete.Click += (_, _) => { Vm.RemoveCharacterCommand.Execute(ch); win.Close(); RedrawAll(); };
+        actionsPanel.Children.Add(btnMove);
+        actionsPanel.Children.Add(btnDelete);
+        stack.Children.Add(actionsPanel);
+
+        scroll.Content = stack;
+        win.Content = scroll;
+        win.ShowDialog();
+
+        // Save changes on close
+        ch.Note = noteBox.Text;
+        Vm.Save();
+        RedrawAll();
     }
 
     private static string FormatTimeSpan(TimeSpan? ts)

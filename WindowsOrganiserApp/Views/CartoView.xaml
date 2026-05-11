@@ -7,6 +7,7 @@
     <UserControl.Resources>
         <conv:WowClassColorConverter x:Key="ClassColorConv"/>
         <conv:CooldownRemainingConverter x:Key="CdConv"/>
+        <conv:ListSummaryConverter x:Key="ListSummaryConv"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
 
@@ -52,6 +53,11 @@
                         </StackPanel>
                     </Border>
 
+                    <Border Background="{DynamicResource PanelBg2}" CornerRadius="3" Padding="4,2" Margin="2,0">
+                        <CheckBox Content="📋 Tableau" IsChecked="{Binding ShowTableView}" FontSize="10"
+                                  Foreground="{DynamicResource GoldBrush}" VerticalAlignment="Center"/>
+                    </Border>
+
                     <Border Background="#44FF0000" CornerRadius="3" Padding="6,2" Margin="8,0,0,0"
                             Visibility="{Binding IsPlacingCharacter, Converter={StaticResource BoolToVis}}">
                         <TextBlock Text="🎯 Cliquez sur la carte pour placer" FontSize="10"
@@ -59,9 +65,19 @@
                     </Border>
                 </WrapPanel>
 
-                <!-- Map canvas -->
+                <!-- Map canvas (hidden when table view active) -->
                 <Border x:Name="MapBorder" Background="{DynamicResource OverlayBrush}" CornerRadius="4" ClipToBounds="True"
                         BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ShowTableView}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
                     <Grid x:Name="MapContainer"
                           MouseLeftButtonDown="MapCanvas_MouseDown"
                           MouseRightButtonDown="MapCanvas_RightMouseDown"
@@ -89,6 +105,41 @@
                                 HorizontalAlignment="Left" VerticalAlignment="Top"/>
                     </Grid>
                 </Border>
+
+                <!-- Table view -->
+                <DataGrid x:Name="SummaryGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                          ItemsSource="{Binding FilteredCharacters}"
+                          Background="{DynamicResource PanelBg2}" Foreground="{DynamicResource TextBrush}"
+                          BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
+                          RowBackground="{DynamicResource PanelBg}" AlternatingRowBackground="{DynamicResource PanelBg2}"
+                          GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource InnerBorderBrush}"
+                          HeadersVisibility="Column" CanUserSortColumns="True"
+                          FontSize="11" RowHeight="26" ColumnHeaderHeight="28"
+                          SelectionMode="Single" MouseDoubleClick="SummaryGrid_DoubleClick">
+                    <DataGrid.Style>
+                        <Style TargetType="DataGrid">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ShowTableView}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.Style>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Nom" Binding="{Binding Name}" Width="110"/>
+                        <DataGridTextColumn Header="Classe" Binding="{Binding Class}" Width="80"/>
+                        <DataGridTextColumn Header="Lv" Binding="{Binding Level}" Width="35"/>
+                        <DataGridTextColumn Header="Compte" Binding="{Binding AccountId}" Width="80"/>
+                        <DataGridTextColumn Header="Métiers" Width="140"
+                                            Binding="{Binding Professions, Converter={StaticResource ListSummaryConv}, ConverterParameter=prof}"/>
+                        <DataGridTextColumn Header="CDs" Width="120"
+                                            Binding="{Binding Cooldowns, Converter={StaticResource ListSummaryConv}, ConverterParameter=cd}"/>
+                        <DataGridTextColumn Header="Quêtes" Width="100"
+                                            Binding="{Binding QuestItems, Converter={StaticResource ListSummaryConv}, ConverterParameter=qi}"/>
+                        <DataGridTextColumn Header="Note" Binding="{Binding Note}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
             </DockPanel>
         </Border>
 

@@ -84,6 +84,9 @@ public partial class CartoViewModel : ObservableObject
     [ObservableProperty]
     private string? _editNote = string.Empty;
 
+    [ObservableProperty]
+    private bool _showTableView;
+
     // Map overlay toggles
     [ObservableProperty]
     private bool _showZoneNames = true;
