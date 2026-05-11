@@ -48,9 +48,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isAdvancedMode;
 
+    [ObservableProperty]
+    private bool _isCartoMode;
+
     partial void OnIsStandardModeChanged(bool value)
     {
-        if (value) IsAdvancedMode = false;
+        if (value) { IsAdvancedMode = false; IsCartoMode = false; }
     }
 
     partial void OnIsAdvancedModeChanged(bool value)
@@ -58,11 +61,18 @@ public partial class MainViewModel : ObservableObject
         if (value)
         {
             IsStandardMode = false;
+            IsCartoMode = false;
             AdvancedVm?.RefreshFromMain();
         }
     }
 
+    partial void OnIsCartoModeChanged(bool value)
+    {
+        if (value) { IsStandardMode = false; IsAdvancedMode = false; }
+    }
+
     public AdvancedViewModel? AdvancedVm { get; set; }
+    public CartoViewModel? CartoVm { get; set; }
 
     [ObservableProperty]
     private string _currentThemeLabel;

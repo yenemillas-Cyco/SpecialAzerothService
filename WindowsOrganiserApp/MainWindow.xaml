@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:WindowsOrganiserApp.ViewModels"
         xmlns:conv="clr-namespace:WindowsOrganiserApp.Converters"
+        xmlns:views="clr-namespace:WindowsOrganiserApp.Views"
         mc:Ignorable="d"
         Title="Special Azeroth Service — Multibox Organiser"
         Height="700" Width="1200"
@@ -122,7 +123,9 @@
                         <RadioButton Content="{DynamicResource Mode_Standard}" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
                                      IsChecked="{Binding IsStandardMode}" Margin="0,0,6,0"/>
                         <RadioButton Content="{DynamicResource Mode_Advanced}" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
-                                     IsChecked="{Binding IsAdvancedMode}"/>
+                                     IsChecked="{Binding IsAdvancedMode}" Margin="0,0,6,0"/>
+                        <RadioButton Content="Carto" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
+                                     IsChecked="{Binding IsCartoMode}"/>
                     </StackPanel>
 
                     <!-- Standard content -->
@@ -729,6 +732,10 @@
                             </DockPanel>
                         </Border>
                     </Grid>
+
+                    <!-- Carto content -->
+                    <views:CartoView Grid.Row="3" DataContext="{Binding CartoVm}"
+                                     Visibility="{Binding DataContext.IsCartoMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
 
                             <!-- Status bar -->
                             <Border Grid.Row="4" Background="{DynamicResource PanelBg}" CornerRadius="4"

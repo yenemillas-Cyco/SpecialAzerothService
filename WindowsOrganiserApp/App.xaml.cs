@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using WindowsOrganiserApp.Services;
 using WindowsOrganiserApp.ViewModels;
+using WindowsOrganiserApp.Views;
 
 namespace WindowsOrganiserApp;
 
@@ -38,15 +39,19 @@ public partial class App : Application
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IPresetService, PresetService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
+        services.AddSingleton<ICartoService, CartoService>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<AdvancedViewModel>();
+        services.AddSingleton<CartoViewModel>();
         services.AddTransient<MainWindow>();
 
         _serviceProvider = services.BuildServiceProvider();
 
         var mainVm = _serviceProvider.GetRequiredService<MainViewModel>();
         var advVm = _serviceProvider.GetRequiredService<AdvancedViewModel>();
+        var cartoVm = _serviceProvider.GetRequiredService<CartoViewModel>();
         mainVm.AdvancedVm = advVm;
+        mainVm.CartoVm = cartoVm;
 
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
         mainWindow.Show();

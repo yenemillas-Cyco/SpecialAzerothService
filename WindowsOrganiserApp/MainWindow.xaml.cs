@@ -49,6 +49,22 @@ public partial class MainWindow : Window
             };
         }
 
+        if (viewModel.CartoVm is not null)
+        {
+            viewModel.CartoVm.CooldownReady += (_, args) =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    var (character, cooldown) = args;
+                    MessageBox.Show(
+                        $"⏱ {character.Name} — {cooldown.Type} est prêt !",
+                        "Cooldown prêt",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                });
+            };
+        }
+
         Closing += (_, _) => SaveAllSettings();
     }
 

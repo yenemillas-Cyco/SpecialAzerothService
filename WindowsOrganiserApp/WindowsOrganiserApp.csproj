@@ -12,7 +12,7 @@
     <AssemblyName>SpecialAzerothService</AssemblyName>
     <Product>Special Azeroth Service — Multibox Organiser</Product>
     <Description>WoW Multibox Window Organiser pour Polux</Description>
-    <Version>2.0.7</Version>
+    <Version>2.1.0</Version>
 
     <!-- Publication self-contained -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -33,6 +33,7 @@
   <ItemGroup>
     <Resource Include="Assets\wow_logo.png" />
     <Resource Include="Assets\wow_bg.png" />
+    <Resource Include="Assets\wow_map_vanilla.png" />
   </ItemGroup>
 
 </Project>
