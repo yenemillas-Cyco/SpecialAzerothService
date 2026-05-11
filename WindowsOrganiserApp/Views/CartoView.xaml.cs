@@ -14,6 +14,7 @@ public partial class CartoView : UserControl
     private bool _isPanning;
     private Point _panStart;
     private double _panStartOffsetX, _panStartOffsetY;
+    private WowCharacter? _tooltipCharacter;
 
     public CartoView()
     {
@@ -350,22 +351,33 @@ public partial class CartoView : UserControl
             return;
         }
 
-        // Check if clicking on a marker — open edit popup
+        // Toggle tooltip on marker click
         if (e.OriginalSource is Ellipse { Tag: WowCharacter ch })
         {
-            Vm.SelectedCharacter = ch;
-            RedrawAll();
-            OpenCharacterPopup(ch);
+            if (_tooltipCharacter == ch && CharPopup.IsOpen)
+            {
+                CloseCharacterTooltip();
+            }
+            else
+            {
+                Vm.SelectedCharacter = ch;
+                RedrawAll();
+                ShowCharacterTooltip(ch);
+            }
             e.Handled = true;
             return;
         }
+
+        // Close tooltip if open and clicking outside marker
+        if (CharPopup.IsOpen)
+            CloseCharacterTooltip();
 
         // Start panning
         _isPanning = true;
         _panStart = e.GetPosition(MapBorder);
         _panStartOffsetX = Vm.MapOffsetX;
         _panStartOffsetY = Vm.MapOffsetY;
-        MapContainer.CaptureMouse();
+        MapBorder.CaptureMouse();
         e.Handled = true;
     }
 
@@ -373,7 +385,7 @@ public partial class CartoView : UserControl
     {
         if (Vm.IsPlacingCharacter)
         {
-            Vm.IsPlacingCharacter = false;
+            Vm.CancelPlacement();
             e.Handled = true;
         }
     }
@@ -389,7 +401,7 @@ public partial class CartoView : UserControl
     private void MapCanvas_MouseUp(object sender, MouseButtonEventArgs e)
     {
         _isPanning = false;
-        MapContainer.ReleaseMouseCapture();
+        MapBorder.ReleaseMouseCapture();
     }
 
     private void MapCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
@@ -534,158 +546,212 @@ public partial class CartoView : UserControl
     private void SummaryGrid_DoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (SummaryGrid.SelectedItem is WowCharacter ch)
-            OpenCharacterPopup(ch);
+            ShowCharacterTooltip(ch);
     }
 
-    private void OpenCharacterPopup(WowCharacter ch)
+    private void CloseCharacterTooltip()
     {
-        var parentWindow = Window.GetWindow(this);
-        var win = new Window
-        {
-            Title = $"{ch.Name} — {ch.Class} Lv.{ch.Level}",
-            Width = 420, Height = 500,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Owner = parentWindow,
-            ResizeMode = ResizeMode.NoResize,
-            WindowStyle = WindowStyle.ToolWindow,
-            Background = new SolidColorBrush(Color.FromRgb(30, 25, 15))
-        };
+        CharPopup.IsOpen = false;
+        _tooltipCharacter = null;
+        Vm.SelectedCharacter = null;
+        RedrawAll();
+    }
 
-        var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(12) };
-        var stack = new StackPanel();
+    private void ShowCharacterTooltip(WowCharacter ch)
+    {
+        _tooltipCharacter = ch;
+        RebuildTooltipContent(ch);
+        CharPopup.IsOpen = true;
+    }
 
-        // Header
+    private void RebuildTooltipContent(WowCharacter ch)
+    {
+        CharPopupContent.Children.Clear();
+        var stack = CharPopupContent;
         var classColor = (Color)ColorConverter.ConvertFromString(WowClassColors.GetHexColor(ch.Class));
+        var classBrush = new SolidColorBrush(classColor);
+        var goldBrush = Brushes.Gold;
+        var dimBrush = new SolidColorBrush(Color.FromRgb(180, 180, 180));
+        var bgInput = new SolidColorBrush(Color.FromRgb(40, 35, 20));
+
+        // ── Header ──
         stack.Children.Add(new TextBlock
         {
             Text = $"{ch.Name}  —  {ch.Class}  Lv.{ch.Level}",
-            FontSize = 14, FontWeight = FontWeights.Bold,
-            Foreground = new SolidColorBrush(classColor), Margin = new Thickness(0, 0, 0, 4)
+            FontSize = 12, FontWeight = FontWeights.Bold, Foreground = classBrush
         });
         var accountName = Vm.Accounts.FirstOrDefault(a => a.Id == ch.AccountId)?.Name ?? "—";
         stack.Children.Add(new TextBlock
         {
-            Text = $"Compte: {accountName}",
-            FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 8)
+            Text = $"Compte: {accountName}", FontSize = 10, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 4)
         });
 
-        // Note
-        stack.Children.Add(new TextBlock { Text = "📝 Note:", FontSize = 11, Foreground = Brushes.Gold, Margin = new Thickness(0, 4, 0, 2) });
+        // ── Actions (toujours visible en haut) ──
+        var actionsPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+        var btnMove = new Button { Content = "↕ Déplacer", FontSize = 9, Padding = new Thickness(6, 2, 6, 2) };
+        btnMove.Click += (_, _) => { CloseCharacterTooltip(); Vm.MoveCharacterCommand.Execute(ch); };
+        var btnDelete = new Button { Content = "🗑 Suppr", FontSize = 9, Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(4, 0, 0, 0), Foreground = Brushes.Red };
+        btnDelete.Click += (_, _) =>
+        {
+            var result = MessageBox.Show(
+                $"Supprimer le personnage \"{ch.Name}\" ?",
+                "Confirmation", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (result == MessageBoxResult.Yes)
+            {
+                CloseCharacterTooltip();
+                Vm.RemoveCharacterCommand.Execute(ch);
+                RedrawAll();
+            }
+        };
+        var btnClose = new Button { Content = "✓ Fermer", FontSize = 9, Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(4, 0, 0, 0) };
+        btnClose.Click += (_, _) => CloseCharacterTooltip();
+        actionsPanel.Children.Add(btnMove);
+        actionsPanel.Children.Add(btnDelete);
+        actionsPanel.Children.Add(btnClose);
+        stack.Children.Add(actionsPanel);
+
+        // ── Shards (Démoniste only) ──
+        if (ch.Class == WowClass.Demoniste)
+        {
+            var shardPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            shardPanel.Children.Add(new TextBlock
+            {
+                Text = "💎 Shards:", FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(148, 130, 201)),
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            var shardBox = new TextBox
+            {
+                Text = ch.ShardCount.ToString(), Width = 45, FontSize = 10,
+                Padding = new Thickness(3, 1, 3, 1), Margin = new Thickness(6, 0, 0, 0),
+                Background = bgInput, Foreground = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(148, 130, 201)),
+                BorderThickness = new Thickness(1), VerticalAlignment = VerticalAlignment.Center
+            };
+            shardBox.LostFocus += (_, _) =>
+            {
+                if (int.TryParse(shardBox.Text, out var val) && val >= 0)
+                    ch.ShardCount = val;
+                else
+                    shardBox.Text = ch.ShardCount.ToString();
+                Vm.Save();
+            };
+            shardPanel.Children.Add(shardBox);
+            stack.Children.Add(shardPanel);
+        }
+
+        // ── Note (editable) ──
+        stack.Children.Add(new TextBlock { Text = "📝 Note", FontSize = 10, Foreground = goldBrush, Margin = new Thickness(0, 2, 0, 2) });
         var noteBox = new TextBox
         {
-            Text = ch.Note, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
-            MinHeight = 40, FontSize = 11,
-            Background = new SolidColorBrush(Color.FromRgb(40, 35, 20)),
-            Foreground = Brushes.White, BorderBrush = Brushes.DarkGoldenrod
+            Text = ch.Note ?? "", AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
+            MinHeight = 28, MaxHeight = 60, FontSize = 10,
+            Background = bgInput, Foreground = Brushes.White, BorderBrush = Brushes.DarkGoldenrod,
+            BorderThickness = new Thickness(1), Padding = new Thickness(3)
         };
+        noteBox.LostFocus += (_, _) => { ch.Note = noteBox.Text; Vm.Save(); };
         stack.Children.Add(noteBox);
 
-        // Cooldowns
-        stack.Children.Add(new TextBlock { Text = "⏱ Cooldowns:", FontSize = 11, Foreground = Brushes.Gold, Margin = new Thickness(0, 8, 0, 2) });
+        // ── Cooldowns ──
+        stack.Children.Add(new TextBlock { Text = "⏱ Cooldowns", FontSize = 10, Foreground = goldBrush, Margin = new Thickness(0, 6, 0, 2) });
         foreach (var cd in ch.Cooldowns.ToList())
         {
-            var cdPanel = new DockPanel { Margin = new Thickness(0, 0, 0, 2) };
-            var btnActivate = new Button { Content = "↻", FontSize = 10, Padding = new Thickness(4, 1, 4, 1), Margin = new Thickness(2, 0, 0, 0) };
-            btnActivate.Click += (_, _) => { cd.LastUsed = DateTime.Now; cd.Note = null; };
-            var btnDel = new Button { Content = "✕", FontSize = 9, Padding = new Thickness(3, 0, 3, 0), Margin = new Thickness(2, 0, 0, 0) };
-            btnDel.Click += (_, _) => { ch.Cooldowns.Remove(cd); };
+            var cdRow = new DockPanel { Margin = new Thickness(0, 1, 0, 1) };
+            var btnDel = new Button { Content = "✕", FontSize = 8, Padding = new Thickness(3, 0, 3, 0), Margin = new Thickness(2, 0, 0, 0), ToolTip = "Supprimer" };
+            btnDel.Click += (_, _) => { ch.Cooldowns.Remove(cd); Vm.Save(); RebuildTooltipContent(ch); };
+            var btnActivate = new Button { Content = "↻", FontSize = 9, Padding = new Thickness(3, 0, 3, 0), Margin = new Thickness(2, 0, 0, 0), ToolTip = "Activer maintenant" };
+            btnActivate.Click += (_, _) => { cd.LastUsed = DateTime.Now; cd.Note = null; Vm.Save(); RebuildTooltipContent(ch); };
             DockPanel.SetDock(btnDel, Dock.Right);
             DockPanel.SetDock(btnActivate, Dock.Right);
-            cdPanel.Children.Add(btnDel);
-            cdPanel.Children.Add(btnActivate);
+            cdRow.Children.Add(btnDel);
+            cdRow.Children.Add(btnActivate);
 
             var status = cd.IsReady ? "✅ PRÊT" : $"⏳ {FormatTimeSpan(cd.TimeRemaining)}";
-            cdPanel.Children.Add(new TextBlock
+            cdRow.Children.Add(new TextBlock
             {
                 Text = $"{cd.Type}: {status}", FontSize = 10,
                 Foreground = cd.IsReady ? Brushes.LightGreen : Brushes.Orange,
                 VerticalAlignment = VerticalAlignment.Center
             });
-            stack.Children.Add(cdPanel);
+            stack.Children.Add(cdRow);
         }
-
         // Add cooldown
-        var cdCombo = new ComboBox { ItemsSource = Enum.GetValues(typeof(CooldownType)), FontSize = 10, Width = 140, Height = 24 };
-        var cdAddBtn = new Button { Content = "+ Ajouter CD", FontSize = 10, Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(4, 0, 0, 0) };
+        var cdAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
+        var cdCombo = new ComboBox { ItemsSource = Enum.GetValues(typeof(CooldownType)), FontSize = 9, Width = 120, Height = 22 };
+        var cdAddBtn = new Button { Content = "+", FontSize = 9, Padding = new Thickness(5, 0, 5, 0), Margin = new Thickness(4, 0, 0, 0) };
         cdAddBtn.Click += (_, _) =>
         {
             if (cdCombo.SelectedItem is CooldownType type && !ch.Cooldowns.Any(c => c.Type == type))
+            {
                 ch.Cooldowns.Add(new CooldownEntry { Type = type });
+                Vm.Save(); RebuildTooltipContent(ch);
+            }
         };
-        var cdAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
         cdAddPanel.Children.Add(cdCombo);
         cdAddPanel.Children.Add(cdAddBtn);
         stack.Children.Add(cdAddPanel);
 
-        // Quest Items
-        stack.Children.Add(new TextBlock { Text = "🏆 Items de quête:", FontSize = 11, Foreground = Brushes.Gold, Margin = new Thickness(0, 8, 0, 2) });
+        // ── Quest Items ──
+        stack.Children.Add(new TextBlock { Text = "🏆 Items de quête", FontSize = 10, Foreground = goldBrush, Margin = new Thickness(0, 6, 0, 2) });
         foreach (var qi in ch.QuestItems.ToList())
         {
-            var qiPanel = new DockPanel { Margin = new Thickness(0, 0, 0, 2) };
-            var btnQiDel = new Button { Content = "✕", FontSize = 9, Padding = new Thickness(3, 0, 3, 0) };
-            btnQiDel.Click += (_, _) => { ch.QuestItems.Remove(qi); };
+            var qiRow = new DockPanel { Margin = new Thickness(0, 2, 0, 2) };
+            var btnQiDel = new Button
+            {
+                Content = "Retirer", FontSize = 9,
+                Padding = new Thickness(5, 1, 5, 1), Margin = new Thickness(6, 0, 0, 0),
+                Foreground = Brushes.OrangeRed, Background = new SolidColorBrush(Color.FromRgb(60, 30, 20)),
+                BorderBrush = Brushes.OrangeRed, BorderThickness = new Thickness(1)
+            };
+            btnQiDel.Click += (_, _) => { ch.QuestItems.Remove(qi); Vm.Save(); RebuildTooltipContent(ch); };
             DockPanel.SetDock(btnQiDel, Dock.Right);
-            qiPanel.Children.Add(btnQiDel);
-            qiPanel.Children.Add(new TextBlock
+            qiRow.Children.Add(btnQiDel);
+            qiRow.Children.Add(new TextBlock
             {
                 Text = FormatQuestItem(qi.Type), FontSize = 10, Foreground = Brushes.Gold,
                 VerticalAlignment = VerticalAlignment.Center
             });
-            stack.Children.Add(qiPanel);
+            stack.Children.Add(qiRow);
         }
-
-        var qiCombo = new ComboBox { ItemsSource = Enum.GetValues(typeof(QuestItemType)), FontSize = 10, Width = 140, Height = 24 };
-        var qiAddBtn = new Button { Content = "+ Ajouter", FontSize = 10, Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(4, 0, 0, 0) };
+        var qiAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
+        var qiCombo = new ComboBox { ItemsSource = Enum.GetValues(typeof(QuestItemType)), FontSize = 9, Width = 120, Height = 22 };
+        var qiAddBtn = new Button { Content = "+", FontSize = 9, Padding = new Thickness(5, 0, 5, 0), Margin = new Thickness(4, 0, 0, 0) };
         qiAddBtn.Click += (_, _) =>
         {
             if (qiCombo.SelectedItem is QuestItemType type && !ch.QuestItems.Any(q => q.Type == type))
+            {
                 ch.QuestItems.Add(new QuestItemEntry { Type = type, HasItem = true });
+                Vm.Save(); RebuildTooltipContent(ch);
+            }
         };
-        var qiAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
         qiAddPanel.Children.Add(qiCombo);
         qiAddPanel.Children.Add(qiAddBtn);
         stack.Children.Add(qiAddPanel);
 
-        // Professions
-        stack.Children.Add(new TextBlock { Text = "🔨 Métiers:", FontSize = 11, Foreground = Brushes.Gold, Margin = new Thickness(0, 8, 0, 2) });
+        // ── Professions ──
+        stack.Children.Add(new TextBlock { Text = "🔨 Métiers", FontSize = 10, Foreground = goldBrush, Margin = new Thickness(0, 6, 0, 2) });
         foreach (var p in ch.Professions)
         {
             stack.Children.Add(new TextBlock
             {
-                Text = $"{p.Type} ({p.Skill}/300)", FontSize = 10, Foreground = Brushes.LightGray
+                Text = $"  {p.Type} ({p.Skill}/300)", FontSize = 10, Foreground = dimBrush
             });
         }
-
-        var profCombo = new ComboBox { ItemsSource = Enum.GetValues(typeof(ProfessionType)), FontSize = 10, Width = 140, Height = 24 };
-        var profAddBtn = new Button { Content = "+ Ajouter", FontSize = 10, Padding = new Thickness(6, 2, 6, 2), Margin = new Thickness(4, 0, 0, 0) };
+        var profAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 0) };
+        var profCombo = new ComboBox { ItemsSource = Enum.GetValues(typeof(ProfessionType)), FontSize = 9, Width = 120, Height = 22 };
+        var profAddBtn = new Button { Content = "+", FontSize = 9, Padding = new Thickness(5, 0, 5, 0), Margin = new Thickness(4, 0, 0, 0) };
         profAddBtn.Click += (_, _) =>
         {
             if (profCombo.SelectedItem is ProfessionType type && !ch.Professions.Any(pp => pp.Type == type))
+            {
                 ch.Professions.Add(new ProfessionInfo { Type = type, Skill = 1 });
+                Vm.Save(); RebuildTooltipContent(ch);
+            }
         };
-        var profAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
         profAddPanel.Children.Add(profCombo);
         profAddPanel.Children.Add(profAddBtn);
         stack.Children.Add(profAddPanel);
 
-        // Actions
-        var actionsPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
-        var btnMove = new Button { Content = "↕ Déplacer", FontSize = 11, Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(0, 0, 4, 0) };
-        btnMove.Click += (_, _) => { Vm.MoveCharacterCommand.Execute(ch); win.Close(); };
-        var btnDelete = new Button { Content = "🗑 Supprimer", FontSize = 11, Padding = new Thickness(8, 4, 8, 4), Foreground = Brushes.Red };
-        btnDelete.Click += (_, _) => { Vm.RemoveCharacterCommand.Execute(ch); win.Close(); RedrawAll(); };
-        actionsPanel.Children.Add(btnMove);
-        actionsPanel.Children.Add(btnDelete);
-        stack.Children.Add(actionsPanel);
-
-        scroll.Content = stack;
-        win.Content = scroll;
-        win.ShowDialog();
-
-        // Save changes on close
-        ch.Note = noteBox.Text;
-        Vm.Save();
-        RedrawAll();
     }
 
     private static string FormatTimeSpan(TimeSpan? ts)

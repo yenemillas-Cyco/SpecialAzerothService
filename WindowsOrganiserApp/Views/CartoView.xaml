@@ -8,6 +8,7 @@
         <conv:WowClassColorConverter x:Key="ClassColorConv"/>
         <conv:CooldownRemainingConverter x:Key="CdConv"/>
         <conv:ListSummaryConverter x:Key="ListSummaryConv"/>
+        <conv:AccountIdToNameConverter x:Key="AccountConv"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
 
@@ -19,11 +20,10 @@
         </Grid.ColumnDefinitions>
 
         <!-- Map area -->
-        <Border Grid.Column="0" Background="{DynamicResource PanelBg}" CornerRadius="6"
-                Padding="8" BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}">
-            <DockPanel>
-                <!-- Toolbar: zoom + overlay toggles -->
-                <WrapPanel DockPanel.Dock="Top" HorizontalAlignment="Center" Margin="0,0,0,4">
+        <DockPanel Grid.Column="0">
+            <!-- Toolbar: zoom + overlay toggles -->
+            <WrapPanel DockPanel.Dock="Top" HorizontalAlignment="Center" Margin="0,0,0,4"
+                       Background="{DynamicResource PanelBg}">
                     <Button Content="➕" Style="{DynamicResource StoneButton}" FontSize="12" Padding="8,4"
                             Command="{Binding ZoomInCommand}"/>
                     <Button Content="➖" Style="{DynamicResource StoneButton}" FontSize="12" Padding="8,4" Margin="4,0"
@@ -65,9 +65,15 @@
                     </Border>
                 </WrapPanel>
 
-                <!-- Map canvas (hidden when table view active) -->
-                <Border x:Name="MapBorder" Background="{DynamicResource OverlayBrush}" CornerRadius="4" ClipToBounds="True"
-                        BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
+            <!-- Content: map or table -->
+            <Grid>
+                <!-- Map canvas -->
+                <Border x:Name="MapBorder" Background="Black" ClipToBounds="True"
+                        MouseLeftButtonDown="MapCanvas_MouseDown"
+                        MouseRightButtonDown="MapCanvas_RightMouseDown"
+                        MouseMove="MapCanvas_MouseMove"
+                        MouseLeftButtonUp="MapCanvas_MouseUp"
+                        MouseWheel="MapCanvas_MouseWheel">
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Visible"/>
@@ -78,13 +84,7 @@
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
-                    <Grid x:Name="MapContainer"
-                          MouseLeftButtonDown="MapCanvas_MouseDown"
-                          MouseRightButtonDown="MapCanvas_RightMouseDown"
-                          MouseMove="MapCanvas_MouseMove"
-                          MouseLeftButtonUp="MapCanvas_MouseUp"
-                          MouseWheel="MapCanvas_MouseWheel"
-                          Background="Transparent">
+                    <Grid x:Name="MapContainer" Background="Transparent">
                         <Grid.RenderTransform>
                             <TransformGroup>
                                 <ScaleTransform x:Name="MapScale"
@@ -96,7 +96,6 @@
                                                     Y="{Binding MapOffsetY}"/>
                             </TransformGroup>
                         </Grid.RenderTransform>
-
                         <Image x:Name="MapImage" Source="/Assets/wow_map_vanilla.png"
                                Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top"/>
                         <Canvas x:Name="MapCanvas" IsHitTestVisible="True"
@@ -105,6 +104,16 @@
                                 HorizontalAlignment="Left" VerticalAlignment="Top"/>
                     </Grid>
                 </Border>
+
+                <!-- Character tooltip popup -->
+                <Popup x:Name="CharPopup" Placement="Mouse" StaysOpen="True" AllowsTransparency="True">
+                    <Border Background="#F0181310" BorderBrush="#DD996600" BorderThickness="1.5"
+                            CornerRadius="6" Padding="10" MaxWidth="360" MaxHeight="500">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel x:Name="CharPopupContent"/>
+                        </ScrollViewer>
+                    </Border>
+                </Popup>
 
                 <!-- Table view -->
                 <DataGrid x:Name="SummaryGrid" AutoGenerateColumns="False" IsReadOnly="True"
@@ -126,22 +135,33 @@
                             </Style.Triggers>
                         </Style>
                     </DataGrid.Style>
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#FF2A2520"/>
+                            <Setter Property="Foreground" Value="#FFE0D8C8"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Padding" Value="6,4"/>
+                            <Setter Property="BorderBrush" Value="#FF444038"/>
+                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Nom" Binding="{Binding Name}" Width="110"/>
                         <DataGridTextColumn Header="Classe" Binding="{Binding Class}" Width="80"/>
                         <DataGridTextColumn Header="Lv" Binding="{Binding Level}" Width="35"/>
-                        <DataGridTextColumn Header="Compte" Binding="{Binding AccountId}" Width="80"/>
-                        <DataGridTextColumn Header="Métiers" Width="140"
+                        <DataGridTextColumn Header="Compte" Binding="{Binding AccountId, Converter={StaticResource AccountConv}}" Width="80"/>
+                        <DataGridTextColumn Header="💎" Binding="{Binding ShardCount}" Width="35"/>
+                        <DataGridTextColumn Header="Métiers" Width="130"
                                             Binding="{Binding Professions, Converter={StaticResource ListSummaryConv}, ConverterParameter=prof}"/>
-                        <DataGridTextColumn Header="CDs" Width="120"
+                        <DataGridTextColumn Header="CDs" Width="110"
                                             Binding="{Binding Cooldowns, Converter={StaticResource ListSummaryConv}, ConverterParameter=cd}"/>
-                        <DataGridTextColumn Header="Quêtes" Width="100"
+                        <DataGridTextColumn Header="Quêtes" Width="90"
                                             Binding="{Binding QuestItems, Converter={StaticResource ListSummaryConv}, ConverterParameter=qi}"/>
                         <DataGridTextColumn Header="Note" Binding="{Binding Note}" Width="*"/>
                     </DataGrid.Columns>
                 </DataGrid>
-            </DockPanel>
-        </Border>
+            </Grid>
+        </DockPanel>
 
         <!-- Right panel -->
         <Border Grid.Column="2" Background="{DynamicResource PanelBg}" CornerRadius="6"

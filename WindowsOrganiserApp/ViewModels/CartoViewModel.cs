@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using WindowsOrganiserApp.Converters;
 using WindowsOrganiserApp.Models.Carto;
 using WindowsOrganiserApp.Services;
 
@@ -20,6 +21,7 @@ public partial class CartoViewModel : ObservableObject
 
         Accounts = new ObservableCollection<WowAccount>(_data.Accounts);
         Characters = new ObservableCollection<WowCharacter>(_data.Characters);
+        AccountIdToNameConverter.Accounts = _data.Accounts;
 
         _cooldownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _cooldownTimer.Tick += (_, _) =>
@@ -176,20 +178,29 @@ public partial class CartoViewModel : ObservableObject
     {
         if (!IsPlacingCharacter) return;
 
-        var character = new WowCharacter
+        if (_movingCharacter != null)
         {
-            Name = NewCharName,
-            Class = NewCharClass,
-            Level = NewCharLevel,
-            AccountId = NewCharAccountId,
-            MapX = mapX,
-            MapY = mapY
-        };
+            _movingCharacter.MapX = mapX;
+            _movingCharacter.MapY = mapY;
+            _movingCharacter = null;
+        }
+        else
+        {
+            var character = new WowCharacter
+            {
+                Name = NewCharName,
+                Class = NewCharClass,
+                Level = NewCharLevel,
+                AccountId = NewCharAccountId,
+                MapX = mapX,
+                MapY = mapY
+            };
+            Characters.Add(character);
+            NewCharName = string.Empty;
+            NewCharLevel = 1;
+        }
 
-        Characters.Add(character);
         IsPlacingCharacter = false;
-        NewCharName = string.Empty;
-        NewCharLevel = 1;
         ApplyFilters();
         Save();
     }
@@ -203,12 +214,20 @@ public partial class CartoViewModel : ObservableObject
         Save();
     }
 
+    private WowCharacter? _movingCharacter;
+
     [RelayCommand]
     private void MoveCharacter(WowCharacter character)
     {
+        _movingCharacter = character;
         SelectedCharacter = character;
         IsPlacingCharacter = true;
-        Characters.Remove(character);
+    }
+
+    public void CancelPlacement()
+    {
+        _movingCharacter = null;
+        IsPlacingCharacter = false;
     }
 
     [RelayCommand]
@@ -339,6 +358,7 @@ public partial class CartoViewModel : ObservableObject
     {
         _data.Accounts = [.. Accounts];
         _data.Characters = [.. Characters];
+        AccountIdToNameConverter.Accounts = _data.Accounts;
         _cartoService.Save(_data);
     }
 }

@@ -50,6 +50,21 @@ public class NullableEnumConverter : IValueConverter
         => value;
 }
 
+public class AccountIdToNameConverter : IValueConverter
+{
+    public static List<WowAccount>? Accounts { get; set; }
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is string id && Accounts is not null)
+            return Accounts.FirstOrDefault(a => a.Id == id)?.Name ?? "—";
+        return "—";
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 public class ListSummaryConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)

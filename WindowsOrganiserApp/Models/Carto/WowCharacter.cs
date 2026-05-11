@@ -15,4 +15,5 @@ public sealed class WowCharacter
     public List<CooldownEntry> Cooldowns { get; set; } = [];
     public List<QuestItemEntry> QuestItems { get; set; } = [];
     public string Note { get; set; } = string.Empty;
+    public int ShardCount { get; set; }
 }
