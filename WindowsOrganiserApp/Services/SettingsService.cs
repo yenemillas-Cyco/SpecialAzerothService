@@ -38,7 +38,12 @@ public class SettingsService : ISettingsService
         try
         {
             if (!File.Exists(_filePath))
-                return new AppSettings();
+            {
+                var fresh = new AppSettings();
+                Save(fresh);
+                _logger.Information("Created new settings with GUID {Guid}", fresh.UserGuid);
+                return fresh;
+            }
 
             var json = File.ReadAllText(_filePath);
             var settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOpts) ?? new AppSettings();
@@ -52,13 +57,15 @@ public class SettingsService : ISettingsService
                 Save(settings);
             }
 
-            _logger.Information("Settings loaded from {Path}", _filePath);
+            _logger.Information("Settings loaded from {Path}, GUID={Guid}", _filePath, settings.UserGuid);
             return settings;
         }
         catch (Exception ex)
         {
             _logger.Warning(ex, "Failed to load settings, using defaults");
-            return new AppSettings();
+            var fallback = new AppSettings();
+            Save(fallback);
+            return fallback;
         }
     }
 

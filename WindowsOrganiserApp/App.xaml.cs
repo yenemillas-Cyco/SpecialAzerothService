@@ -108,23 +108,30 @@ public partial class App : Application
             var currentDir = Path.GetDirectoryName(currentExe)!;
             var sourceDir = Path.GetDirectoryName(newExe)!;
             var currentPid = Environment.ProcessId;
+            var logFile = Path.Combine(Path.GetTempPath(), "SAS_updater.log");
             var batPath = Path.Combine(Path.GetTempPath(), "SAS_updater.bat");
             var bat = $"""
                 @echo off
-                echo Mise a jour en cours...
+                echo Mise a jour en cours... > "{logFile}"
                 taskkill /PID {currentPid} /F >nul 2>&1
                 :retry
                 timeout /t 2 /nobreak >nul
-                xcopy /y /e /q "{sourceDir}\*" "{currentDir}\" >nul 2>&1
-                if errorlevel 1 goto retry
+                echo Copie de "{sourceDir}" vers "{currentDir}" >> "{logFile}"
+                robocopy "{sourceDir}" "{currentDir}" /E /IS /IT /NFL /NDL /NJH /NJS >> "{logFile}" 2>&1
+                if %errorlevel% GEQ 8 (
+                    echo Erreur robocopy errorlevel=%errorlevel% >> "{logFile}"
+                    goto retry
+                )
+                echo Nettoyage... >> "{logFile}"
                 del "{tempZip}" >nul 2>&1
                 rmdir /s /q "{tempDir}" >nul 2>&1
+                echo Lancement de "{currentExe}" >> "{logFile}"
                 start "" "{currentExe}"
                 del "%~f0"
                 """;
             File.WriteAllText(batPath, bat);
 
-            Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"{batPath}\"") { CreateNoWindow = true, UseShellExecute = true });
+            Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"{batPath}\"") { CreateNoWindow = true, UseShellExecute = false });
             Current.Shutdown();
         }
         catch (Exception ex)

@@ -25,17 +25,20 @@ public partial class CartoView : UserControl
             {
                 vm.PropertyChanged += (_, e) =>
                 {
-                    if (e.PropertyName is nameof(CartoViewModel.FilteredCharacters)
-                        or nameof(CartoViewModel.SelectedCharacter))
+                    if (e.PropertyName is nameof(CartoViewModel.FilteredCharacters))
                     {
-                        RedrawAll();
+                        RedrawMarkers();
+                        RebuildCharTree();
                         try { SummaryGrid.Items.Refresh(); } catch { }
+                    }
+                    else if (e.PropertyName is nameof(CartoViewModel.SelectedCharacter))
+                    {
+                        RedrawMarkers();
                     }
                     else if (e.PropertyName == nameof(CartoViewModel.Timers))
                     {
                         RedrawTimerMarkers();
                         UpdateTimerCountdowns();
-                        try { SummaryGrid.Items.Refresh(); } catch { }
                     }
                     else if (e.PropertyName == nameof(CartoViewModel.OverlayChanged))
                         RedrawAll();

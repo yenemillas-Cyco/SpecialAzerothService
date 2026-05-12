@@ -12,6 +12,7 @@
         <conv:CharacterStatusConverter x:Key="StatusConv"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <conv:BoolToOnlineBrushConverter x:Key="BoolToOnlineBrush"/>
+        <conv:BoolToOnlineTooltipConverter x:Key="BoolToOnlineTooltip"/>
     </UserControl.Resources>
 
     <Grid>
@@ -442,7 +443,7 @@
                     </Expander>
 
                     <!-- Sync online -->
-                    <Expander IsExpanded="False" Margin="0,0,0,4">
+                    <Expander IsExpanded="True" Margin="0,0,0,4">
                         <Expander.Header>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="🌐 Sync en ligne" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrightGoldBrush}"/>
@@ -464,57 +465,73 @@
                             </DockPanel>
                             <!-- Connexion -->
                             <Button Content="🔌 Se connecter" Style="{DynamicResource StoneButton}" FontSize="10"
-                                    Padding="6,3" HorizontalAlignment="Stretch" Margin="0,0,0,6"
+                                    Padding="6,3" HorizontalAlignment="Stretch" Margin="0,0,0,8"
                                     Command="{Binding ConnectSyncCommand}"/>
-                            <!-- Ajouter un ami -->
-                            <TextBlock Text="Nom de l'ami :" FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
-                            <TextBox FontSize="9" Padding="3,2" Margin="0,0,0,4"
-                                     Text="{Binding FriendNameInput, UpdateSourceTrigger=PropertyChanged}"
-                                     Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
-                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                            <TextBlock Text="Guid de l'ami :" FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
-                            <DockPanel Margin="0,0,0,6">
-                                <Button DockPanel.Dock="Right" Content="+" Style="{DynamicResource StoneButton}"
-                                        FontSize="10" Padding="6,2" Margin="4,0,0,0"
-                                        Command="{Binding AddFriendCommand}"/>
-                                <TextBox FontSize="9" Padding="3,2"
-                                         Text="{Binding FriendGuidInput, UpdateSourceTrigger=PropertyChanged}"
-                                         Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
-                                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                            </DockPanel>
-                            <!-- Liste amis -->
+
+                            <!-- ── Mes amis ── -->
+                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,0,0,6"/>
+                            <TextBlock Text="{Binding FriendsSummary}" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,6"/>
+
                             <ItemsControl ItemsSource="{Binding Friends}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="{DynamicResource PanelBg2}" CornerRadius="3"
-                                                Padding="4,3" Margin="0,0,0,3"
+                                        <Border CornerRadius="4" Padding="6,4" Margin="0,0,0,4"
                                                 BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
+                                            <Border.Background>
+                                                <SolidColorBrush Color="#1A2040" Opacity="0.6"/>
+                                            </Border.Background>
                                             <DockPanel>
-                                                <Button DockPanel.Dock="Right" Content="✕" Style="{DynamicResource StoneButton}"
-                                                        FontSize="9" Padding="4,1" Foreground="OrangeRed" Margin="2,0,0,0"
-                                                        Command="{Binding DataContext.RemoveFriendCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"/>
-                                                <Button DockPanel.Dock="Right" Style="{DynamicResource StoneButton}"
-                                                        FontSize="9" Padding="4,1" Margin="2,0,0,0"
-                                                        Command="{Binding DataContext.ToggleFriendVisibilityCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"
-                                                        Click="FriendVisibility_Click"
-                                                        Loaded="FriendVisibilityBtn_Loaded"/>
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Button Style="{DynamicResource StoneButton}"
+                                                            FontSize="10" Padding="4,1" Margin="2,0,0,0"
+                                                            Command="{Binding DataContext.ToggleFriendVisibilityCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"
+                                                            Click="FriendVisibility_Click"
+                                                            Loaded="FriendVisibilityBtn_Loaded"
+                                                            ToolTip="Afficher/masquer sur la carte"/>
+                                                    <Button Content="✕" Style="{DynamicResource StoneButton}"
+                                                            FontSize="10" Padding="4,1" Foreground="OrangeRed" Margin="2,0,0,0"
+                                                            Command="{Binding DataContext.RemoveFriendCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                            CommandParameter="{Binding}"
+                                                            ToolTip="Supprimer cet ami"/>
+                                                </StackPanel>
                                                 <StackPanel VerticalAlignment="Center">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <Ellipse Width="7" Height="7" Margin="0,0,4,0" VerticalAlignment="Center"
-                                                                 Fill="{Binding IsOnline, Converter={StaticResource BoolToOnlineBrush}}"/>
-                                                        <TextBlock Text="{Binding Name}" FontSize="10" FontWeight="SemiBold"
+                                                        <Ellipse Width="8" Height="8" Margin="0,0,5,0" VerticalAlignment="Center"
+                                                                 Fill="{Binding IsOnline, Converter={StaticResource BoolToOnlineBrush}}"
+                                                                 ToolTip="{Binding IsOnline, Converter={StaticResource BoolToOnlineTooltip}}"/>
+                                                        <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"
                                                                    Foreground="CornflowerBlue"/>
                                                     </StackPanel>
                                                     <TextBlock Text="{Binding Guid}" FontSize="7" Foreground="{DynamicResource SubtextBrush}"
-                                                               TextTrimming="CharacterEllipsis"/>
+                                                               TextTrimming="CharacterEllipsis" Opacity="0.7" Margin="13,1,0,0"/>
                                                 </StackPanel>
                                             </DockPanel>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+
+                            <!-- Ajouter un ami -->
+                            <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,4,0,6"/>
+                            <TextBlock Text="➕ Ajouter un ami" FontSize="10" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Nom :" FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
+                            <TextBox FontSize="9" Padding="3,2" Margin="0,0,0,4"
+                                     Text="{Binding FriendNameInput, UpdateSourceTrigger=PropertyChanged}"
+                                     Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                            <TextBlock Text="Guid :" FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
+                            <DockPanel Margin="0,0,0,4">
+                                <Button DockPanel.Dock="Right" Content="+" Style="{DynamicResource StoneButton}"
+                                        FontSize="11" Padding="8,2" Margin="4,0,0,0"
+                                        Command="{Binding AddFriendCommand}" ToolTip="Ajouter"/>
+                                <TextBox FontSize="9" Padding="3,2"
+                                         Text="{Binding FriendGuidInput, UpdateSourceTrigger=PropertyChanged}"
+                                         Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
+                                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+                            </DockPanel>
                         </StackPanel>
                     </Expander>
 

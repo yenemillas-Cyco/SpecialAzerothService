@@ -68,7 +68,6 @@ public partial class CartoViewModel : ObservableObject
         _cooldownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _cooldownTimer.Tick += (_, _) =>
         {
-            ApplyFilters();
             OnPropertyChanged(nameof(Timers));
             CheckTimerAlerts();
             CheckCooldownNotifications();
@@ -674,9 +673,21 @@ public partial class CartoViewModel : ObservableObject
     [ObservableProperty]
     private ObservableCollection<FriendEntry> _friends = [];
 
+    public string FriendsSummary
+    {
+        get
+        {
+            var total = _syncService.Friends.Count;
+            if (total == 0) return "👥 Aucun ami";
+            var online = _syncService.Friends.Count(f => f.IsOnline);
+            return $"👥 Amis — {online} en ligne / {total}";
+        }
+    }
+
     private void RefreshFriends()
     {
         Friends = new ObservableCollection<FriendEntry>(_syncService.Friends);
+        OnPropertyChanged(nameof(FriendsSummary));
     }
 
     private void SaveSettings()

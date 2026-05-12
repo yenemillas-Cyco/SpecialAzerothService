@@ -8,6 +8,18 @@ public class SubscriptionStore
     private readonly ConcurrentDictionary<string, string> _dataCache = new();
     private readonly ConcurrentDictionary<string, string> _userNames = new();
     private readonly ConcurrentDictionary<string, HashSet<string>> _connections = new();
+    private readonly string _dataDir;
+    private readonly ILogger<SubscriptionStore> _log;
+
+    public SubscriptionStore(ILogger<SubscriptionStore> log)
+    {
+        _log = log;
+        _dataDir = Path.Combine(
+            Environment.GetEnvironmentVariable("DATA_DIR") ?? "/data",
+            "carto-cache");
+        Directory.CreateDirectory(_dataDir);
+        LoadAllFromDisk();
+    }
 
     public void AddSubscription(string userGuid, string friendGuid)
     {
@@ -28,7 +40,11 @@ public class SubscriptionStore
         return [];
     }
 
-    public void CacheData(string userGuid, string json) => _dataCache[userGuid] = json;
+    public void CacheData(string userGuid, string json)
+    {
+        _dataCache[userGuid] = json;
+        SaveToDisk(userGuid, json);
+    }
 
     public string? GetCachedData(string userGuid)
         => _dataCache.TryGetValue(userGuid, out var d) ? d : null;
@@ -71,4 +87,35 @@ public class SubscriptionStore
     {
         lock (kv.Value) { return kv.Value.Count > 0; }
     });
+
+    private void SaveToDisk(string userGuid, string json)
+    {
+        try
+        {
+            var path = Path.Combine(_dataDir, $"{userGuid}.json");
+            File.WriteAllText(path, json);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Failed to persist cache for {Guid}", userGuid[..8]);
+        }
+    }
+
+    private void LoadAllFromDisk()
+    {
+        try
+        {
+            foreach (var file in Directory.GetFiles(_dataDir, "*.json"))
+            {
+                var guid = Path.GetFileNameWithoutExtension(file);
+                var json = File.ReadAllText(file);
+                _dataCache[guid] = json;
+            }
+            _log.LogInformation("Loaded {Count} cached entries from disk", _dataCache.Count);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Failed to load cache from disk");
+        }
+    }
 }
