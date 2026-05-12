@@ -127,9 +127,9 @@ public partial class App : Application
             Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"{batPath}\"") { CreateNoWindow = true, UseShellExecute = true });
             Current.Shutdown();
         }
-        catch
+        catch (Exception ex)
         {
-            // Pas d'internet ou erreur → on ignore silencieusement
+            Log.Warning(ex, "Auto-update check failed");
         }
     }
 
