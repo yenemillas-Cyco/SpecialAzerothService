@@ -25,7 +25,7 @@ public class SyncService : IDisposable
     public bool IsConnected => _connected;
     public string UserGuid => _settings.UserGuid;
     public string UserDisplayName => _settings.UserDisplayName;
-    public List<string> FriendGuids => _settings.FriendGuids;
+    public List<FriendEntry> Friends => _settings.Friends;
 
     public SyncService(AppSettings settings, ILogger logger)
     {
@@ -113,14 +113,14 @@ public class SyncService : IDisposable
     {
         if (_hub == null) return;
         await _hub.InvokeAsync("Connect", _settings.UserGuid, _settings.UserDisplayName);
-        foreach (var friendGuid in _settings.FriendGuids)
-            await _hub.InvokeAsync("Subscribe", _settings.UserGuid, friendGuid);
+        foreach (var f in _settings.Friends)
+            await _hub.InvokeAsync("Subscribe", _settings.UserGuid, f.Guid);
     }
 
-    public async Task SubscribeToFriend(string friendGuid)
+    public async Task SubscribeToFriend(string friendGuid, string friendName)
     {
-        if (!_settings.FriendGuids.Contains(friendGuid))
-            _settings.FriendGuids.Add(friendGuid);
+        if (_settings.Friends.All(f => f.Guid != friendGuid))
+            _settings.Friends.Add(new FriendEntry { Guid = friendGuid, Name = friendName });
 
         if (_hub?.State == HubConnectionState.Connected)
             await _hub.InvokeAsync("Subscribe", _settings.UserGuid, friendGuid);
@@ -128,10 +128,12 @@ public class SyncService : IDisposable
 
     public async Task UnsubscribeFromFriend(string friendGuid)
     {
-        _settings.FriendGuids.Remove(friendGuid);
+        _settings.Friends.RemoveAll(f => f.Guid == friendGuid);
         if (_hub?.State == HubConnectionState.Connected)
             await _hub.InvokeAsync("Unsubscribe", _settings.UserGuid, friendGuid);
     }
+
+    public FriendEntry? GetFriend(string guid) => _settings.Friends.FirstOrDefault(f => f.Guid == guid);
 
     public async Task PushUpdateAsync(CartoData data)
     {

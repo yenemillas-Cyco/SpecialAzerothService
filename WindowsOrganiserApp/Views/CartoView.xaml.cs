@@ -46,8 +46,13 @@ public partial class CartoView : UserControl
         };
         Loaded += (_, _) =>
         {
-            MapImage.SizeChanged += (_, _) => RedrawAll();
+            MapImage.SizeChanged += (_, _) =>
+            {
+                MigrateIfNeeded();
+                RedrawAll();
+            };
             MapBorder.SizeChanged += (_, _) => CenterMapIfNeeded();
+            MigrateIfNeeded();
             RedrawAll();
             CenterMapIfNeeded();
         };
@@ -55,6 +60,15 @@ public partial class CartoView : UserControl
 
     private double MapWidth => MapImage.ActualWidth > 0 ? MapImage.ActualWidth : 1024;
     private double MapHeight => MapImage.ActualHeight > 0 ? MapImage.ActualHeight : 768;
+
+    private bool _migrated;
+    private void MigrateIfNeeded()
+    {
+        if (_migrated || Vm == null || MapImage.ActualWidth <= 0) return;
+        if (Vm.NeedsMigration)
+            Vm.MigrateCoordinates(MapImage.ActualWidth, MapImage.ActualHeight);
+        _migrated = true;
+    }
 
     private bool _mapCentered;
     private WowCharacter? _draggingCharacter;
@@ -117,15 +131,22 @@ public partial class CartoView : UserControl
                 Tag = ch
             };
 
-            Canvas.SetLeft(marker, ch.MapX - size / 2);
-            Canvas.SetTop(marker, ch.MapY - size / 2);
+            var pixX = ch.MapX * MapImage.ActualWidth;
+            var pixY = ch.MapY * MapImage.ActualHeight;
+
+            Canvas.SetLeft(marker, pixX - size / 2);
+            Canvas.SetTop(marker, pixY - size / 2);
             MapCanvas.Children.Add(marker);
 
-            // Name label above the point
             var accountName = Vm.Accounts.FirstOrDefault(a => a.Id == ch.AccountId)?.Name;
-            var labelText = ch.IsExternal
-                ? $"[{ch.ExternalSource}] {ch.Name}"
-                : (accountName != null ? $"{ch.Name} ({accountName})" : ch.Name);
+            string labelText;
+            if (ch.IsExternal && ch.ExternalSource != null)
+            {
+                var friendName = Vm.GetFriendName(ch.ExternalSource) ?? ch.ExternalSource[..Math.Min(8, ch.ExternalSource.Length)];
+                labelText = $"[{friendName}] {ch.Name}";
+            }
+            else
+                labelText = accountName != null ? $"{ch.Name} ({accountName})" : ch.Name;
             var label = new Border
             {
                 Tag = "marker",
@@ -141,8 +162,8 @@ public partial class CartoView : UserControl
                 CornerRadius = new CornerRadius(2),
                 Padding = new Thickness(3, 1, 3, 1)
             };
-            Canvas.SetLeft(label, ch.MapX - 20);
-            Canvas.SetTop(label, ch.MapY - size / 2 - 16);
+            Canvas.SetLeft(label, pixX - 20);
+            Canvas.SetTop(label, pixY - size / 2 - 16);
             MapCanvas.Children.Add(label);
         }
     }
@@ -173,8 +194,10 @@ public partial class CartoView : UserControl
                 StrokeDashArray = new DoubleCollection([2, 1]),
                 Tag = t, Cursor = Cursors.SizeAll, Opacity = 0.9
             };
-            Canvas.SetLeft(ring, t.MapX - 11);
-            Canvas.SetTop(ring, t.MapY - 11);
+            var tPixX = t.MapX * MapImage.ActualWidth;
+            var tPixY = t.MapY * MapImage.ActualHeight;
+            Canvas.SetLeft(ring, tPixX - 11);
+            Canvas.SetTop(ring, tPixY - 11);
             MapCanvas.Children.Add(ring);
 
             // Label + countdown
@@ -229,8 +252,8 @@ public partial class CartoView : UserControl
                 CornerRadius = new CornerRadius(3),
                 Padding = new Thickness(5, 2, 5, 2)
             };
-            Canvas.SetLeft(timerLabel, t.MapX - 30);
-            Canvas.SetTop(timerLabel, t.MapY + 13);
+            Canvas.SetLeft(timerLabel, tPixX - 30);
+            Canvas.SetTop(timerLabel, tPixY + 13);
             MapCanvas.Children.Add(timerLabel);
         }
     }
@@ -270,7 +293,7 @@ public partial class CartoView : UserControl
         if (Vm.IsPlacingTimer)
         {
             var pos = e.GetPosition(MapImage);
-            Vm.PlaceTimerAt(pos.X, pos.Y);
+            Vm.PlaceTimerAt(pos.X / MapImage.ActualWidth, pos.Y / MapImage.ActualHeight);
             RedrawAll();
             e.Handled = true;
             return;
@@ -279,7 +302,7 @@ public partial class CartoView : UserControl
         if (Vm.IsPlacingCharacter)
         {
             var pos = e.GetPosition(MapImage);
-            Vm.PlaceCharacterAt(pos.X, pos.Y);
+            Vm.PlaceCharacterAt(pos.X / MapImage.ActualWidth, pos.Y / MapImage.ActualHeight);
             RedrawAll();
             e.Handled = true;
             return;
@@ -348,8 +371,8 @@ public partial class CartoView : UserControl
             if (_isDragging)
             {
                 var mapPos = e.GetPosition(MapImage);
-                _draggingCharacter.MapX = Math.Clamp(mapPos.X, 0, MapWidth);
-                _draggingCharacter.MapY = Math.Clamp(mapPos.Y, 0, MapHeight);
+                _draggingCharacter.MapX = Math.Clamp(mapPos.X / MapWidth, 0, 1);
+                _draggingCharacter.MapY = Math.Clamp(mapPos.Y / MapHeight, 0, 1);
                 RedrawMarkers();
             }
             return;
@@ -365,8 +388,8 @@ public partial class CartoView : UserControl
             if (_isDragging)
             {
                 var mapPos = e.GetPosition(MapImage);
-                _draggingTimer.MapX = Math.Clamp(mapPos.X, 0, MapWidth);
-                _draggingTimer.MapY = Math.Clamp(mapPos.Y, 0, MapHeight);
+                _draggingTimer.MapX = Math.Clamp(mapPos.X / MapWidth, 0, 1);
+                _draggingTimer.MapY = Math.Clamp(mapPos.Y / MapHeight, 0, 1);
                 RedrawTimerMarkers();
             }
             return;
@@ -459,21 +482,26 @@ public partial class CartoView : UserControl
             CharTreeView.Items.Add(parentItem);
         }
 
-        var externals = Vm.Characters.Where(c => c.IsExternal).ToList();
+        var externals = Vm.FilteredCharacters.Where(c => c.IsExternal).ToList();
         if (externals.Count > 0)
         {
-            var extItem = new TreeViewItem
+            var byFriend = externals.GroupBy(c => c.ExternalSource ?? "?");
+            foreach (var friendGroup in byFriend)
             {
-                Header = $"🌐 Importés ({externals.Count})",
-                IsExpanded = false,
-                Foreground = Brushes.CornflowerBlue,
-                FontSize = 11,
-                FontWeight = FontWeights.SemiBold
-            };
-            foreach (var ch in externals.OrderBy(c => c.ExternalSource).ThenByDescending(c => c.Level))
-                extItem.Items.Add(BuildCharTreeItem(ch, true));
-
-            CharTreeView.Items.Add(extItem);
+                var friendName = Vm.GetFriendName(friendGroup.Key)
+                    ?? friendGroup.Key[..Math.Min(8, friendGroup.Key.Length)];
+                var friendItem = new TreeViewItem
+                {
+                    Header = $"🌐 {friendName} ({friendGroup.Count()})",
+                    IsExpanded = false,
+                    Foreground = Brushes.CornflowerBlue,
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold
+                };
+                foreach (var ch in friendGroup.OrderByDescending(c => c.Level))
+                    friendItem.Items.Add(BuildCharTreeItem(ch, true));
+                CharTreeView.Items.Add(friendItem);
+            }
         }
     }
 
@@ -491,8 +519,12 @@ public partial class CartoView : UserControl
             VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0)
         });
 
-        // Name
-        var prefix = isExternal ? $"[{ch.ExternalSource}] " : "";
+        var prefix = "";
+        if (isExternal && ch.ExternalSource != null)
+        {
+            var fn = Vm.GetFriendName(ch.ExternalSource) ?? ch.ExternalSource[..Math.Min(8, ch.ExternalSource.Length)];
+            prefix = $"[{fn}] ";
+        }
         panel.Children.Add(new TextBlock
         {
             Text = $"{prefix}{ch.Name}", FontSize = 10,
@@ -651,6 +683,18 @@ public partial class CartoView : UserControl
     private void CopyMyGuid_Click(object sender, RoutedEventArgs e)
     {
         try { System.Windows.Clipboard.SetText(Vm.MyGuid); } catch { }
+    }
+
+    private void FriendVisibilityBtn_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is Models.Carto.FriendEntry friend)
+            btn.Content = friend.IsVisible ? "👁" : "🚫";
+    }
+
+    private void FriendVisibility_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is Models.Carto.FriendEntry friend)
+            btn.Content = friend.IsVisible ? "👁" : "🚫";
     }
 
     private void AddAccount_Click(object sender, RoutedEventArgs e) => DoAddAccount();

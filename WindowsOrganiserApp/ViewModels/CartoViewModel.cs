@@ -175,7 +175,11 @@ public partial class CartoViewModel : ObservableObject
 
     private void ApplyFilters()
     {
-        var filtered = Characters.AsEnumerable();
+        var hiddenFriends = _syncService.Friends
+            .Where(f => !f.IsVisible).Select(f => f.Guid).ToHashSet();
+
+        var filtered = Characters.AsEnumerable()
+            .Where(c => !c.IsExternal || (c.ExternalSource != null && !hiddenFriends.Contains(c.ExternalSource)));
 
         if (FilterClass.HasValue)
             filtered = filtered.Where(c => c.Class == FilterClass.Value);
@@ -543,6 +547,32 @@ public partial class CartoViewModel : ObservableObject
         }
     }
 
+    public bool NeedsMigration =>
+        Characters.Any(c => c.MapX > 1 || c.MapY > 1) ||
+        Timers.Any(t => t.MapX > 1 || t.MapY > 1);
+
+    public void MigrateCoordinates(double imageWidth, double imageHeight)
+    {
+        if (imageWidth <= 0 || imageHeight <= 0) return;
+        foreach (var ch in Characters)
+        {
+            if (ch.MapX > 1 || ch.MapY > 1)
+            {
+                ch.MapX /= imageWidth;
+                ch.MapY /= imageHeight;
+            }
+        }
+        foreach (var t in Timers)
+        {
+            if (t.MapX > 1 || t.MapY > 1)
+            {
+                t.MapX /= imageWidth;
+                t.MapY /= imageHeight;
+            }
+        }
+        Save();
+    }
+
     public void Save()
     {
         _data.Accounts = [.. Accounts];
@@ -562,6 +592,9 @@ public partial class CartoViewModel : ObservableObject
     [ObservableProperty]
     private string _friendGuidInput = string.Empty;
 
+    [ObservableProperty]
+    private string _friendNameInput = string.Empty;
+
     public string MyGuid => _syncService.UserGuid;
 
     [RelayCommand]
@@ -575,25 +608,48 @@ public partial class CartoViewModel : ObservableObject
     private async Task AddFriend()
     {
         var guid = FriendGuidInput.Trim();
+        var name = string.IsNullOrWhiteSpace(FriendNameInput) ? guid[..8] : FriendNameInput.Trim();
         if (string.IsNullOrWhiteSpace(guid) || guid == MyGuid) return;
-        await _syncService.SubscribeToFriend(guid);
+        await _syncService.SubscribeToFriend(guid, name);
         FriendGuidInput = string.Empty;
-        OnPropertyChanged(nameof(FriendGuids));
+        FriendNameInput = string.Empty;
+        OnPropertyChanged(nameof(Friends));
     }
 
     [RelayCommand]
-    private async Task RemoveFriend(string guid)
+    private async Task RemoveFriend(FriendEntry friend)
     {
-        await _syncService.UnsubscribeFromFriend(guid);
-        OnPropertyChanged(nameof(FriendGuids));
+        var toRemove = Characters.Where(c => c.IsExternal && c.ExternalSource == friend.Guid).ToList();
+        foreach (var ch in toRemove) Characters.Remove(ch);
+        await _syncService.UnsubscribeFromFriend(friend.Guid);
+        OnPropertyChanged(nameof(Friends));
+        ApplyFilters();
+        Save();
     }
 
-    public List<string> FriendGuids => _syncService.FriendGuids;
+    [RelayCommand]
+    private void ToggleFriendVisibility(FriendEntry friend)
+    {
+        friend.IsVisible = !friend.IsVisible;
+        OnPropertyChanged(nameof(Friends));
+        ApplyFilters();
+    }
+
+    public List<FriendEntry> Friends => _syncService.Friends;
+
+    public string? GetFriendName(string guid) => _syncService.GetFriend(guid)?.Name;
 
     private void OnFriendDataReceived(string friendGuid, string friendName, SyncPayload payload)
     {
         System.Windows.Application.Current?.Dispatcher.Invoke(() =>
         {
+            var friend = _syncService.GetFriend(friendGuid);
+            if (friend != null && !string.IsNullOrEmpty(friendName))
+            {
+                friend.Name = friendName;
+                OnPropertyChanged(nameof(Friends));
+            }
+
             var toRemove = Characters.Where(c => c.IsExternal && c.ExternalSource == friendGuid).ToList();
             foreach (var ch in toRemove) Characters.Remove(ch);
 
