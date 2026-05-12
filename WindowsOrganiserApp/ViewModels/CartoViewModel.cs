@@ -647,11 +647,8 @@ public partial class CartoViewModel : ObservableObject
         System.Windows.Application.Current?.Dispatcher.Invoke(() =>
         {
             var friend = _syncService.GetFriend(friendGuid);
-            if (friend != null && !string.IsNullOrEmpty(friendName))
-            {
-                friend.Name = friendName;
+            if (friend != null)
                 RefreshFriends();
-            }
 
             var toRemove = Characters.Where(c => c.IsExternal && c.ExternalSource == friendGuid).ToList();
             foreach (var ch in toRemove) Characters.Remove(ch);
