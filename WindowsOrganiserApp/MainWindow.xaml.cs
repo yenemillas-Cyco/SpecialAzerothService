@@ -6,6 +6,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using WindowsOrganiserApp.Models;
 using WindowsOrganiserApp.Services;
+using WindowsOrganiserApp.Models.Carto;
 using WindowsOrganiserApp.ViewModels;
 
 namespace WindowsOrganiserApp;
@@ -57,7 +58,7 @@ public partial class MainWindow : Window
                 {
                     var (character, cooldown) = args;
                     MessageBox.Show(
-                        $"⏱ {character.Name} — {cooldown.Type} est prêt !",
+                        $"⏱ {character.Name} — {cooldown.Type.DisplayName()} est prêt !",
                         "Cooldown prêt",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);

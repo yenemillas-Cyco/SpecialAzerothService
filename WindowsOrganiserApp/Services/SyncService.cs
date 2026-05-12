@@ -1,0 +1,185 @@
+using System.Net.Http;
+using System.Text.Json;
+using Microsoft.AspNetCore.SignalR.Client;
+using Serilog;
+using WindowsOrganiserApp.Models;
+using WindowsOrganiserApp.Models.Carto;
+
+namespace WindowsOrganiserApp.Services;
+
+public class SyncService : IDisposable
+{
+    private HubConnection? _hub;
+    private readonly AppSettings _settings;
+    private readonly ILogger _log;
+    private bool _connected;
+
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    public event Action<string, string, SyncPayload>? FriendDataReceived;
+    public event Action<string>? ConnectionStateChanged;
+
+    public bool IsConnected => _connected;
+    public string UserGuid => _settings.UserGuid;
+    public string UserDisplayName => _settings.UserDisplayName;
+    public List<string> FriendGuids => _settings.FriendGuids;
+
+    public SyncService(AppSettings settings, ILogger logger)
+    {
+        _settings = settings;
+        _log = logger;
+    }
+
+    public async Task ConnectAsync()
+    {
+        if (_hub is { State: HubConnectionState.Connected })
+        {
+            ConnectionStateChanged?.Invoke("Déjà connecté");
+            return;
+        }
+
+        if (_hub != null)
+        {
+            try { await _hub.DisposeAsync(); } catch { }
+            _hub = null;
+        }
+
+        _log.Information("Sync: connecting to {Url}", _settings.SyncServerUrl);
+        ConnectionStateChanged?.Invoke("Connexion...");
+
+        try
+        {
+            _hub = new HubConnectionBuilder()
+                .WithUrl(_settings.SyncServerUrl, opts =>
+                {
+                    opts.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling
+                                    | Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents;
+                    opts.HttpMessageHandlerFactory = innerHandler =>
+                    {
+                        if (innerHandler is HttpClientHandler h)
+                        {
+                            h.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+                            h.DefaultProxyCredentials = System.Net.CredentialCache.DefaultCredentials;
+                            h.UseProxy = true;
+                        }
+                        return innerHandler;
+                    };
+                })
+                .WithAutomaticReconnect([
+                    TimeSpan.FromSeconds(1),
+                    TimeSpan.FromSeconds(5),
+                    TimeSpan.FromSeconds(15),
+                    TimeSpan.FromSeconds(30)
+                ])
+                .Build();
+
+            _hub.On<string, string, string>("ReceiveUpdate", OnReceiveUpdate);
+
+            _hub.Reconnected += async _ =>
+            {
+                _connected = true;
+                ConnectionStateChanged?.Invoke("Connecté");
+                await RegisterAndSubscribe();
+            };
+
+            _hub.Closed += _ =>
+            {
+                _connected = false;
+                ConnectionStateChanged?.Invoke("Déconnecté");
+                return Task.CompletedTask;
+            };
+
+            await _hub.StartAsync();
+            _connected = true;
+            ConnectionStateChanged?.Invoke("Connecté");
+
+            await RegisterAndSubscribe();
+            _log.Information("Sync: connected OK");
+        }
+        catch (Exception ex)
+        {
+            _connected = false;
+            _hub = null;
+            var msg = $"Erreur: {ex.Message}";
+            ConnectionStateChanged?.Invoke(msg);
+            _log.Warning(ex, "Sync: failed to connect");
+        }
+    }
+
+    private async Task RegisterAndSubscribe()
+    {
+        if (_hub == null) return;
+        await _hub.InvokeAsync("Connect", _settings.UserGuid, _settings.UserDisplayName);
+        foreach (var friendGuid in _settings.FriendGuids)
+            await _hub.InvokeAsync("Subscribe", _settings.UserGuid, friendGuid);
+    }
+
+    public async Task SubscribeToFriend(string friendGuid)
+    {
+        if (!_settings.FriendGuids.Contains(friendGuid))
+            _settings.FriendGuids.Add(friendGuid);
+
+        if (_hub?.State == HubConnectionState.Connected)
+            await _hub.InvokeAsync("Subscribe", _settings.UserGuid, friendGuid);
+    }
+
+    public async Task UnsubscribeFromFriend(string friendGuid)
+    {
+        _settings.FriendGuids.Remove(friendGuid);
+        if (_hub?.State == HubConnectionState.Connected)
+            await _hub.InvokeAsync("Unsubscribe", _settings.UserGuid, friendGuid);
+    }
+
+    public async Task PushUpdateAsync(CartoData data)
+    {
+        if (_hub?.State != HubConnectionState.Connected) return;
+
+        try
+        {
+            var payload = new SyncPayload
+            {
+                Accounts = data.Accounts,
+                Characters = data.Characters.Where(c => !c.IsExternal).ToList()
+            };
+            var json = JsonSerializer.Serialize(payload, JsonOpts);
+            await _hub.InvokeAsync("PushUpdate", _settings.UserGuid, _settings.UserDisplayName, json);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "Sync: push failed");
+        }
+    }
+
+    private void OnReceiveUpdate(string friendGuid, string friendName, string json)
+    {
+        try
+        {
+            var payload = JsonSerializer.Deserialize<SyncPayload>(json, JsonOpts);
+            if (payload != null)
+                FriendDataReceived?.Invoke(friendGuid, friendName, payload);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "Sync: failed to deserialize from {Friend}", friendGuid[..8]);
+        }
+    }
+
+    public async Task DisconnectAsync()
+    {
+        if (_hub != null)
+        {
+            try { await _hub.DisposeAsync(); } catch { }
+            _hub = null;
+            _connected = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        DisconnectAsync().GetAwaiter().GetResult();
+        GC.SuppressFinalize(this);
+    }
+}

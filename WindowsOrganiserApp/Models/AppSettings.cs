@@ -9,6 +9,11 @@ public sealed class AppSettings
     public string Theme { get; set; } = "Classic";
     public string Language { get; set; } = "Français";
 
+    public string UserGuid { get; set; } = Guid.NewGuid().ToString();
+    public string UserDisplayName { get; set; } = Environment.UserName;
+    public string SyncServerUrl { get; set; } = "https://carto-sync-server.fly.dev/carto";
+    public List<string> FriendGuids { get; set; } = [];
+
     public List<MonitorConfigSettings> MonitorConfigs { get; set; } = [];
     public List<WindowSettings> Windows { get; set; } = [];
 }

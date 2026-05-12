@@ -40,6 +40,11 @@ public partial class App : Application
         services.AddSingleton<IPresetService, PresetService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
         services.AddSingleton<ICartoService, CartoService>();
+        services.AddSingleton(sp =>
+        {
+            var settings = sp.GetRequiredService<ISettingsService>().Load();
+            return new SyncService(settings, sp.GetRequiredService<ILogger>());
+        });
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<AdvancedViewModel>();
         services.AddSingleton<CartoViewModel>();

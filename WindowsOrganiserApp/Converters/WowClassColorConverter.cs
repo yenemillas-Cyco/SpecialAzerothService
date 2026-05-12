@@ -78,12 +78,17 @@ public class ListSummaryConverter : IValueConverter
                 string.Join(", ", cds.Select(c =>
                 {
                     var name = CdShortName(c.Type);
+                    if (c.LastUsed == null) return $"{name}:—";
                     if (c.IsReady) return $"{name}:✅";
                     var r = c.TimeRemaining;
                     if (r == null) return $"{name}:—";
-                    var txt = r.Value.TotalHours >= 1
-                        ? $"{(int)r.Value.TotalHours}h{r.Value.Minutes:D2}"
-                        : $"{r.Value.Minutes}m";
+                    string txt;
+                    if (r.Value.TotalHours >= 1)
+                        txt = $"{(int)r.Value.TotalHours}h{r.Value.Minutes:D2}";
+                    else if (r.Value.TotalSeconds < 60)
+                        txt = $"{r.Value.Seconds}s";
+                    else
+                        txt = $"{(int)r.Value.TotalMinutes}m{r.Value.Seconds:D2}s";
                     return $"{name}:{txt}";
                 })),
             "qi" when value is List<QuestItemEntry> qis =>
@@ -102,11 +107,20 @@ public class ListSummaryConverter : IValueConverter
     private static string CdShortName(CooldownType t) => t switch
     {
         CooldownType.Arcanite => "Arcanite",
-        CooldownType.Transmute_Elementaire => "Elem",
-        CooldownType.Mooncloth => "Moon",
+        CooldownType.Transmute_Elementaire => "Élem",
+        CooldownType.Mooncloth => "Lunaire",
         CooldownType.Sel_raffine => "Sel",
         _ => t.ToString()
     };
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+public class CharacterStatusConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is CharacterStatus s ? s.DisplayName() : "";
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();

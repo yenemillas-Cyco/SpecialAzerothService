@@ -47,9 +47,9 @@ public static class CooldownTypeExtensions
 {
     public static string DisplayName(this CooldownType type) => type switch
     {
-        CooldownType.Arcanite => "Transmute: Arcanite (48h)",
-        CooldownType.Transmute_Elementaire => "Transmute élémentaire (24h)",
-        CooldownType.Mooncloth => "Mooncloth (4j)",
+        CooldownType.Arcanite => "Transmutation: Arcanite (48h)",
+        CooldownType.Transmute_Elementaire => "Transmutation élémentaire (24h)",
+        CooldownType.Mooncloth => "Étoffe lunaire (4j)",
         CooldownType.Sel_raffine => "Sel raffiné (3j)",
         _ => type.ToString()
     };

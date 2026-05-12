@@ -14,12 +14,14 @@ namespace WindowsOrganiserApp.ViewModels;
 public partial class CartoViewModel : ObservableObject
 {
     private readonly ICartoService _cartoService;
+    private readonly SyncService _syncService;
     private readonly DispatcherTimer _cooldownTimer;
     private CartoData _data;
 
-    public CartoViewModel(ICartoService cartoService)
+    public CartoViewModel(ICartoService cartoService, SyncService syncService)
     {
         _cartoService = cartoService;
+        _syncService = syncService;
         _data = _cartoService.Load();
 
         Accounts = new ObservableCollection<WowAccount>(_data.Accounts);
@@ -27,10 +29,14 @@ public partial class CartoViewModel : ObservableObject
         Timers = new ObservableCollection<MapTimer>(_data.Timers);
         AccountIdToNameConverter.Accounts = _data.Accounts;
 
+        _syncService.FriendDataReceived += OnFriendDataReceived;
+        _syncService.ConnectionStateChanged += s =>
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => SyncStatus = s);
+
         _cooldownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _cooldownTimer.Tick += (_, _) =>
         {
-            OnPropertyChanged(nameof(FilteredCharacters));
+            ApplyFilters();
             OnPropertyChanged(nameof(Timers));
             CheckTimerAlerts();
             CheckCooldownNotifications();
@@ -89,6 +95,9 @@ public partial class CartoViewModel : ObservableObject
     private string? _newCharAccountId;
 
     [ObservableProperty]
+    private CharacterStatus _newCharStatus = CharacterStatus.Reroll;
+
+    [ObservableProperty]
     private bool _isPlacingCharacter;
 
     [ObservableProperty]
@@ -136,11 +145,15 @@ public partial class CartoViewModel : ObservableObject
 
     public object? OverlayChanged => null;
 
+    [ObservableProperty]
+    private CharacterStatus? _filterStatus;
+
     partial void OnFilterClassChanged(WowClass? value) => ApplyFilters();
     partial void OnFilterLevelMinChanged(int? value) => ApplyFilters();
     partial void OnFilterLevelMaxChanged(int? value) => ApplyFilters();
     partial void OnFilterAccountIdChanged(string? value) => ApplyFilters();
     partial void OnFilterNameChanged(string value) => ApplyFilters();
+    partial void OnFilterStatusChanged(CharacterStatus? value) => ApplyFilters();
 
     partial void OnSelectedCharacterChanged(WowCharacter? value)
     {
@@ -148,6 +161,8 @@ public partial class CartoViewModel : ObservableObject
     }
 
     public Array WowClasses => Enum.GetValues(typeof(WowClass));
+    public CharacterStatus[] CharacterStatusValues { get; } = Enum.GetValues(typeof(CharacterStatus))
+        .Cast<CharacterStatus>().ToArray();
     public ProfessionType[] ProfessionTypes => Enum.GetValues(typeof(ProfessionType))
         .Cast<ProfessionType>()
         .Where(p => p is not (ProfessionType.Peche or ProfessionType.Cuisine or ProfessionType.Secourisme))
@@ -176,6 +191,9 @@ public partial class CartoViewModel : ObservableObject
 
         if (!string.IsNullOrEmpty(FilterName))
             filtered = filtered.Where(c => c.Name.Contains(FilterName, StringComparison.OrdinalIgnoreCase));
+
+        if (FilterStatus.HasValue)
+            filtered = filtered.Where(c => c.Status == FilterStatus.Value);
 
         FilteredCharacters = new ObservableCollection<WowCharacter>(filtered);
     }
@@ -221,6 +239,7 @@ public partial class CartoViewModel : ObservableObject
                 Class = NewCharClass,
                 Level = NewCharLevel,
                 AccountId = NewCharAccountId,
+                Status = NewCharStatus,
                 MapX = mapX,
                 MapY = mapY
             };
@@ -364,6 +383,7 @@ public partial class CartoViewModel : ObservableObject
         FilterLevelMax = null;
         FilterAccountId = null;
         FilterName = string.Empty;
+        FilterStatus = null;
     }
 
     private void CheckCooldownNotifications()
@@ -372,11 +392,10 @@ public partial class CartoViewModel : ObservableObject
         {
             foreach (var cd in character.Cooldowns)
             {
-                if (cd.LastUsed != null && cd.IsReady && cd.Note != "notified")
-                {
-                    cd.Note = "notified";
+                if (cd.LastUsed == null || !cd.IsReady) continue;
+                var key = $"{character.Id}_{cd.Type}_{cd.LastUsed:O}";
+                if (_alertedCooldownKeys.Add(key))
                     CooldownReady?.Invoke(this, (character, cd));
-                }
             }
         }
     }
@@ -509,6 +528,7 @@ public partial class CartoViewModel : ObservableObject
     }
 
     private readonly HashSet<string> _alertedTimerIds = [];
+    private readonly HashSet<string> _alertedCooldownKeys = [];
 
     private void CheckTimerAlerts()
     {
@@ -531,5 +551,62 @@ public partial class CartoViewModel : ObservableObject
         AccountIdToNameConverter.Accounts = _data.Accounts;
         _cartoService.Save(_data);
         ApplyFilters();
+        _ = _syncService.PushUpdateAsync(_data);
+    }
+
+    // ─── Sync ────────────────────────────────────────────────
+
+    [ObservableProperty]
+    private string _syncStatus = "Déconnecté";
+
+    [ObservableProperty]
+    private string _friendGuidInput = string.Empty;
+
+    public string MyGuid => _syncService.UserGuid;
+
+    [RelayCommand]
+    private async Task ConnectSync()
+    {
+        SyncStatus = "Connexion...";
+        await _syncService.ConnectAsync();
+    }
+
+    [RelayCommand]
+    private async Task AddFriend()
+    {
+        var guid = FriendGuidInput.Trim();
+        if (string.IsNullOrWhiteSpace(guid) || guid == MyGuid) return;
+        await _syncService.SubscribeToFriend(guid);
+        FriendGuidInput = string.Empty;
+        OnPropertyChanged(nameof(FriendGuids));
+    }
+
+    [RelayCommand]
+    private async Task RemoveFriend(string guid)
+    {
+        await _syncService.UnsubscribeFromFriend(guid);
+        OnPropertyChanged(nameof(FriendGuids));
+    }
+
+    public List<string> FriendGuids => _syncService.FriendGuids;
+
+    private void OnFriendDataReceived(string friendGuid, string friendName, SyncPayload payload)
+    {
+        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+        {
+            var toRemove = Characters.Where(c => c.IsExternal && c.ExternalSource == friendGuid).ToList();
+            foreach (var ch in toRemove) Characters.Remove(ch);
+
+            foreach (var ch in payload.Characters)
+            {
+                ch.IsExternal = true;
+                ch.ExternalSource = friendGuid;
+                Characters.Add(ch);
+            }
+
+            _data.Characters = [.. Characters];
+            _cartoService.Save(_data);
+            ApplyFilters();
+        });
     }
 }

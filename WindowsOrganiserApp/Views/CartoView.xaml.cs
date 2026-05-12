@@ -29,10 +29,14 @@ public partial class CartoView : UserControl
                         or nameof(CartoViewModel.SelectedCharacter))
                     {
                         RedrawAll();
-                        SummaryGrid.Items.Refresh();
+                        try { SummaryGrid.Items.Refresh(); } catch { }
                     }
                     else if (e.PropertyName == nameof(CartoViewModel.Timers))
-                        RedrawAll();
+                    {
+                        RedrawTimerMarkers();
+                        UpdateTimerCountdowns();
+                        try { SummaryGrid.Items.Refresh(); } catch { }
+                    }
                     else if (e.PropertyName == nameof(CartoViewModel.OverlayChanged))
                         RedrawAll();
                 };
@@ -511,6 +515,15 @@ public partial class CartoView : UserControl
             VerticalAlignment = VerticalAlignment.Center
         });
 
+        // Status
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"  [{ch.Status.DisplayName()}]", FontSize = 8,
+            Foreground = new SolidColorBrush(Color.FromRgb(140, 140, 140)),
+            FontStyle = FontStyles.Italic,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+
         // Placed indicator
         if (ch.MapX == 0 && ch.MapY == 0)
         {
@@ -633,6 +646,11 @@ public partial class CartoView : UserControl
         t.StartedAt = null;
         Vm.Save();
         RedrawAll();
+    }
+
+    private void CopyMyGuid_Click(object sender, RoutedEventArgs e)
+    {
+        try { System.Windows.Clipboard.SetText(Vm.MyGuid); } catch { }
     }
 
     private void AddAccount_Click(object sender, RoutedEventArgs e) => DoAddAccount();
@@ -782,6 +800,27 @@ public partial class CartoView : UserControl
             { ch.AccountId = id; Vm.Save(); RedrawAll(); }
         };
         infoRow.Children.Add(accountCombo);
+
+        var statusCombo = new ComboBox
+        {
+            FontSize = 9, Height = 20, MinWidth = 70,
+            Background = bgInput, Foreground = Brushes.White,
+            BorderBrush = sectionBorder, BorderThickness = new Thickness(1),
+            Margin = new Thickness(4, 0, 0, 0)
+        };
+        foreach (var s in Enum.GetValues(typeof(CharacterStatus)).Cast<CharacterStatus>())
+        {
+            var item = new ComboBoxItem { Content = s.DisplayName(), Tag = s };
+            if (s == ch.Status) item.IsSelected = true;
+            statusCombo.Items.Add(item);
+        }
+        statusCombo.SelectionChanged += (_, _) =>
+        {
+            if (statusCombo.SelectedItem is ComboBoxItem { Tag: CharacterStatus s })
+            { ch.Status = s; Vm.Save(); RedrawAll(); }
+        };
+        infoRow.Children.Add(statusCombo);
+
         bannerStack.Children.Add(infoRow);
         banner.Child = bannerStack;
         stack.Children.Add(banner);
@@ -895,35 +934,47 @@ public partial class CartoView : UserControl
             var cdDock = new DockPanel();
             var btnDel = MakeSmallButton("✕", Brushes.IndianRed,
                 () => { ch.Cooldowns.Remove(cd); Vm.Save(); RebuildTooltipContent(ch); });
-            var btnAct = MakeSmallButton("↻", Brushes.LightSkyBlue,
-                () => { cd.LastUsed = DateTime.Now; cd.Note = null; Vm.Save(); RebuildTooltipContent(ch); });
+            var isRunning = cd.LastUsed != null && !cd.IsReady;
+            var btnAct = MakeSmallButton(isRunning ? "⏸" : "▶", isRunning ? Brushes.Gold : Brushes.LightSkyBlue,
+                () =>
+                {
+                    if (cd.LastUsed != null && !cd.IsReady)
+                        cd.LastUsed = null;
+                    else
+                        cd.LastUsed = DateTime.Now;
+                    cd.Note = null;
+                    Vm.Save();
+                    RebuildTooltipContent(ch);
+                });
             DockPanel.SetDock(btnDel, Dock.Right);
             DockPanel.SetDock(btnAct, Dock.Right);
             cdDock.Children.Add(btnDel);
             cdDock.Children.Add(btnAct);
 
-            var status = cd.IsReady ? "✅ PRÊT" : $"⏳ {FormatTimeSpan(cd.TimeRemaining)}";
+            string status;
+            Brush statusColor;
+            if (cd.LastUsed == null) { status = "—"; statusColor = Brushes.Gray; }
+            else if (cd.IsReady) { status = "✅ PRÊT"; statusColor = Brushes.LightGreen; }
+            else { status = $"▶ {FormatTimeSpan(cd.TimeRemaining)}"; statusColor = Brushes.DeepSkyBlue; }
             cdDock.Children.Add(new TextBlock
             {
                 Text = $"{cd.Type.DisplayName()}: {status}", FontSize = 10,
-                Foreground = cd.IsReady ? Brushes.LightGreen : Brushes.Orange,
-                VerticalAlignment = VerticalAlignment.Center
+                Foreground = statusColor, VerticalAlignment = VerticalAlignment.Center
             });
             cdRow.Child = cdDock;
             cdStack.Children.Add(cdRow);
         }
         var availableCds = GetAvailableCooldowns(ch);
-        var cdDisplayItems = availableCds.Select(ct => new { Value = ct, Label = ct.DisplayName() }).ToArray();
         var cdAddPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0) };
         var cdCombo = new ComboBox
         {
-            ItemsSource = cdDisplayItems, DisplayMemberPath = "Label",
-            SelectedValuePath = "Value",
             FontSize = 9, Width = 180, Height = 22,
             Background = bgInput, Foreground = Brushes.White, BorderBrush = sectionBorder
         };
+        foreach (var ct in availableCds)
+            cdCombo.Items.Add(new ComboBoxItem { Content = ct.DisplayName(), Tag = ct });
         var cdAddBtn = MakeSmallButton("+", Brushes.LightGreen,
-            () => { if (cdCombo.SelectedValue is CooldownType type && !ch.Cooldowns.Any(c => c.Type == type))
+            () => { if (cdCombo.SelectedItem is ComboBoxItem { Tag: CooldownType type } && !ch.Cooldowns.Any(c => c.Type == type))
             { ch.Cooldowns.Add(new CooldownEntry { Type = type }); Vm.Save(); RebuildTooltipContent(ch); } });
         cdAddPanel.Children.Add(cdCombo);
         cdAddPanel.Children.Add(cdAddBtn);

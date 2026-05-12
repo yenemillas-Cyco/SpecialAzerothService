@@ -1,5 +1,25 @@
 namespace WindowsOrganiserApp.Models.Carto;
 
+public enum CharacterStatus
+{
+    Main,
+    Reroll,
+    Banque,
+    TpBoy
+}
+
+public static class CharacterStatusExtensions
+{
+    public static string DisplayName(this CharacterStatus s) => s switch
+    {
+        CharacterStatus.Main => "Main",
+        CharacterStatus.Reroll => "Reroll",
+        CharacterStatus.Banque => "Banque",
+        CharacterStatus.TpBoy => "TP Boy",
+        _ => s.ToString()
+    };
+}
+
 public sealed class WowCharacter
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
@@ -7,6 +27,7 @@ public sealed class WowCharacter
     public WowClass Class { get; set; }
     public int Level { get; set; } = 1;
     public string? AccountId { get; set; }
+    public CharacterStatus Status { get; set; } = CharacterStatus.Reroll;
 
     public double MapX { get; set; }
     public double MapY { get; set; }
