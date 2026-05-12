@@ -424,24 +424,6 @@
                         </StackPanel>
                     </Expander>
 
-                    <!-- Import / Export -->
-                    <Expander IsExpanded="False" Margin="0,0,0,4">
-                        <Expander.Header>
-                            <TextBlock Text="📦 Partage (fichier)" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrightGoldBrush}"/>
-                        </Expander.Header>
-                        <StackPanel Margin="0,4,0,0">
-                            <Button Content="📤 Exporter" Style="{DynamicResource StoneButton}" FontSize="10"
-                                    Padding="6,3" HorizontalAlignment="Stretch" Margin="0,0,0,4"
-                                    Command="{Binding ExportDataCommand}"/>
-                            <Button Content="📥 Importer (ami)" Style="{DynamicResource StoneButton}" FontSize="10"
-                                    Padding="6,3" HorizontalAlignment="Stretch" Margin="0,0,0,4"
-                                    Command="{Binding ImportDataCommand}"/>
-                            <Button Content="🗑 Supprimer importés" Style="{DynamicResource StoneButton}" FontSize="10"
-                                    Padding="6,3" HorizontalAlignment="Stretch" Foreground="#FFCC6666"
-                                    Command="{Binding ClearImportedCommand}"/>
-                        </StackPanel>
-                    </Expander>
-
                     <!-- Sync online -->
                     <Expander IsExpanded="True" Margin="0,0,0,4">
                         <Expander.Header>
@@ -452,21 +434,6 @@
                             </StackPanel>
                         </Expander.Header>
                         <StackPanel Margin="0,4,0,0">
-                            <!-- Mon GUID -->
-                            <TextBlock Text="Mon identifiant :" FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
-                            <DockPanel Margin="0,0,0,6">
-                                <Button DockPanel.Dock="Right" Content="📋" Style="{DynamicResource StoneButton}"
-                                        FontSize="9" Padding="4,2" Margin="4,0,0,0" ToolTip="Copier"
-                                        Click="CopyMyGuid_Click"/>
-                                <TextBox FontSize="9" Padding="3,2" IsReadOnly="True"
-                                         Text="{Binding MyGuid, Mode=OneWay}"
-                                         Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
-                                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                            </DockPanel>
-                            <!-- Connexion -->
-                            <Button Content="🔌 Se connecter" Style="{DynamicResource StoneButton}" FontSize="10"
-                                    Padding="6,3" HorizontalAlignment="Stretch" Margin="0,0,0,8"
-                                    Command="{Binding ConnectSyncCommand}"/>
 
                             <!-- ── Mes amis ── -->
                             <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,0,0,6"/>

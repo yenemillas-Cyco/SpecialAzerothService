@@ -683,11 +683,6 @@ public partial class CartoView : UserControl
         RedrawAll();
     }
 
-    private void CopyMyGuid_Click(object sender, RoutedEventArgs e)
-    {
-        try { System.Windows.Clipboard.SetText(Vm.MyGuid); } catch { }
-    }
-
     private void FriendVisibilityBtn_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.DataContext is Models.Carto.FriendEntry friend)

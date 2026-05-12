@@ -1,10 +1,7 @@
 using System.Collections.ObjectModel;
-using System.IO;
-using System.Text.Json;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Win32;
 using WindowsOrganiserApp.Converters;
 using WindowsOrganiserApp.Models.Carto;
 using WindowsOrganiserApp.Services;
@@ -27,9 +24,18 @@ public partial class CartoViewModel : ObservableObject
         _data = _cartoService.Load();
 
         Accounts = new ObservableCollection<WowAccount>(_data.Accounts);
-        Characters = new ObservableCollection<WowCharacter>(_data.Characters);
+        var friendGuids = _syncService.Friends.Select(f => f.Guid).ToHashSet();
+        var cleanedChars = _data.Characters
+            .Where(c => !c.IsExternal || (c.ExternalSource != null && friendGuids.Contains(c.ExternalSource)))
+            .ToList();
+        Characters = new ObservableCollection<WowCharacter>(cleanedChars);
         Timers = new ObservableCollection<MapTimer>(_data.Timers);
         AccountIdToNameConverter.Accounts = _data.Accounts;
+        if (cleanedChars.Count != _data.Characters.Count)
+        {
+            _data.Characters = cleanedChars;
+            _cartoService.Save(_data);
+        }
 
         _syncService.FriendDataReceived += OnFriendDataReceived;
         _syncService.FriendOnlineChanged += (guid, online) =>
@@ -76,6 +82,7 @@ public partial class CartoViewModel : ObservableObject
 
         RefreshFriends();
         ApplyFilters();
+        _ = ConnectSync();
     }
 
     public ObservableCollection<WowAccount> Accounts { get; }
@@ -438,68 +445,6 @@ public partial class CartoViewModel : ObservableObject
 
     public event EventHandler<(WowCharacter Character, CooldownEntry Cooldown)>? CooldownReady;
 
-    [RelayCommand]
-    private void ExportData()
-    {
-        var dlg = new SaveFileDialog
-        {
-            Title = "Exporter mes données Carto",
-            Filter = "JSON|*.json",
-            FileName = "carto_export.json"
-        };
-        if (dlg.ShowDialog() != true) return;
-
-        var myChars = Characters.Where(c => !c.IsExternal).ToList();
-        var export = new CartoData { Accounts = [.. Accounts], Characters = myChars };
-        var json = JsonSerializer.Serialize(export, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-        File.WriteAllText(dlg.FileName, json);
-    }
-
-    [RelayCommand]
-    private void ImportData()
-    {
-        var dlg = new OpenFileDialog
-        {
-            Title = "Importer les données d'un ami",
-            Filter = "JSON|*.json"
-        };
-        if (dlg.ShowDialog() != true) return;
-
-        try
-        {
-            var json = File.ReadAllText(dlg.FileName);
-            var imported = JsonSerializer.Deserialize<CartoData>(json, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-            if (imported == null) return;
-
-            var sourceName = Path.GetFileNameWithoutExtension(dlg.FileName);
-
-            // Remove previously imported chars from this source
-            var toRemove = Characters.Where(c => c.IsExternal && c.ExternalSource == sourceName).ToList();
-            foreach (var ch in toRemove) Characters.Remove(ch);
-
-            // Tag and add imported characters
-            foreach (var ch in imported.Characters)
-            {
-                ch.IsExternal = true;
-                ch.ExternalSource = sourceName;
-                ch.Id = Guid.NewGuid().ToString();
-                Characters.Add(ch);
-            }
-
-            ApplyFilters();
-            Save();
-        }
-        catch { /* Invalid file — ignore */ }
-    }
-
-    [RelayCommand]
-    private void ClearImported()
-    {
-        var toRemove = Characters.Where(c => c.IsExternal).ToList();
-        foreach (var ch in toRemove) Characters.Remove(ch);
-        ApplyFilters();
-        Save();
-    }
 
     // ─── Timers ───────────────────────────────────────────────
 

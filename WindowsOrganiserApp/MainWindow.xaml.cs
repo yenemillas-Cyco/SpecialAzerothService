@@ -135,7 +135,7 @@ public partial class MainWindow : Window
         {
             Title = Str("About_WindowTitle"),
             Width = 420,
-            Height = 380,
+            Height = 480,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Owner = this,
             ResizeMode = ResizeMode.NoResize,
@@ -254,6 +254,49 @@ public partial class MainWindow : Window
         };
         linkBlock.Inlines.Add(hyperlink);
         stack.Children.Add(linkBlock);
+
+        stack.Children.Add(new Border
+        {
+            Height = 1, Background = sepBrush,
+            Margin = new Thickness(0, 0, 0, 12)
+        });
+
+        // Mon identifiant (GUID) avec bouton copier
+        stack.Children.Add(new TextBlock
+        {
+            Text = "Mon identifiant Sync :",
+            FontSize = 10, Foreground = subtext, FontWeight = FontWeights.SemiBold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 4)
+        });
+        var guidSettings = _settingsService.Load();
+        var guidBox = new TextBox
+        {
+            Text = guidSettings.UserGuid,
+            FontSize = 10, IsReadOnly = true,
+            Background = System.Windows.Media.Brushes.Transparent,
+            Foreground = text,
+            BorderThickness = new Thickness(0),
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            CaretBrush = System.Windows.Media.Brushes.White
+        };
+        stack.Children.Add(guidBox);
+        var copyGuidBtn = new Button
+        {
+            Content = "📋 Copier mon identifiant",
+            Padding = new Thickness(12, 4, 12, 4),
+            FontSize = 10, Cursor = Cursors.Hand,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 4, 0, 14),
+            Style = (Style)Application.Current.Resources["StoneButton"]
+        };
+        copyGuidBtn.Click += (_, _) =>
+        {
+            try { Clipboard.SetText(guidSettings.UserGuid); } catch { }
+            copyGuidBtn.Content = "✓ Copié !";
+        };
+        stack.Children.Add(copyGuidBtn);
 
         stack.Children.Add(new Border
         {
