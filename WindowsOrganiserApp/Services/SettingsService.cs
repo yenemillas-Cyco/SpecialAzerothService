@@ -2,6 +2,7 @@ using System.IO;
 using System.Text.Json;
 using Serilog;
 using WindowsOrganiserApp.Models;
+using WindowsOrganiserApp.Models.Carto;
 
 namespace WindowsOrganiserApp.Services;
 
@@ -40,9 +41,19 @@ public class SettingsService : ISettingsService
                 return new AppSettings();
 
             var json = File.ReadAllText(_filePath);
-            var settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOpts);
+            var settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOpts) ?? new AppSettings();
+
+            if (settings.FriendGuids.Count > 0 && settings.Friends.Count == 0)
+            {
+                foreach (var guid in settings.FriendGuids)
+                    settings.Friends.Add(new FriendEntry { Guid = guid, Name = guid[..Math.Min(8, guid.Length)] });
+                settings.FriendGuids.Clear();
+                _logger.Information("Migrated {Count} friendGuids to Friends", settings.Friends.Count);
+                Save(settings);
+            }
+
             _logger.Information("Settings loaded from {Path}", _filePath);
-            return settings ?? new AppSettings();
+            return settings;
         }
         catch (Exception ex)
         {

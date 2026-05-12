@@ -26,6 +26,7 @@ public class SyncService : IDisposable
     public string UserGuid => _settings.UserGuid;
     public string UserDisplayName => _settings.UserDisplayName;
     public List<FriendEntry> Friends => _settings.Friends;
+    public AppSettings Settings => _settings;
 
     public SyncService(AppSettings settings, ILogger logger)
     {

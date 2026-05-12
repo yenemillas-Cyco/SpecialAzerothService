@@ -16,6 +16,9 @@ public sealed class AppSettings
     public string SyncServerUrl { get; set; } = "https://carto-sync-server.fly.dev/carto";
     public List<FriendEntry> Friends { get; set; } = [];
 
+    /// <summary>Ancien format, conserve pour migration vers Friends.</summary>
+    public List<string> FriendGuids { get; set; } = [];
+
     public List<MonitorConfigSettings> MonitorConfigs { get; set; } = [];
     public List<WindowSettings> Windows { get; set; } = [];
 }

@@ -14,14 +14,16 @@ namespace WindowsOrganiserApp.ViewModels;
 public partial class CartoViewModel : ObservableObject
 {
     private readonly ICartoService _cartoService;
+    private readonly ISettingsService _settingsService;
     private readonly SyncService _syncService;
     private readonly DispatcherTimer _cooldownTimer;
     private CartoData _data;
 
-    public CartoViewModel(ICartoService cartoService, SyncService syncService)
+    public CartoViewModel(ICartoService cartoService, SyncService syncService, ISettingsService settingsService)
     {
         _cartoService = cartoService;
         _syncService = syncService;
+        _settingsService = settingsService;
         _data = _cartoService.Load();
 
         Accounts = new ObservableCollection<WowAccount>(_data.Accounts);
@@ -43,6 +45,7 @@ public partial class CartoViewModel : ObservableObject
         };
         _cooldownTimer.Start();
 
+        RefreshFriends();
         ApplyFilters();
     }
 
@@ -613,7 +616,8 @@ public partial class CartoViewModel : ObservableObject
         await _syncService.SubscribeToFriend(guid, name);
         FriendGuidInput = string.Empty;
         FriendNameInput = string.Empty;
-        OnPropertyChanged(nameof(Friends));
+        RefreshFriends();
+        SaveSettings();
     }
 
     [RelayCommand]
@@ -622,7 +626,8 @@ public partial class CartoViewModel : ObservableObject
         var toRemove = Characters.Where(c => c.IsExternal && c.ExternalSource == friend.Guid).ToList();
         foreach (var ch in toRemove) Characters.Remove(ch);
         await _syncService.UnsubscribeFromFriend(friend.Guid);
-        OnPropertyChanged(nameof(Friends));
+        RefreshFriends();
+        SaveSettings();
         ApplyFilters();
         Save();
     }
@@ -631,11 +636,23 @@ public partial class CartoViewModel : ObservableObject
     private void ToggleFriendVisibility(FriendEntry friend)
     {
         friend.IsVisible = !friend.IsVisible;
-        OnPropertyChanged(nameof(Friends));
+        RefreshFriends();
+        SaveSettings();
         ApplyFilters();
     }
 
-    public List<FriendEntry> Friends => _syncService.Friends;
+    [ObservableProperty]
+    private ObservableCollection<FriendEntry> _friends = [];
+
+    private void RefreshFriends()
+    {
+        Friends = new ObservableCollection<FriendEntry>(_syncService.Friends);
+    }
+
+    private void SaveSettings()
+    {
+        _settingsService.Save(_syncService.Settings);
+    }
 
     public string? GetFriendName(string guid) => _syncService.GetFriend(guid)?.Name;
 
@@ -647,7 +664,7 @@ public partial class CartoViewModel : ObservableObject
             if (friend != null && !string.IsNullOrEmpty(friendName))
             {
                 friend.Name = friendName;
-                OnPropertyChanged(nameof(Friends));
+                RefreshFriends();
             }
 
             var toRemove = Characters.Where(c => c.IsExternal && c.ExternalSource == friendGuid).ToList();

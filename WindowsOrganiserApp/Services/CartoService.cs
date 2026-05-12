@@ -32,6 +32,7 @@ public sealed class CartoService : ICartoService
         return JsonSerializer.Deserialize<CartoData>(json, JsonOptions) ?? new CartoData();
     }
 
+
     public void Save(CartoData data)
     {
         var json = JsonSerializer.Serialize(data, JsonOptions);
