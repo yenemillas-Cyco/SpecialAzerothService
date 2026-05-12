@@ -32,8 +32,38 @@ public partial class CartoViewModel : ObservableObject
         AccountIdToNameConverter.Accounts = _data.Accounts;
 
         _syncService.FriendDataReceived += OnFriendDataReceived;
+        _syncService.FriendOnlineChanged += (guid, online) =>
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+            {
+                var friend = _syncService.GetFriend(guid);
+                if (friend != null) friend.IsOnline = online;
+                RefreshFriends();
+            });
+        _syncService.PushRequested += () =>
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+            {
+                _data.Accounts = [.. Accounts];
+                _data.Characters = [.. Characters];
+                _data.Timers = [.. Timers];
+                _ = _syncService.PushUpdateAsync(_data);
+            });
         _syncService.ConnectionStateChanged += s =>
-            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => SyncStatus = s);
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(async () =>
+            {
+                SyncStatus = s;
+                if (s == "Connecté")
+                {
+                    _data.Accounts = [.. Accounts];
+                    _data.Characters = [.. Characters];
+                    _data.Timers = [.. Timers];
+                    _ = _syncService.PushUpdateAsync(_data);
+
+                    var onlineGuids = await _syncService.GetOnlineFriendsAsync();
+                    foreach (var f in _syncService.Friends)
+                        f.IsOnline = onlineGuids.Contains(f.Guid);
+                    RefreshFriends();
+                }
+            });
 
         _cooldownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _cooldownTimer.Tick += (_, _) =>

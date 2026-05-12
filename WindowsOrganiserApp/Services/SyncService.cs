@@ -21,6 +21,8 @@ public class SyncService : IDisposable
 
     public event Action<string, string, SyncPayload>? FriendDataReceived;
     public event Action<string>? ConnectionStateChanged;
+    public event Action<string, bool>? FriendOnlineChanged;
+    public event Action? PushRequested;
 
     public bool IsConnected => _connected;
     public string UserGuid => _settings.UserGuid;
@@ -78,6 +80,9 @@ public class SyncService : IDisposable
                 .Build();
 
             _hub.On<string, string, string>("ReceiveUpdate", OnReceiveUpdate);
+            _hub.On<string>("FriendOnline", guid => FriendOnlineChanged?.Invoke(guid, true));
+            _hub.On<string>("FriendOffline", guid => FriendOnlineChanged?.Invoke(guid, false));
+            _hub.On("RequestPush", () => PushRequested?.Invoke());
 
             _hub.Reconnected += async _ =>
             {
@@ -135,6 +140,21 @@ public class SyncService : IDisposable
     }
 
     public FriendEntry? GetFriend(string guid) => _settings.Friends.FirstOrDefault(f => f.Guid == guid);
+
+    public async Task<List<string>> GetOnlineFriendsAsync()
+    {
+        if (_hub?.State != HubConnectionState.Connected) return [];
+        try
+        {
+            var guids = _settings.Friends.Select(f => f.Guid).ToList();
+            return await _hub.InvokeAsync<List<string>>("GetOnlineFriends", guids);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "Sync: GetOnlineFriends failed");
+            return [];
+        }
+    }
 
     public async Task PushUpdateAsync(CartoData data)
     {

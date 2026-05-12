@@ -11,6 +11,7 @@
         <conv:AccountIdToNameConverter x:Key="AccountConv"/>
         <conv:CharacterStatusConverter x:Key="StatusConv"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:BoolToOnlineBrushConverter x:Key="BoolToOnlineBrush"/>
     </UserControl.Resources>
 
     <Grid>
@@ -500,8 +501,12 @@
                                                         Click="FriendVisibility_Click"
                                                         Loaded="FriendVisibilityBtn_Loaded"/>
                                                 <StackPanel VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Name}" FontSize="10" FontWeight="SemiBold"
-                                                               Foreground="CornflowerBlue"/>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Ellipse Width="7" Height="7" Margin="0,0,4,0" VerticalAlignment="Center"
+                                                                 Fill="{Binding IsOnline, Converter={StaticResource BoolToOnlineBrush}}"/>
+                                                        <TextBlock Text="{Binding Name}" FontSize="10" FontWeight="SemiBold"
+                                                                   Foreground="CornflowerBlue"/>
+                                                    </StackPanel>
                                                     <TextBlock Text="{Binding Guid}" FontSize="7" Foreground="{DynamicResource SubtextBrush}"
                                                                TextTrimming="CharacterEllipsis"/>
                                                 </StackPanel>
