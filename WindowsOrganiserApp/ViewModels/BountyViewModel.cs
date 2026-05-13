@@ -240,9 +240,8 @@ public partial class BountyViewModel : ObservableObject
         var name = string.IsNullOrWhiteSpace(b.AltName) ? b.TargetName : $"{b.TargetName} ou {b.AltName}";
         var reason = string.IsNullOrWhiteSpace(b.Reason) ? "" : $"\"{b.Reason}\"";
         var claimTo = b.ContributorNames;
-        var claim = string.IsNullOrWhiteSpace(claimTo) ? "" : $"-> {claimTo}";
 
-        return $"  {name.PadRight(nameWidth)} : {b.DisplayTotal.PadRight(goldWidth)}  {reason.PadRight(reasonWidth)}  {claim}";
+        return $" {name.PadRight(nameWidth)} {b.DisplayTotal.PadRight(goldWidth)} {reason.PadRight(reasonWidth)} {claimTo}";
     }
 
     private static readonly JsonSerializerOptions JsonOpts = new()
