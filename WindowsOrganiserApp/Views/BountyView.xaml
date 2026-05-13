@@ -302,6 +302,15 @@
                 </DataGrid>
                 </Grid>
             </Border>
+
+            <!-- ═══ CONTRIBUTOR SUMMARY ═══ -->
+            <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" CornerRadius="4"
+                    Padding="12,6" Margin="0,4,0,0" BorderThickness="1"
+                    BorderBrush="{DynamicResource InnerBorderBrush}">
+                <TextBlock Text="{Binding ContributorSummary}" FontSize="11"
+                           Foreground="{DynamicResource BrightGoldBrush}"
+                           HorizontalAlignment="Center"/>
+            </Border>
         </DockPanel>
 
         <!-- ═══ EDIT POPUP ═══ -->

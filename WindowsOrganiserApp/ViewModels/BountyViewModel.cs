@@ -54,6 +54,22 @@ public partial class BountyViewModel : ObservableObject
             ? new(System.Windows.Media.Color.FromRgb(255, 107, 107))
             : new(System.Windows.Media.Color.FromArgb(136, 255, 255, 255));
 
+    public string ContributorSummary
+    {
+        get
+        {
+            var totals = Bounties
+                .Where(b => !b.IsCompleted)
+                .SelectMany(b => b.Contributors)
+                .GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(g => $"{g.Key} {g.Sum(c => c.GoldAmount)}po")
+                .ToList();
+            if (totals.Count == 0) return "";
+            var grandTotal = Bounties.Where(b => !b.IsCompleted).Sum(b => b.TotalGold);
+            return string.Join("  ·  ", totals) + $"  ║  Total {grandTotal}po";
+        }
+    }
+
     partial void OnEditingBountyChanged(BountyEntry? value)
     {
         OnPropertyChanged(nameof(EditingContributors));
@@ -73,6 +89,7 @@ public partial class BountyViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(DiscordCharCount));
         OnPropertyChanged(nameof(DiscordCharBrush));
+        OnPropertyChanged(nameof(ContributorSummary));
     }
 
     [RelayCommand]
