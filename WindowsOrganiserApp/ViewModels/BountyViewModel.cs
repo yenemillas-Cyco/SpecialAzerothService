@@ -1,8 +1,11 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Text;
+using System.Text.Json;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Win32;
 using WindowsOrganiserApp.Models.Bounty;
 using WindowsOrganiserApp.Services;
 
@@ -214,6 +217,73 @@ public partial class BountyViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(claimTo))
             sb.Append($" (prime à réclamer à {claimTo})");
         return sb.ToString();
+    }
+
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    [RelayCommand]
+    private void ExportBounties()
+    {
+        var dlg = new SaveFileDialog
+        {
+            Title = "Exporter les primes",
+            Filter = "Fichier JSON|*.json",
+            FileName = "primes-export.json"
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        var data = new BountyData { Rules = Rules, Bounties = [.. Bounties] };
+        var json = JsonSerializer.Serialize(data, JsonOpts);
+        File.WriteAllText(dlg.FileName, json);
+    }
+
+    [RelayCommand]
+    private void ImportBounties()
+    {
+        var dlg = new OpenFileDialog
+        {
+            Title = "Importer des primes",
+            Filter = "Fichier JSON|*.json"
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        try
+        {
+            var json = File.ReadAllText(dlg.FileName);
+            var imported = JsonSerializer.Deserialize<BountyData>(json, JsonOpts);
+            if (imported == null) return;
+
+            var result = MessageBox.Show(
+                $"{imported.Bounties.Count} prime(s) trouvée(s).\n\nRemplacer les primes actuelles ou les ajouter ?",
+                "Import",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Cancel) return;
+
+            if (result == MessageBoxResult.Yes)
+            {
+                Bounties.Clear();
+                Rules = imported.Rules;
+            }
+
+            foreach (var b in imported.Bounties)
+            {
+                if (Bounties.All(x => x.Id != b.Id))
+                    Bounties.Add(b);
+            }
+
+            Save();
+            RefreshList();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Erreur d'import : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void RefreshList()

@@ -9,6 +9,7 @@
         <conv:NullToVisibilityConverter x:Key="NullToVis"/>
         <conv:NotNullToVisibilityConverter x:Key="NotNullToVis"/>
         <conv:BoolToCompletedLabelConverter x:Key="BoolToCompletedLabel"/>
+        <conv:BountyClassColorConverter x:Key="ClassColorConv"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
 
@@ -31,10 +32,20 @@
                         <Button Content="📜 Règlement" Style="{DynamicResource WowButton}"
                                 FontSize="10" Padding="12,5" Margin="0,0,6,0"
                                 Click="ToggleRules_Click"/>
-                        <Button Content="📋 Copier tout Discord" Style="{DynamicResource WowButton}"
-                                FontSize="10" Padding="12,5"
+                        <Button Content="📋 Copier tout" Style="{DynamicResource WowButton}"
+                                FontSize="10" Padding="12,5" Margin="0,0,6,0"
                                 Command="{Binding CopyDiscordMessageCommand}"
-                                ToolTip="Copier le message complet (règlement + toutes les primes)"/>
+                                ToolTip="Copier le message complet pour Discord"/>
+                        <Border Width="1" Height="20" Background="{DynamicResource BorderBrush}"
+                                Margin="4,0,10,0" VerticalAlignment="Center"/>
+                        <Button Content="📥 Import" Style="{DynamicResource WowButton}"
+                                FontSize="10" Padding="10,5" Margin="0,0,4,0"
+                                Command="{Binding ImportBountiesCommand}"
+                                ToolTip="Importer des primes depuis un fichier"/>
+                        <Button Content="📤 Export" Style="{DynamicResource WowButton}"
+                                FontSize="10" Padding="10,5"
+                                Command="{Binding ExportBountiesCommand}"
+                                ToolTip="Exporter les primes vers un fichier"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
@@ -48,16 +59,16 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="140"/>
                             <ColumnDefinition Width="80"/>
-                            <ColumnDefinition Width="65"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="150"/>
                             <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="140"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="CIBLE" FontSize="10" FontWeight="Bold"
                                    Foreground="{DynamicResource SubtextBrush}"/>
                         <TextBlock Grid.Column="1" Text="PRIME" FontSize="10" FontWeight="Bold"
                                    Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBlock Grid.Column="2" Text="STATUT" FontSize="10" FontWeight="Bold"
+                        <TextBlock Grid.Column="2" Text="CLASSE / RACE" FontSize="10" FontWeight="Bold"
                                    Foreground="{DynamicResource SubtextBrush}"/>
                         <TextBlock Grid.Column="3" Text="MOTIF" FontSize="10" FontWeight="Bold"
                                    Foreground="{DynamicResource SubtextBrush}"/>
@@ -74,23 +85,28 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border CornerRadius="4" Padding="8,7" Margin="0,0,0,3"
-                                            Background="#10FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF"
-                                            Cursor="Hand" MouseLeftButtonDown="BountyRow_MouseDown">
+                                            BorderThickness="1" Cursor="Hand"
+                                            MouseLeftButtonDown="BountyRow_MouseDown"
+                                            BorderBrush="{Binding TargetClass, Converter={StaticResource ClassColorConv}}">
+                                        <Border.Background>
+                                            <SolidColorBrush Color="#10FFFFFF"/>
+                                        </Border.Background>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="140"/>
                                                 <ColumnDefinition Width="80"/>
-                                                <ColumnDefinition Width="65"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="150"/>
                                                 <ColumnDefinition Width="120"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="140"/>
+                                                <ColumnDefinition Width="140"/>
                                             </Grid.ColumnDefinitions>
 
                                             <!-- Target name -->
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <TextBlock Text="💀" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
                                                 <TextBlock Text="{Binding TargetName}" FontSize="13" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                                           Foreground="{Binding TargetClass, Converter={StaticResource ClassColorConv}}"
+                                                           VerticalAlignment="Center"/>
                                             </StackPanel>
 
                                             <!-- Total -->
@@ -98,34 +114,13 @@
                                                        FontWeight="Bold" Foreground="{DynamicResource BrightGoldBrush}"
                                                        VerticalAlignment="Center"/>
 
-                                            <!-- Status badge -->
-                                            <Border Grid.Column="2" CornerRadius="3" Padding="5,2"
-                                                    HorizontalAlignment="Left" VerticalAlignment="Center">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#30FF6B6B"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsCompleted}" Value="True">
-                                                                <Setter Property="Background" Value="#3080FF80"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock FontSize="9" FontWeight="Bold" VerticalAlignment="Center">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Text" Value="WANTED"/>
-                                                            <Setter Property="Foreground" Value="#FF6B6B"/>
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsCompleted}" Value="True">
-                                                                    <Setter Property="Text" Value="DEAD"/>
-                                                                    <Setter Property="Foreground" Value="#80FF80"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Border>
+                                            <!-- Class / Race -->
+                                            <TextBlock Grid.Column="2" FontSize="10" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource SubtextBrush}">
+                                                <Run Text="{Binding TargetClass, Mode=OneWay}"/>
+                                                <Run Text=" "/>
+                                                <Run Text="{Binding TargetRace, Mode=OneWay}" FontStyle="Italic"/>
+                                            </TextBlock>
 
                                             <!-- Reason (largest column) -->
                                             <TextBlock Grid.Column="3" Text="{Binding Reason}" FontSize="12"
@@ -141,25 +136,25 @@
                                             <!-- Action buttons -->
                                             <StackPanel Grid.Column="5" Orientation="Horizontal"
                                                         HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <Button Content="✏️" FontSize="11" Padding="4,1" Margin="1,0"
+                                                <Button Content="Édit" FontSize="9" Padding="5,2" Margin="1,0"
                                                         Background="Transparent" BorderThickness="0"
                                                         Foreground="LightSkyBlue" Cursor="Hand"
-                                                        ToolTip="Éditer"
+                                                        ToolTip="Modifier la prime"
                                                         Command="{Binding DataContext.EditBountyCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
-                                                <Button Content="📋" FontSize="11" Padding="4,1" Margin="1,0"
+                                                <Button Content="Msg" FontSize="9" Padding="5,2" Margin="1,0"
                                                         Background="Transparent" BorderThickness="0"
-                                                        Foreground="LightSkyBlue" Cursor="Hand"
-                                                        ToolTip="Copier message Discord individuel"
+                                                        Foreground="MediumAquamarine" Cursor="Hand"
+                                                        ToolTip="Copier la ligne Discord de cette prime"
                                                         Command="{Binding DataContext.CopyIndividualDiscordCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
-                                                <Button Content="📷" FontSize="11" Padding="4,1" Margin="1,0"
+                                                <Button Content="Img" FontSize="9" Padding="5,2" Margin="1,0"
                                                         Background="Transparent" BorderThickness="0"
                                                         Foreground="{DynamicResource BrightGoldBrush}" Cursor="Hand"
-                                                        ToolTip="Copier prompt image"
+                                                        ToolTip="Copier le prompt ChatGPT pour l'affiche"
                                                         Command="{Binding DataContext.CopyImagePromptCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
-                                                <Button Content="✕" FontSize="11" Padding="4,1" Margin="1,0"
+                                                <Button Content="✕" FontSize="10" Padding="5,2" Margin="1,0"
                                                         Background="Transparent" BorderThickness="0"
                                                         Foreground="#FF6B6B" Cursor="Hand"
                                                         ToolTip="Supprimer"
