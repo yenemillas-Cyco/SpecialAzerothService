@@ -304,10 +304,8 @@ public partial class CartoView : UserControl
 
     private void UpdateTimerCardStyle(ContentPresenter container, MapTimer timer)
     {
-        var card = FindVisualChildren<Border>(container)
-            .FirstOrDefault(b => b.Name == "TimerProgressBar" || b.Tag is "timerCard");
-
-        var outerBorder = FindVisualChildren<Border>(container).FirstOrDefault();
+        var outerBorder = FindVisualChildren<Border>(container)
+            .FirstOrDefault(b => b.Tag is "timerCard");
         if (outerBorder == null) return;
 
         Color accent;
