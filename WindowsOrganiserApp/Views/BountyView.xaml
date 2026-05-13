@@ -217,13 +217,13 @@
                         <TextBlock Text="Classe :" FontSize="11" Width="90" VerticalAlignment="Center"
                                    Foreground="{DynamicResource SubtextBrush}"/>
                         <ComboBox ItemsSource="{Binding WowClasses}"
-                                  Text="{Binding EditingBounty.TargetClass, UpdateSourceTrigger=PropertyChanged}"
-                                  IsEditable="True" FontSize="11" Width="130" HorizontalAlignment="Left"/>
+                                  SelectedItem="{Binding EditingBounty.TargetClass}"
+                                  FontSize="11" Width="130" HorizontalAlignment="Left"/>
                         <TextBlock Text="Race :" FontSize="11" Width="50" VerticalAlignment="Center"
                                    Foreground="{DynamicResource SubtextBrush}" Margin="12,0,0,0"/>
                         <ComboBox ItemsSource="{Binding WowRaces}"
-                                  Text="{Binding EditingBounty.TargetRace, UpdateSourceTrigger=PropertyChanged}"
-                                  IsEditable="True" FontSize="11" Width="130" HorizontalAlignment="Left"/>
+                                  SelectedItem="{Binding EditingBounty.TargetRace}"
+                                  FontSize="11" Width="130" HorizontalAlignment="Left"/>
                     </DockPanel>
 
                     <!-- Reason -->
