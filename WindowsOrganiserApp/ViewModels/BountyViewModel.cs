@@ -115,9 +115,9 @@ public partial class BountyViewModel : ObservableObject
             Bounties.Add(EditingBounty);
         }
 
-        IsPopupOpen = false;
         Save();
         RefreshList();
+        IsPopupOpen = false;
     }
 
     [RelayCommand]

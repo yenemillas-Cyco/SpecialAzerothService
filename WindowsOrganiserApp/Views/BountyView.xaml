@@ -393,7 +393,7 @@
                     <DockPanel Margin="0,0,0,8">
                         <TextBlock Text="Nom :" FontSize="11" Width="90" VerticalAlignment="Center"
                                    Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBox Text="{Binding EditingBounty.TargetName, UpdateSourceTrigger=PropertyChanged}"
+                        <TextBox Text="{Binding EditingBounty.TargetName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  FontSize="13" FontWeight="Bold"
                                  Background="Transparent" Foreground="{DynamicResource TextBrush}"
                                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
@@ -403,7 +403,7 @@
                     <DockPanel Margin="0,0,0,8">
                         <TextBlock Text="Alt :" FontSize="11" Width="90" VerticalAlignment="Center"
                                    Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBox Text="{Binding EditingBounty.AltName, UpdateSourceTrigger=PropertyChanged}"
+                        <TextBox Text="{Binding EditingBounty.AltName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  FontSize="11" Background="Transparent"
                                  Foreground="{DynamicResource TextBrush}"
                                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
@@ -426,7 +426,7 @@
                     <DockPanel Margin="0,0,0,12">
                         <TextBlock Text="Motif :" FontSize="11" Width="90" VerticalAlignment="Center"
                                    Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBox Text="{Binding EditingBounty.Reason, UpdateSourceTrigger=PropertyChanged}"
+                        <TextBox Text="{Binding EditingBounty.Reason, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  FontSize="11" FontStyle="Italic" Background="Transparent"
                                  Foreground="{DynamicResource TextBrush}"
                                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
