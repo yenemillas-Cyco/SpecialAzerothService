@@ -26,25 +26,24 @@ public partial class BountyViewModel : ObservableObject
 
     public ObservableCollection<BountyEntry> Bounties { get; }
 
-    [ObservableProperty] private BountyEntry? _selectedBounty;
+    [ObservableProperty] private BountyEntry? _editingBounty;
     [ObservableProperty] private string _rules;
-    [ObservableProperty] private bool _isRulesEditorOpen;
+    [ObservableProperty] private bool _isPopupOpen;
+    [ObservableProperty] private bool _isNewBounty;
 
     [ObservableProperty] private string _newContribName = string.Empty;
     [ObservableProperty] private int _newContribGold;
     [ObservableProperty] private int _newContribJewels;
-    [ObservableProperty] private string _newContribReason = string.Empty;
 
-    public ObservableCollection<BountyContributor>? SelectedContributors =>
-        SelectedBounty != null ? new ObservableCollection<BountyContributor>(SelectedBounty.Contributors) : null;
+    public ObservableCollection<BountyContributor>? EditingContributors =>
+        EditingBounty != null ? new ObservableCollection<BountyContributor>(EditingBounty.Contributors) : null;
 
-    partial void OnSelectedBountyChanged(BountyEntry? value)
+    partial void OnEditingBountyChanged(BountyEntry? value)
     {
-        OnPropertyChanged(nameof(SelectedContributors));
+        OnPropertyChanged(nameof(EditingContributors));
         NewContribName = string.Empty;
         NewContribGold = 0;
         NewContribJewels = 0;
-        NewContribReason = string.Empty;
     }
 
     public void Save()
@@ -55,16 +54,49 @@ public partial class BountyViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void AddBounty()
+    private void NewBounty()
     {
-        var bounty = new BountyEntry
+        EditingBounty = new BountyEntry
         {
-            TargetName = "Nouveau joueur",
-            Reason = "À définir"
+            TargetName = string.Empty,
+            Reason = string.Empty
         };
-        Bounties.Add(bounty);
-        SelectedBounty = bounty;
+        IsNewBounty = true;
+        IsPopupOpen = true;
+    }
+
+    [RelayCommand]
+    private void EditBounty(BountyEntry? bounty)
+    {
+        if (bounty == null) return;
+        EditingBounty = bounty;
+        IsNewBounty = false;
+        IsPopupOpen = true;
+        OnPropertyChanged(nameof(EditingContributors));
+    }
+
+    [RelayCommand]
+    private void SaveBounty()
+    {
+        if (EditingBounty == null) return;
+
+        if (IsNewBounty)
+        {
+            if (string.IsNullOrWhiteSpace(EditingBounty.TargetName)) return;
+            Bounties.Add(EditingBounty);
+        }
+
+        IsPopupOpen = false;
         Save();
+        RefreshList();
+    }
+
+    [RelayCommand]
+    private void CancelEdit()
+    {
+        IsPopupOpen = false;
+        if (IsNewBounty)
+            EditingBounty = null;
     }
 
     [RelayCommand]
@@ -72,23 +104,14 @@ public partial class BountyViewModel : ObservableObject
     {
         if (bounty == null) return;
         Bounties.Remove(bounty);
-        if (SelectedBounty == bounty)
-            SelectedBounty = Bounties.FirstOrDefault();
         Save();
     }
 
     [RelayCommand]
-    private void MarkCompleted()
+    private void ToggleCompleted(BountyEntry? bounty)
     {
-        if (SelectedBounty == null) return;
-        SelectedBounty.IsCompleted = !SelectedBounty.IsCompleted;
-        if (SelectedBounty.IsCompleted)
-            SelectedBounty.CompletedAt = DateTime.Now;
-        else
-        {
-            SelectedBounty.CompletedAt = null;
-            SelectedBounty.KilledBy = null;
-        }
+        if (bounty == null) return;
+        bounty.IsCompleted = !bounty.IsCompleted;
         Save();
         RefreshList();
     }
@@ -96,40 +119,33 @@ public partial class BountyViewModel : ObservableObject
     [RelayCommand]
     private void AddContributor()
     {
-        if (SelectedBounty == null || string.IsNullOrWhiteSpace(NewContribName)) return;
+        if (EditingBounty == null || string.IsNullOrWhiteSpace(NewContribName)) return;
 
-        SelectedBounty.Contributors.Add(new BountyContributor
+        EditingBounty.Contributors.Add(new BountyContributor
         {
             Name = NewContribName.Trim(),
             GoldAmount = NewContribGold,
-            JewelAmount = NewContribJewels,
-            Reason = NewContribReason.Trim()
+            JewelAmount = NewContribJewels
         });
 
         NewContribName = string.Empty;
         NewContribGold = 0;
         NewContribJewels = 0;
-        NewContribReason = string.Empty;
 
-        Save();
-        OnPropertyChanged(nameof(SelectedContributors));
-        RefreshList();
+        OnPropertyChanged(nameof(EditingContributors));
     }
 
     [RelayCommand]
     private void RemoveContributor(BountyContributor? contributor)
     {
-        if (SelectedBounty == null || contributor == null) return;
-        SelectedBounty.Contributors.Remove(contributor);
-        Save();
-        OnPropertyChanged(nameof(SelectedContributors));
-        RefreshList();
+        if (EditingBounty == null || contributor == null) return;
+        EditingBounty.Contributors.Remove(contributor);
+        OnPropertyChanged(nameof(EditingContributors));
     }
 
     [RelayCommand]
     private void SaveRules()
     {
-        IsRulesEditorOpen = false;
         Save();
     }
 
@@ -151,15 +167,11 @@ public partial class BountyViewModel : ObservableObject
             foreach (var b in active)
             {
                 var name = string.IsNullOrWhiteSpace(b.AltName) ? b.TargetName : $"{b.TargetName} ou {b.AltName}";
-                var reasons = b.Contributors
-                    .Where(c => !string.IsNullOrWhiteSpace(c.Reason))
-                    .Select(c => c.Reason).Distinct();
-                var reason = string.Join(" / ", reasons);
                 var claimTo = b.ContributorNames;
 
                 sb.Append($"-**{name}** : {b.DisplayTotal}.");
-                if (!string.IsNullOrWhiteSpace(reason))
-                    sb.Append($"     \"{reason}\"");
+                if (!string.IsNullOrWhiteSpace(b.Reason))
+                    sb.Append($"     \"{b.Reason}\"");
                 if (!string.IsNullOrWhiteSpace(claimTo))
                     sb.Append($" (prime à réclamer à {claimTo})");
                 sb.AppendLine();
@@ -172,49 +184,36 @@ public partial class BountyViewModel : ObservableObject
             sb.AppendLine();
             sb.AppendLine("**✅ Primes réclamées :**");
             foreach (var b in completed)
-            {
-                var killer = string.IsNullOrWhiteSpace(b.KilledBy) ? "???" : b.KilledBy;
-                sb.AppendLine($"-~~{b.TargetName}~~ : {b.DisplayTotal} — Tué par **{killer}**");
-            }
+                sb.AppendLine($"-~~{b.TargetName}~~ : {b.DisplayTotal}");
         }
 
         Clipboard.SetText(sb.ToString());
     }
 
     [RelayCommand]
-    private void CopyImagePrompt()
+    private void CopyImagePrompt(BountyEntry? bounty)
     {
-        if (SelectedBounty == null) return;
-        var b = SelectedBounty;
+        if (bounty == null) return;
 
         var raceClass = new List<string>();
-        if (!string.IsNullOrWhiteSpace(b.TargetRace)) raceClass.Add(b.TargetRace.ToLower());
-        if (!string.IsNullOrWhiteSpace(b.TargetClass)) raceClass.Add(b.TargetClass.ToLower());
+        if (!string.IsNullOrWhiteSpace(bounty.TargetRace)) raceClass.Add(bounty.TargetRace.ToLower());
+        if (!string.IsNullOrWhiteSpace(bounty.TargetClass)) raceClass.Add(bounty.TargetClass.ToLower());
         var rcText = raceClass.Count > 0 ? $"il joue un {string.Join(" ", raceClass)}" : "un personnage de WoW";
 
         var prompt = $"Je veux créer une image style avis de recherche western vintage, " +
                      $"parchemin brûlé, avec marqué \"AVIS DE RECHERCHE\" en haut, " +
-                     $"\"Récompense de {b.TotalGold} PO pour tuer {b.TargetName}\", " +
+                     $"\"Récompense de {bounty.TotalGold} PO pour tuer {bounty.TargetName}\", " +
                      $"mais version World of Warcraft : {rcText} pour l'image. " +
-                     $"En bas : \"{b.TargetName} — MORT — {b.TotalGold} PIÈCES D'OR — À QUI LE TUERA !\". " +
+                     $"En bas : \"{bounty.TargetName} — MORT — {bounty.TotalGold} PIÈCES D'OR — À QUI LE TUERA !\". " +
                      $"Style épique, sombre, avec des pièces d'or.";
 
         Clipboard.SetText(prompt);
     }
 
-    public void UpdateSelectedBounty()
-    {
-        Save();
-        RefreshList();
-    }
-
     private void RefreshList()
     {
-        var idx = SelectedBounty != null ? Bounties.IndexOf(SelectedBounty) : -1;
         var snapshot = Bounties.ToList();
         Bounties.Clear();
         foreach (var b in snapshot) Bounties.Add(b);
-        if (idx >= 0 && idx < Bounties.Count)
-            SelectedBounty = Bounties[idx];
     }
 }

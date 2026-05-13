@@ -9,8 +9,6 @@ public sealed class BountyEntry
     public string TargetRace { get; set; } = string.Empty;
     public string Reason { get; set; } = string.Empty;
     public bool IsCompleted { get; set; }
-    public string? KilledBy { get; set; }
-    public DateTime? CompletedAt { get; set; }
     public List<BountyContributor> Contributors { get; set; } = [];
 
     public int TotalGold => Contributors.Sum(c => c.GoldAmount);

@@ -23,14 +23,4 @@ public partial class BountyView : UserControl
         PopupRules.IsOpen = false;
         Vm?.SaveRulesCommand.Execute(null);
     }
-
-    private void BountyField_Changed(object sender, RoutedEventArgs e)
-    {
-        Vm?.UpdateSelectedBounty();
-    }
-
-    private void BountyCombo_Changed(object sender, SelectionChangedEventArgs e)
-    {
-        Vm?.UpdateSelectedBounty();
-    }
 }
