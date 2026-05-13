@@ -270,14 +270,81 @@ public partial class CartoView : UserControl
         {
             var timer = container.Content as MapTimer;
             if (timer == null) continue;
+
             var tb = FindVisualChildren<TextBlock>(container)
                 .FirstOrDefault(t => t.Tag == timer);
             if (tb != null)
             {
-                tb.Text = timer.IsRunning
-                    ? FormatTimeSpan((TimeSpan?)timer.Remaining)
-                    : (timer.IsExpired ? "Terminé" : "⏸");
+                if (timer.IsExpired && !timer.IsRunning)
+                {
+                    tb.Text = "Terminé !";
+                    tb.Foreground = Brushes.LimeGreen;
+                    tb.FontSize = 14;
+                }
+                else if (timer.IsRunning)
+                {
+                    tb.Text = FormatTimeSpan((TimeSpan?)timer.Remaining);
+                    tb.Foreground = Brushes.DeepSkyBlue;
+                    tb.FontSize = 14;
+                }
+                else
+                {
+                    tb.Text = "⏸ En pause";
+                    tb.Foreground = Brushes.Gold;
+                    tb.FontSize = 14;
+                }
             }
+
+            UpdateTimerCardStyle(container, timer);
+        }
+    }
+
+    private void UpdateTimerCardStyle(ContentPresenter container, MapTimer timer)
+    {
+        var card = FindVisualChildren<Border>(container)
+            .FirstOrDefault(b => b.Name == "TimerProgressBar" || b.Tag is "timerCard");
+
+        var outerBorder = FindVisualChildren<Border>(container).FirstOrDefault();
+        if (outerBorder == null) return;
+
+        Color accent;
+        if (timer.IsExpired && !timer.IsRunning)
+            accent = Color.FromRgb(80, 200, 80);
+        else if (timer.IsRunning)
+            accent = Color.FromRgb(0, 180, 255);
+        else
+            accent = Color.FromRgb(255, 215, 0);
+
+        outerBorder.BorderBrush = new SolidColorBrush(Color.FromArgb(80, accent.R, accent.G, accent.B));
+
+        var progressBar = FindVisualChildren<Border>(container)
+            .FirstOrDefault(b => b.Name == "TimerProgressBar");
+        if (progressBar != null && outerBorder.ActualWidth > 0)
+        {
+            double pct = 0;
+            if (timer.IsRunning && timer.DurationSeconds > 0)
+                pct = Math.Clamp(timer.Remaining.TotalSeconds / timer.DurationSeconds, 0, 1);
+            else if (timer.IsExpired)
+                pct = 1;
+
+            progressBar.Width = outerBorder.ActualWidth * pct;
+            progressBar.Background = new SolidColorBrush(accent);
+            progressBar.Opacity = 0.12;
+        }
+    }
+
+    private void TimerCard_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is Border border && border.DataContext is MapTimer timer)
+        {
+            Color accent;
+            if (timer.IsExpired && !timer.IsRunning)
+                accent = Color.FromRgb(80, 200, 80);
+            else if (timer.IsRunning)
+                accent = Color.FromRgb(0, 180, 255);
+            else
+                accent = Color.FromRgb(255, 215, 0);
+            border.BorderBrush = new SolidColorBrush(Color.FromArgb(80, accent.R, accent.G, accent.B));
         }
     }
 

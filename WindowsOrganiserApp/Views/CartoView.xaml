@@ -275,57 +275,90 @@
                             <ItemsControl x:Name="TimerList" ItemsSource="{Binding Timers}" Margin="0,4,0,0">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="{DynamicResource PanelBg2}" CornerRadius="3"
-                                                Padding="6,4" Margin="0,0,0,3"
-                                                BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
-                                            <StackPanel>
-                                                <DockPanel>
-                                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <Button Content="▶" FontSize="9" Padding="3,1" ToolTip="Reprendre"
-                                                                Style="{DynamicResource StoneButton}" Foreground="LimeGreen"
+                                        <Border CornerRadius="5" Margin="0,0,0,5" Padding="0"
+                                                BorderThickness="1" Loaded="TimerCard_Loaded">
+                                            <Border.BorderBrush>
+                                                <SolidColorBrush Color="#33AADDFF"/>
+                                            </Border.BorderBrush>
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                    <GradientStop Color="#18103050" Offset="0"/>
+                                                    <GradientStop Color="#28182848" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <Grid>
+                                                <!-- Progress bar background -->
+                                                <Border x:Name="TimerProgressBar" CornerRadius="5"
+                                                        HorizontalAlignment="Left" Opacity="0.15">
+                                                    <Border.Background>
+                                                        <SolidColorBrush Color="DeepSkyBlue"/>
+                                                    </Border.Background>
+                                                </Border>
+                                                <!-- Content -->
+                                                <DockPanel Margin="10,7,8,7">
+                                                    <!-- Actions (right) -->
+                                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                                                VerticalAlignment="Center" Margin="6,0,0,0">
+                                                        <Button Content="▶" FontSize="10" Padding="4,2" ToolTip="Reprendre"
+                                                                Style="{DynamicResource StoneButton}" Foreground="#80FF80"
                                                                 Click="TimerResume_Click" Loaded="TimerPlayPauseBtn_Loaded"/>
-                                                        <Button Content="⏸" FontSize="9" Padding="3,1" Margin="2,0,0,0" ToolTip="Pause"
-                                                                Style="{DynamicResource StoneButton}" Foreground="Gold"
+                                                        <Button Content="⏸" FontSize="10" Padding="4,2" ToolTip="Pause"
+                                                                Style="{DynamicResource StoneButton}" Foreground="#FFD700"
                                                                 Click="TimerStop_Click" Loaded="TimerPlayPauseBtn_Loaded"/>
-                                                        <Button Content="↻" FontSize="9" Padding="3,1" Margin="2,0,0,0" ToolTip="Relancer depuis 0"
-                                                                Style="{DynamicResource StoneButton}" Click="TimerRestart_Click"/>
-                                                        <Button Content="✕" FontSize="9" Padding="3,1" Margin="2,0,0,0" ToolTip="Supprimer"
-                                                                Style="{DynamicResource StoneButton}" Foreground="OrangeRed"
-                                                                Click="TimerRemove_Click"/>
+                                                        <Button Content="↻" FontSize="10" Padding="4,2" Margin="1,0,0,0"
+                                                                ToolTip="Relancer" Style="{DynamicResource StoneButton}"
+                                                                Foreground="LightSkyBlue" Click="TimerRestart_Click"/>
+                                                        <Button Content="✕" FontSize="10" Padding="4,2" Margin="1,0,0,0"
+                                                                ToolTip="Supprimer" Style="{DynamicResource StoneButton}"
+                                                                Foreground="#FF6B6B" Click="TimerRemove_Click"/>
                                                     </StackPanel>
-                                                    <TextBlock FontSize="10" Foreground="{DynamicResource TextBrush}"
-                                                               Text="{Binding Label}" VerticalAlignment="Center"/>
+                                                    <!-- Timer info (left) -->
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock FontSize="11" FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource TextBrush}"
+                                                                   Text="{Binding Label}"/>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                            <!-- Countdown (large) -->
+                                                            <TextBlock FontSize="14" FontWeight="Bold"
+                                                                       Foreground="DeepSkyBlue" VerticalAlignment="Center"
+                                                                       Tag="{Binding}" Margin="0,0,6,0"/>
+                                                            <!-- Duration edit (compact) -->
+                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                                                        Opacity="0.6" Loaded="TimerDurationPanel_Loaded">
+                                                                <TextBlock Text="/" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                                                           VerticalAlignment="Center" Margin="0,0,3,0"/>
+                                                                <TextBox Width="22" Height="18" FontSize="8" Padding="1,0"
+                                                                         TextAlignment="Center" Tag="h"
+                                                                         LostFocus="TimerDuration_Changed"
+                                                                         Background="Transparent"
+                                                                         Foreground="{DynamicResource SubtextBrush}"
+                                                                         BorderBrush="{DynamicResource BorderBrush}"
+                                                                         BorderThickness="0,0,0,1"/>
+                                                                <TextBlock Text="h" FontSize="7" Foreground="{DynamicResource SubtextBrush}"
+                                                                           VerticalAlignment="Center" Margin="1,0,2,0"/>
+                                                                <TextBox Width="22" Height="18" FontSize="8" Padding="1,0"
+                                                                         TextAlignment="Center" Tag="m"
+                                                                         LostFocus="TimerDuration_Changed"
+                                                                         Background="Transparent"
+                                                                         Foreground="{DynamicResource SubtextBrush}"
+                                                                         BorderBrush="{DynamicResource BorderBrush}"
+                                                                         BorderThickness="0,0,0,1"/>
+                                                                <TextBlock Text="m" FontSize="7" Foreground="{DynamicResource SubtextBrush}"
+                                                                           VerticalAlignment="Center" Margin="1,0,2,0"/>
+                                                                <TextBox Width="22" Height="18" FontSize="8" Padding="1,0"
+                                                                         TextAlignment="Center" Tag="s"
+                                                                         LostFocus="TimerDuration_Changed"
+                                                                         Background="Transparent"
+                                                                         Foreground="{DynamicResource SubtextBrush}"
+                                                                         BorderBrush="{DynamicResource BorderBrush}"
+                                                                         BorderThickness="0,0,0,1"/>
+                                                                <TextBlock Text="s" FontSize="7" Foreground="{DynamicResource SubtextBrush}"
+                                                                           VerticalAlignment="Center" Margin="1,0,0,0"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                    </StackPanel>
                                                 </DockPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
-                                                            Loaded="TimerDurationPanel_Loaded">
-                                                    <TextBox Width="28" FontSize="9" Padding="1" TextAlignment="Center"
-                                                             Tag="h" LostFocus="TimerDuration_Changed"
-                                                             Background="{DynamicResource SelectionBgBrush}"
-                                                             Foreground="{DynamicResource TextBrush}"
-                                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                                             ToolTip="Heures"/>
-                                                    <TextBlock Text="h" FontSize="8" Foreground="{DynamicResource SubtextBrush}"
-                                                               VerticalAlignment="Center" Margin="1,0,4,0"/>
-                                                    <TextBox Width="28" FontSize="9" Padding="1" TextAlignment="Center"
-                                                             Tag="m" LostFocus="TimerDuration_Changed"
-                                                             Background="{DynamicResource SelectionBgBrush}"
-                                                             Foreground="{DynamicResource TextBrush}"
-                                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                                             ToolTip="Minutes"/>
-                                                    <TextBlock Text="m" FontSize="8" Foreground="{DynamicResource SubtextBrush}"
-                                                               VerticalAlignment="Center" Margin="1,0,4,0"/>
-                                                    <TextBox Width="28" FontSize="9" Padding="1" TextAlignment="Center"
-                                                             Tag="s" LostFocus="TimerDuration_Changed"
-                                                             Background="{DynamicResource SelectionBgBrush}"
-                                                             Foreground="{DynamicResource TextBrush}"
-                                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                                             ToolTip="Secondes"/>
-                                                    <TextBlock Text="s" FontSize="8" Foreground="{DynamicResource SubtextBrush}"
-                                                               VerticalAlignment="Center" Margin="1,0,6,0"/>
-                                                    <TextBlock FontSize="9" Foreground="LightSkyBlue" VerticalAlignment="Center"
-                                                               Tag="{Binding}"/>
-                                                </StackPanel>
-                                            </StackPanel>
+                                            </Grid>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
