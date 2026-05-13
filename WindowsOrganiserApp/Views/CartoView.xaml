@@ -19,7 +19,7 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="14"/>
-            <ColumnDefinition Width="320"/>
+            <ColumnDefinition Width="380"/>
         </Grid.ColumnDefinitions>
 
         <!-- Map area -->
@@ -323,9 +323,9 @@
                                                                        Foreground="{DynamicResource TextBrush}"
                                                                        Text="{Binding Label}" VerticalAlignment="Center"/>
                                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
-                                                                        Opacity="0.5" Margin="6,0,0,0"
+                                                                        Opacity="0.6" Margin="8,0,0,0"
                                                                         Loaded="TimerDurationPanel_Loaded">
-                                                                <TextBox Width="18" Height="16" FontSize="7" Padding="0"
+                                                                <TextBox Width="24" Height="20" FontSize="9" Padding="1,0"
                                                                          TextAlignment="Center" Tag="h"
                                                                          LostFocus="TimerDuration_Changed"
                                                                          Background="Transparent"
@@ -333,9 +333,9 @@
                                                                          BorderBrush="{DynamicResource BorderBrush}"
                                                                          BorderThickness="0,0,0,1"
                                                                          VerticalContentAlignment="Center"/>
-                                                                <TextBlock Text="h" FontSize="7" Foreground="{DynamicResource SubtextBrush}"
-                                                                           VerticalAlignment="Center" Margin="0,0,1,0"/>
-                                                                <TextBox Width="18" Height="16" FontSize="7" Padding="0"
+                                                                <TextBlock Text="h" FontSize="8" Foreground="{DynamicResource SubtextBrush}"
+                                                                           VerticalAlignment="Center" Margin="1,0,3,0"/>
+                                                                <TextBox Width="24" Height="20" FontSize="9" Padding="1,0"
                                                                          TextAlignment="Center" Tag="m"
                                                                          LostFocus="TimerDuration_Changed"
                                                                          Background="Transparent"
@@ -343,9 +343,9 @@
                                                                          BorderBrush="{DynamicResource BorderBrush}"
                                                                          BorderThickness="0,0,0,1"
                                                                          VerticalContentAlignment="Center"/>
-                                                                <TextBlock Text="m" FontSize="7" Foreground="{DynamicResource SubtextBrush}"
-                                                                           VerticalAlignment="Center" Margin="0,0,1,0"/>
-                                                                <TextBox Width="18" Height="16" FontSize="7" Padding="0"
+                                                                <TextBlock Text="m" FontSize="8" Foreground="{DynamicResource SubtextBrush}"
+                                                                           VerticalAlignment="Center" Margin="1,0,3,0"/>
+                                                                <TextBox Width="24" Height="20" FontSize="9" Padding="1,0"
                                                                          TextAlignment="Center" Tag="s"
                                                                          LostFocus="TimerDuration_Changed"
                                                                          Background="Transparent"
@@ -353,8 +353,8 @@
                                                                          BorderBrush="{DynamicResource BorderBrush}"
                                                                          BorderThickness="0,0,0,1"
                                                                          VerticalContentAlignment="Center"/>
-                                                                <TextBlock Text="s" FontSize="7" Foreground="{DynamicResource SubtextBrush}"
-                                                                           VerticalAlignment="Center"/>
+                                                                <TextBlock Text="s" FontSize="8" Foreground="{DynamicResource SubtextBrush}"
+                                                                           VerticalAlignment="Center" Margin="1,0,0,0"/>
                                                             </StackPanel>
                                                         </StackPanel>
                                                     </DockPanel>

@@ -277,21 +277,24 @@ public partial class CartoView : UserControl
             {
                 if (timer.IsExpired && !timer.IsRunning)
                 {
-                    tb.Text = "Terminé !";
-                    tb.Foreground = Brushes.LimeGreen;
-                    tb.FontSize = 14;
+                    tb.Text = "Terminé";
+                    tb.Foreground = new SolidColorBrush(Color.FromRgb(100, 200, 100));
+                    tb.FontSize = 10;
+                    tb.FontWeight = FontWeights.Normal;
                 }
                 else if (timer.IsRunning)
                 {
                     tb.Text = FormatTimeSpan((TimeSpan?)timer.Remaining);
                     tb.Foreground = Brushes.DeepSkyBlue;
-                    tb.FontSize = 14;
+                    tb.FontSize = 12;
+                    tb.FontWeight = FontWeights.Bold;
                 }
                 else
                 {
-                    tb.Text = "⏸ En pause";
+                    tb.Text = "⏸ Pause";
                     tb.Foreground = Brushes.Gold;
-                    tb.FontSize = 14;
+                    tb.FontSize = 10;
+                    tb.FontWeight = FontWeights.Normal;
                 }
             }
 
