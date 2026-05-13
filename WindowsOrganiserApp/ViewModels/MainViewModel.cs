@@ -43,10 +43,7 @@ public partial class MainViewModel : ObservableObject
     public string[] AvailableLanguages => _localizationService.AvailableLanguages;
 
     [ObservableProperty]
-    private bool _isStandardMode = true;
-
-    [ObservableProperty]
-    private bool _isAdvancedMode;
+    private bool _isOrganiserMode = true;
 
     [ObservableProperty]
     private bool _isCartoMode;
@@ -54,16 +51,10 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isBountyMode;
 
-    partial void OnIsStandardModeChanged(bool value)
-    {
-        if (value) { IsAdvancedMode = false; IsCartoMode = false; IsBountyMode = false; }
-    }
-
-    partial void OnIsAdvancedModeChanged(bool value)
+    partial void OnIsOrganiserModeChanged(bool value)
     {
         if (value)
         {
-            IsStandardMode = false;
             IsCartoMode = false;
             IsBountyMode = false;
             AdvancedVm?.RefreshFromMain();
@@ -72,12 +63,12 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsCartoModeChanged(bool value)
     {
-        if (value) { IsStandardMode = false; IsAdvancedMode = false; IsBountyMode = false; }
+        if (value) { IsOrganiserMode = false; IsBountyMode = false; }
     }
 
     partial void OnIsBountyModeChanged(bool value)
     {
-        if (value) { IsStandardMode = false; IsAdvancedMode = false; IsCartoMode = false; }
+        if (value) { IsOrganiserMode = false; IsCartoMode = false; }
     }
 
     public AdvancedViewModel? AdvancedVm { get; set; }
@@ -140,31 +131,13 @@ public partial class MainViewModel : ObservableObject
     }
 
     public ObservableCollection<WindowInfo> AvailableWindows { get; } = [];
-    public ObservableCollection<PreviewRect> PreviewRects { get; } = [];
     public ObservableCollection<MonitorInfo> Monitors { get; } = [];
     public ObservableCollection<MonitorLayoutConfig> MonitorConfigs { get; } = [];
-
-    [ObservableProperty]
-    private MonitorLayoutConfig? _selectedMonitorConfig;
 
     [ObservableProperty]
     private string _statusMessage = "Prêt";
 
     public string AppVersion { get; } = $"v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0"}";
-
-    partial void OnSelectedMonitorConfigChanged(MonitorLayoutConfig? oldValue, MonitorLayoutConfig? newValue)
-    {
-        if (oldValue is not null)
-            oldValue.PropertyChanged -= MonitorConfig_PropertyChanged;
-        if (newValue is not null)
-            newValue.PropertyChanged += MonitorConfig_PropertyChanged;
-        OnPropertyChanged(nameof(SelectedMonitorConfig));
-    }
-
-    private void MonitorConfig_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        UpdatePreview();
-    }
 
     // --- Helpers ---
 
@@ -198,24 +171,13 @@ public partial class MainViewModel : ObservableObject
                 if (Enum.TryParse<SplitOrientation>(saved.SplitOrientation, out var ori)) config.SplitOrientation = ori;
             }
 
-            config.PropertyChanged += (_, _) => UpdatePreview();
             MonitorConfigs.Add(config);
         }
-
-        SelectedMonitorConfig = MonitorConfigs.FirstOrDefault(c => c.Monitor.IsPrimary)
-                                ?? MonitorConfigs.FirstOrDefault();
 
         _logger.Information("Monitors refreshed: {Count} detected", monitors.Count);
     }
 
     // --- Commands ---
-
-    [RelayCommand]
-    private void SelectMonitorConfig(MonitorLayoutConfig? config)
-    {
-        if (config is not null)
-            SelectedMonitorConfig = config;
-    }
 
     [RelayCommand]
     private void RefreshWindows()
@@ -295,8 +257,7 @@ public partial class MainViewModel : ObservableObject
                 if (e.PropertyName is nameof(WindowInfo.IsSelected) or nameof(WindowInfo.IsMainWindow)
                     or nameof(WindowInfo.AssignedMonitor))
                 {
-                    UpdatePreview();
-                    if (IsAdvancedMode)
+                    if (IsOrganiserMode)
                     {
                         if (e.PropertyName == nameof(WindowInfo.IsSelected))
                             AdvancedVm?.RefreshFromMain();
@@ -309,9 +270,8 @@ public partial class MainViewModel : ObservableObject
         }
 
         StatusMessage = $"{windows.Count} fenêtres détectées — {Monitors.Count} écran(s)";
-        UpdatePreview();
 
-        if (IsAdvancedMode)
+        if (IsOrganiserMode)
             AdvancedVm?.RefreshFromMain();
     }
 
@@ -319,77 +279,12 @@ public partial class MainViewModel : ObservableObject
     private void SelectAll()
     {
         foreach (var w in AvailableWindows) w.IsSelected = true;
-        UpdatePreview();
     }
 
     [RelayCommand]
     private void DeselectAll()
     {
         foreach (var w in AvailableWindows) w.IsSelected = false;
-        UpdatePreview();
-    }
-
-    [RelayCommand]
-    private void ApplyLayout()
-    {
-        var selected = AvailableWindows.Where(w => w.IsSelected).ToList();
-        if (selected.Count == 0)
-        {
-            StatusMessage = "Sélectionnez au moins une fenêtre";
-            _logger.Warning("Apply called with no windows selected");
-            return;
-        }
-
-        var groups = selected.GroupBy(w => w.AssignedMonitor?.Handle ?? IntPtr.Zero);
-
-        foreach (var group in groups)
-        {
-            var monitor = Monitors.FirstOrDefault(m => m.Handle == group.Key) ?? Monitors[0];
-            var config = GetConfigForMonitor(monitor);
-            var workArea = monitor.WorkArea;
-            var windowsInGroup = group.ToList();
-
-            var mainWindow = windowsInGroup.FirstOrDefault(w => w.IsMainWindow) ?? windowsInGroup[0];
-
-            _logger.Information("Applying {Mode} layout on {Mon} for {Count} windows",
-                config.Mode, monitor.DisplayLabel, windowsInGroup.Count);
-
-            var layout = config.Mode == LayoutMode.Main
-                ? _layoutService.CalculateMainLayout(windowsInGroup, workArea, config.Size, config.Position, config.HasLateral, config.HasBandeau)
-                : _layoutService.CalculateSplitLayout(windowsInGroup, workArea, config.SplitOrientation);
-
-            foreach (var (handle, rect) in layout)
-                _windowService.MoveAndResize(handle, rect);
-        }
-
-        StatusMessage = $"Layout appliqué à {selected.Count} fenêtre(s)";
-    }
-
-    [RelayCommand]
-    private void ApplyLayoutForMonitor(MonitorInfo? monitor)
-    {
-        if (monitor is null) return;
-        var selected = AvailableWindows
-            .Where(w => w.IsSelected && w.AssignedMonitor?.Handle == monitor.Handle)
-            .ToList();
-        if (selected.Count == 0)
-        {
-            StatusMessage = $"Aucune fenêtre sur {monitor.DisplayLabel}";
-            return;
-        }
-
-        var config = GetConfigForMonitor(monitor);
-        var workArea = monitor.WorkArea;
-        var mainWindow = selected.FirstOrDefault(w => w.IsMainWindow) ?? selected[0];
-
-        var layout = config.Mode == LayoutMode.Main
-            ? _layoutService.CalculateMainLayout(selected, workArea, config.Size, config.Position, config.HasLateral, config.HasBandeau)
-            : _layoutService.CalculateSplitLayout(selected, workArea, config.SplitOrientation);
-
-        foreach (var (handle, rect) in layout)
-            _windowService.MoveAndResize(handle, rect);
-
-        StatusMessage = $"Layout appliqué sur {monitor.DisplayLabel} ({selected.Count} fenêtre(s))";
     }
 
     [RelayCommand]
@@ -426,77 +321,5 @@ public partial class MainViewModel : ObservableObject
         window.IsMainWindow = true;
         window.IsSelected = true;
         _logger.Information("Set main window: {Title} on {Mon}", window.Title, targetMonitor?.DisplayLabel);
-        UpdatePreview();
     }
-
-
-    public void UpdatePreview()
-    {
-        PreviewRects.Clear();
-        foreach (var cfg in MonitorConfigs)
-            cfg.PreviewRects.Clear();
-
-        if (Monitors.Count == 0) return;
-
-        const double previewW = 240;
-        const double previewH = 140;
-
-        var selected = AvailableWindows.Where(w => w.IsSelected).ToList();
-        var groups = selected.GroupBy(w => w.AssignedMonitor?.Handle ?? IntPtr.Zero);
-
-        foreach (var config in MonitorConfigs)
-        {
-            var monitor = config.Monitor;
-            var workArea = monitor.WorkArea;
-
-            var scale = Math.Min(previewW / workArea.Width, previewH / workArea.Height);
-            var offsetX = (previewW - workArea.Width * scale) / 2;
-            var offsetY = (previewH - workArea.Height * scale) / 2;
-
-            var windowsInGroup = groups
-                .FirstOrDefault(g => g.Key == monitor.Handle)?
-                .ToList() ?? [];
-
-            if (windowsInGroup.Count == 0) continue;
-
-            var layout = config.Mode == LayoutMode.Main
-                ? _layoutService.CalculateMainLayout(windowsInGroup, workArea, config.Size, config.Position, config.HasLateral, config.HasBandeau)
-                : _layoutService.CalculateSplitLayout(windowsInGroup, workArea, config.SplitOrientation);
-
-            var slotIndex = 0;
-            foreach (var (handle, rect) in layout)
-            {
-                var win = windowsInGroup.First(w => w.Handle == handle);
-                slotIndex++;
-                var previewRect = new PreviewRect
-                {
-                    X = (rect.X - workArea.X) * scale + offsetX,
-                    Y = (rect.Y - workArea.Y) * scale + offsetY,
-                    Width = rect.Width * scale,
-                    Height = rect.Height * scale,
-                    Title = TruncateTitle(win.DisplayName, 16),
-                    BadgeNumber = win.LaunchOrder,
-                    IsMain = win.IsMainWindow,
-                    Window = win
-                };
-                config.PreviewRects.Add(previewRect);
-                PreviewRects.Add(previewRect);
-            }
-        }
-    }
-
-    private static string TruncateTitle(string title, int maxLength) =>
-        title.Length <= maxLength ? title : string.Concat(title.AsSpan(0, maxLength - 1), "…");
-}
-
-public class PreviewRect
-{
-    public double X { get; init; }
-    public double Y { get; init; }
-    public double Width { get; init; }
-    public double Height { get; init; }
-    public string Title { get; init; } = string.Empty;
-    public int BadgeNumber { get; init; }
-    public bool IsMain { get; init; }
-    public WindowInfo? Window { get; init; }
 }

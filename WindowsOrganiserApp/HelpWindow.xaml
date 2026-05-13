@@ -123,7 +123,6 @@
                     <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_L4}"/>
                     <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S4_Fine}"/>
                     <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_F1}"/>
-                    <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S4_Auto}"/>
                     <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_A1}"/>
                     <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_A2}"/>
                     <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_A3}"/>
@@ -131,10 +130,6 @@
                     <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_T1}"/>
                     <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_T2}"/>
                     <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_T3}"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_T4}"/>
-                    <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S4_Presets}"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_P1}"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_P2}"/>
                     <TextBlock Style="{StaticResource SubTitle}" Text="{DynamicResource Help_S4_Leader}"/>
                     <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S4_LeaderBody}"/>
                     <Border Style="{StaticResource Sep}"/>
@@ -146,11 +141,6 @@
                     <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S5_B3}"/>
                     <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S5_B4}"/>
                     <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S5_B5}"/>
-                    <TextBlock Style="{StaticResource Bullet}" Text="{DynamicResource Help_S5_B6}"/>
-                    <Border Style="{StaticResource Sep}"/>
-
-                    <TextBlock Style="{StaticResource SectionTitle}" Text="{DynamicResource Help_S6_Title}"/>
-                    <TextBlock Style="{StaticResource Body}" Text="{DynamicResource Help_S6_Body}"/>
                     <Border Style="{StaticResource Sep}"/>
 
                     <TextBlock Style="{StaticResource SectionTitle}" Text="{DynamicResource Help_S7_Title}"/>

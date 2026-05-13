@@ -41,41 +41,41 @@
                     <Border Width="1" Height="18" Background="{DynamicResource BorderBrush}" Margin="4,0"/>
 
                     <!-- Filters inline (all Height=24 for consistency) -->
-                    <TextBlock Text="Nom" FontSize="8" Foreground="{DynamicResource SubtextBrush}"
+                    <TextBlock Text="Nom" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                VerticalAlignment="Center" Margin="2,0,3,0"/>
-                    <TextBox Width="70" Height="24" FontSize="9" Padding="3,0" Margin="0,0,4,0"
+                    <TextBox Width="70" Height="26" FontSize="10" Padding="3,0" Margin="0,0,4,0"
                              VerticalContentAlignment="Center"
                              Text="{Binding FilterName, UpdateSourceTrigger=PropertyChanged}"
                              Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                    <TextBlock Text="Classe" FontSize="8" Foreground="{DynamicResource SubtextBrush}"
+                    <TextBlock Text="Classe" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                VerticalAlignment="Center" Margin="0,0,3,0"/>
-                    <ComboBox Width="80" Height="24" FontSize="9" Margin="0,0,4,0"
+                    <ComboBox Width="85" Height="26" FontSize="10" Margin="0,0,4,0"
                               VerticalContentAlignment="Center"
                               ItemsSource="{Binding WowClasses}" SelectedItem="{Binding FilterClass}"/>
-                    <TextBlock Text="Lv." FontSize="8" Foreground="{DynamicResource SubtextBrush}"
+                    <TextBlock Text="Lv." FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                VerticalAlignment="Center" Margin="0,0,2,0"/>
-                    <TextBox Width="28" Height="24" FontSize="9" Padding="2,0" TextAlignment="Center"
+                    <TextBox Width="30" Height="26" FontSize="10" Padding="2,0" TextAlignment="Center"
                              VerticalContentAlignment="Center"
                              Text="{Binding FilterLevelMin, UpdateSourceTrigger=PropertyChanged}"
                              Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                    <TextBlock Text="-" FontSize="8" Foreground="{DynamicResource SubtextBrush}"
+                    <TextBlock Text="-" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                VerticalAlignment="Center" Margin="1,0"/>
-                    <TextBox Width="28" Height="24" FontSize="9" Padding="2,0" Margin="0,0,4,0" TextAlignment="Center"
+                    <TextBox Width="30" Height="26" FontSize="10" Padding="2,0" Margin="0,0,4,0" TextAlignment="Center"
                              VerticalContentAlignment="Center"
                              Text="{Binding FilterLevelMax, UpdateSourceTrigger=PropertyChanged}"
                              Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                    <TextBlock Text="Compte" FontSize="8" Foreground="{DynamicResource SubtextBrush}"
+                    <TextBlock Text="Compte" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                VerticalAlignment="Center" Margin="0,0,3,0"/>
-                    <ComboBox Width="80" Height="24" FontSize="9" Margin="0,0,4,0"
+                    <ComboBox Width="85" Height="26" FontSize="10" Margin="0,0,4,0"
                               VerticalContentAlignment="Center"
                               ItemsSource="{Binding Accounts}" DisplayMemberPath="Name"
                               SelectedValuePath="Id" SelectedValue="{Binding FilterAccountId}"/>
-                    <TextBlock Text="Status" FontSize="8" Foreground="{DynamicResource SubtextBrush}"
+                    <TextBlock Text="Status" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                VerticalAlignment="Center" Margin="0,0,3,0"/>
-                    <ComboBox Width="65" Height="24" FontSize="9" Margin="0,0,4,0"
+                    <ComboBox Width="70" Height="26" FontSize="10" Margin="0,0,4,0"
                               VerticalContentAlignment="Center"
                               ItemsSource="{Binding CharacterStatusValues}"
                               SelectedItem="{Binding FilterStatus}">
@@ -85,7 +85,7 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
-                    <Button Content="✕" Style="{DynamicResource StoneButton}" FontSize="9" Height="24" Padding="5,0" Margin="2,0"
+                    <Button Content="✕" Style="{DynamicResource StoneButton}" FontSize="10" Height="26" Padding="5,0" Margin="2,0"
                             Command="{Binding ClearFiltersCommand}" ToolTip="Effacer les filtres"/>
 
                     <!-- Separator -->
@@ -93,18 +93,18 @@
 
                     <!-- Table toggle -->
                     <Border Background="{DynamicResource PanelBg2}" CornerRadius="3" Padding="4,2" Margin="2,0">
-                        <CheckBox Content="📋 Tableau" IsChecked="{Binding ShowTableView}" FontSize="9"
+                        <CheckBox Content="📋 Tableau" IsChecked="{Binding ShowTableView}" FontSize="10"
                                   Foreground="{DynamicResource GoldBrush}" VerticalAlignment="Center"/>
                     </Border>
 
                     <!-- Placement indicators -->
                     <Border Background="#44FF0000" CornerRadius="3" Padding="6,2" Margin="4,0,0,0"
                             Visibility="{Binding IsPlacingCharacter, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="🎯 Cliquez pour placer" FontSize="9" Foreground="#FFFF6666"/>
+                        <TextBlock Text="🎯 Cliquez pour placer" FontSize="10" Foreground="#FFFF6666"/>
                     </Border>
                     <Border Background="#4400AAFF" CornerRadius="3" Padding="6,2" Margin="4,0,0,0"
                             Visibility="{Binding IsPlacingTimer, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="⏱ Cliquez pour placer" FontSize="9" Foreground="#FF66CCFF"/>
+                        <TextBlock Text="⏱ Cliquez pour placer" FontSize="10" Foreground="#FF66CCFF"/>
                     </Border>
                 </WrapPanel>
             </Border>
@@ -338,7 +338,7 @@
                                                                          BorderBrush="{DynamicResource BorderBrush}"
                                                                          BorderThickness="0,0,0,1"
                                                                          VerticalContentAlignment="Center"/>
-                                                                <TextBlock Text="h" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                                                <TextBlock Text="h" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                                                            VerticalAlignment="Center" Margin="1,0,3,0"/>
                                                                 <TextBox Width="26" Height="22" FontSize="10" Padding="1,0"
                                                                          TextAlignment="Center" Tag="m"
@@ -348,7 +348,7 @@
                                                                          BorderBrush="{DynamicResource BorderBrush}"
                                                                          BorderThickness="0,0,0,1"
                                                                          VerticalContentAlignment="Center"/>
-                                                                <TextBlock Text="m" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                                                <TextBlock Text="m" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                                                            VerticalAlignment="Center" Margin="1,0,3,0"/>
                                                                 <TextBox Width="26" Height="22" FontSize="10" Padding="1,0"
                                                                          TextAlignment="Center" Tag="s"
@@ -358,7 +358,7 @@
                                                                          BorderBrush="{DynamicResource BorderBrush}"
                                                                          BorderThickness="0,0,0,1"
                                                                          VerticalContentAlignment="Center"/>
-                                                                <TextBlock Text="s" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                                                <TextBlock Text="s" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                                                            VerticalAlignment="Center" Margin="1,0,0,0"/>
                                                             </StackPanel>
                                                         </StackPanel>
@@ -439,7 +439,7 @@
                         <StackPanel>
                             <TextBlock Text="➕ Nouveau personnage" FontSize="13" FontWeight="Bold"
                                        Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,10"/>
-                            <TextBlock Text="Nom" FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
+                            <TextBlock Text="Nom" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
                             <TextBox FontSize="11" Padding="4,3" Margin="0,0,0,6"
                                      Text="{Binding NewCharName, UpdateSourceTrigger=PropertyChanged}"
                                      Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
@@ -498,7 +498,7 @@
                         <StackPanel>
                             <TextBlock Text="👤 Nouveau compte" FontSize="13" FontWeight="Bold"
                                        Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,10"/>
-                            <TextBlock Text="Nom du compte" FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
+                            <TextBlock Text="Nom du compte" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
                             <DockPanel Margin="0,0,0,8">
                                 <Button DockPanel.Dock="Right" Content="Ajouter" Style="{DynamicResource StoneButton}"
                                         FontSize="10" Padding="10,4" Margin="6,0,0,0" Click="PopupAddAccount_Click"/>
@@ -512,7 +512,7 @@
                                     <DataTemplate>
                                         <DockPanel Margin="0,0,0,3">
                                             <Button DockPanel.Dock="Right" Content="✕" Style="{DynamicResource StoneButton}"
-                                                    FontSize="9" Padding="4,1" Click="RemoveAccount_Click"/>
+                                                    FontSize="10" Padding="4,1" Click="RemoveAccount_Click"/>
                                             <TextBlock Text="{Binding Name}" FontSize="11"
                                                        Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
                                         </DockPanel>
@@ -540,12 +540,12 @@
                         <StackPanel>
                             <TextBlock Text="⏱ Nouveau timer" FontSize="13" FontWeight="Bold"
                                        Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,10"/>
-                            <TextBlock Text="Nom du timer" FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
+                            <TextBlock Text="Nom du timer" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
                             <TextBox FontSize="11" Padding="4,3" Margin="0,0,0,6"
                                      Text="{Binding NewTimerLabel, UpdateSourceTrigger=PropertyChanged}"
                                      Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
                                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                            <TextBlock Text="Durée" FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Durée" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,4"/>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                 <TextBox Width="40" FontSize="11" Padding="3" TextAlignment="Center"
                                          Text="{Binding NewTimerHours, UpdateSourceTrigger=PropertyChanged}"
@@ -590,12 +590,12 @@
                         <StackPanel>
                             <TextBlock Text="🌐 Ajouter un ami" FontSize="13" FontWeight="Bold"
                                        Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,10"/>
-                            <TextBlock Text="Nom" FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
+                            <TextBlock Text="Nom" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
                             <TextBox FontSize="11" Padding="4,3" Margin="0,0,0,6"
                                      Text="{Binding FriendNameInput, UpdateSourceTrigger=PropertyChanged}"
                                      Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
                                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                            <TextBlock Text="Identifiant (GUID)" FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
+                            <TextBlock Text="Identifiant (GUID)" FontSize="10" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,2"/>
                             <TextBox FontSize="11" Padding="4,3" Margin="0,0,0,8"
                                      Text="{Binding FriendGuidInput, UpdateSourceTrigger=PropertyChanged}"
                                      Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"

@@ -31,25 +31,6 @@ public partial class AdvancedViewModel : ObservableObject
     [ObservableProperty]
     private AdvancedSlot? _selectedSlot;
 
-    partial void OnSelectedSlotChanged(AdvancedSlot? value)
-    {
-        OnPropertyChanged(nameof(SelectedSlotMonitor));
-    }
-
-    /// <summary>Monitor of the currently selected slot — changeable via ComboBox.</summary>
-    public MonitorInfo? SelectedSlotMonitor
-    {
-        get => SelectedSlot is null ? null
-            : _mainVm.Monitors.FirstOrDefault(m => m.DeviceName == SelectedSlot.MonitorDeviceName);
-        set
-        {
-            if (SelectedSlot is null || value is null) return;
-            if (value.DeviceName == SelectedSlot.MonitorDeviceName) return;
-            MoveSlotToMonitor(SelectedSlot, value);
-            OnPropertyChanged(nameof(SelectedSlotMonitor));
-        }
-    }
-
     public void MoveWindowToAssignedMonitor(WindowInfo window)
     {
         var slot = Slots.FirstOrDefault(s => s.Window == window);
@@ -277,35 +258,20 @@ public partial class AdvancedViewModel : ObservableObject
         OnPropertyChanged(nameof(Slots));
     }
 
-    [RelayCommand]
-    private void ToggleMainWindow()
-    {
-        if (SelectedSlot is null) return;
-        var win = SelectedSlot.Window;
-        if (win.IsMainWindow)
-        {
-            win.IsMainWindow = false;
-        }
-        else
-        {
-            // Exclusive: un seul leader par moniteur
-            foreach (var slot in Slots)
-            {
-                if (slot.MonitorDeviceName == SelectedSlot.MonitorDeviceName)
-                    slot.Window.IsMainWindow = false;
-            }
-            win.IsMainWindow = true;
-        }
-        OnPropertyChanged(nameof(Slots));
-        OnPropertyChanged(nameof(SelectedSlot));
-    }
-
     // --- Auto-layout commands (per monitor) ---
 
     [RelayCommand]
-    private void AutoLayoutMain(MonitorInfo? monitor) =>
+    private void AutoLayoutMain(MonitorInfo? monitor)
+    {
+        if (monitor is null) return;
+        var cfg = _mainVm.MonitorConfigs.FirstOrDefault(c => c.Monitor.Handle == monitor.Handle);
         ApplyAutoLayoutForMonitor(monitor, (windows, wa) =>
-            _layoutService.CalculateMainLayout(windows, wa, MainSize.Grand, MainPosition.TopLeft, true, false));
+            _layoutService.CalculateMainLayout(windows, wa,
+                cfg?.Size ?? MainSize.Grand,
+                cfg?.Position ?? MainPosition.TopLeft,
+                cfg?.HasLateral ?? true,
+                cfg?.HasBandeau ?? false));
+    }
 
     [RelayCommand]
     private void AutoLayoutSplitH(MonitorInfo? monitor) =>
@@ -420,7 +386,7 @@ public partial class AdvancedViewModel : ObservableObject
     [RelayCommand]
     private void CopySize()
     {
-        if (SelectedSlot is null) return;
+        if (SelectedSlot is null) { StatusMessage = "⚠ Sélectionnez d'abord une fenêtre sur le canvas"; return; }
         _copiedCanvasW = SelectedSlot.CanvasWidth;
         _copiedCanvasH = SelectedSlot.CanvasHeight;
         HasCopiedSize = true;
@@ -430,7 +396,8 @@ public partial class AdvancedViewModel : ObservableObject
     [RelayCommand]
     private void PasteSize()
     {
-        if (SelectedSlot is null || !HasCopiedSize) return;
+        if (SelectedSlot is null) { StatusMessage = "⚠ Sélectionnez d'abord une fenêtre sur le canvas"; return; }
+        if (!HasCopiedSize) { StatusMessage = "⚠ Copiez d'abord une taille"; return; }
         SelectedSlot.SetCanvasRect(
             SelectedSlot.CanvasX, SelectedSlot.CanvasY,
             SelectedSlot.CanvasX + _copiedCanvasW,
