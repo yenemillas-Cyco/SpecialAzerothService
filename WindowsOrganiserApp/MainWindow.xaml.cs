@@ -72,12 +72,16 @@ public partial class MainWindow : Window
     private void RestoreWindowPosition()
     {
         var settings = _settingsService.Load();
-        Width = settings.WindowWidth;
-        Height = settings.WindowHeight;
+        var screenW = SystemParameters.PrimaryScreenWidth;
+        var screenH = SystemParameters.PrimaryScreenHeight;
+
+        Width = Math.Min(settings.WindowWidth, screenW - 40);
+        Height = Math.Min(settings.WindowHeight, screenH - 40);
+
         if (!double.IsNaN(settings.WindowLeft) && !double.IsNaN(settings.WindowTop))
         {
-            Left = settings.WindowLeft;
-            Top = settings.WindowTop;
+            Left = Math.Max(0, Math.Min(settings.WindowLeft, screenW - Width));
+            Top = Math.Max(0, Math.Min(settings.WindowTop, screenH - Height));
         }
     }
 

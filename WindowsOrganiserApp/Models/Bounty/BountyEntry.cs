@@ -12,18 +12,8 @@ public sealed class BountyEntry
     public List<BountyContributor> Contributors { get; set; } = [];
 
     public int TotalGold => Contributors.Sum(c => c.GoldAmount);
-    public int TotalJewels => Contributors.Sum(c => c.JewelAmount);
 
-    public string DisplayTotal
-    {
-        get
-        {
-            var parts = new List<string>();
-            if (TotalGold > 0) parts.Add($"{TotalGold}po");
-            if (TotalJewels > 0) parts.Add($"{TotalJewels} bijoux zg");
-            return parts.Count > 0 ? string.Join(" ou ", parts) : "0po";
-        }
-    }
+    public string DisplayTotal => $"{TotalGold}po";
 
     public string ContributorNames => string.Join(" et ", Contributors.Select(c => c.Name).Distinct());
 }

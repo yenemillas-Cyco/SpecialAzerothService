@@ -31,39 +31,39 @@
                         <Button Content="📜 Règlement" Style="{DynamicResource WowButton}"
                                 FontSize="10" Padding="12,5" Margin="0,0,6,0"
                                 Click="ToggleRules_Click"/>
-                        <Button Content="📋 Copier Discord" Style="{DynamicResource WowButton}"
+                        <Button Content="📋 Copier tout Discord" Style="{DynamicResource WowButton}"
                                 FontSize="10" Padding="12,5"
                                 Command="{Binding CopyDiscordMessageCommand}"
-                                ToolTip="Copier le message complet pour Discord"/>
+                                ToolTip="Copier le message complet (règlement + toutes les primes)"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
 
-            <!-- ═══ BOUNTY LIST (full width) ═══ -->
+            <!-- ═══ BOUNTY LIST ═══ -->
             <Border Background="{DynamicResource PanelBg}" CornerRadius="6"
                     Padding="12" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
                 <DockPanel>
                     <!-- Column headers -->
                     <Grid DockPanel.Dock="Top" Margin="8,0,8,6">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="65"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="150"/>
                             <ColumnDefinition Width="120"/>
-                            <ColumnDefinition Width="70"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="100"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="CIBLE" FontSize="9" FontWeight="Bold"
+                        <TextBlock Grid.Column="0" Text="CIBLE" FontSize="10" FontWeight="Bold"
                                    Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBlock Grid.Column="1" Text="PRIME" FontSize="9" FontWeight="Bold"
+                        <TextBlock Grid.Column="1" Text="PRIME" FontSize="10" FontWeight="Bold"
                                    Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBlock Grid.Column="2" Text="STATUT" FontSize="9" FontWeight="Bold"
+                        <TextBlock Grid.Column="2" Text="STATUT" FontSize="10" FontWeight="Bold"
                                    Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBlock Grid.Column="3" Text="MOTIF" FontSize="9" FontWeight="Bold"
+                        <TextBlock Grid.Column="3" Text="MOTIF" FontSize="10" FontWeight="Bold"
                                    Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBlock Grid.Column="4" Text="COMMANDITAIRES" FontSize="9" FontWeight="Bold"
+                        <TextBlock Grid.Column="4" Text="COMMANDITAIRES" FontSize="10" FontWeight="Bold"
                                    Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBlock Grid.Column="5" Text="ACTIONS" FontSize="9" FontWeight="Bold"
+                        <TextBlock Grid.Column="5" Text="ACTIONS" FontSize="10" FontWeight="Bold"
                                    Foreground="{DynamicResource SubtextBrush}" HorizontalAlignment="Center"/>
                     </Grid>
                     <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,4"/>
@@ -73,33 +73,33 @@
                         <ItemsControl ItemsSource="{Binding Bounties}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border CornerRadius="4" Padding="8,6" Margin="0,0,0,3"
+                                    <Border CornerRadius="4" Padding="8,7" Margin="0,0,0,3"
                                             Background="#10FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF"
-                                            Cursor="Hand">
+                                            Cursor="Hand" MouseLeftButtonDown="BountyRow_MouseDown">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="140"/>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="65"/>
                                                 <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="150"/>
                                                 <ColumnDefinition Width="120"/>
-                                                <ColumnDefinition Width="70"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="100"/>
                                             </Grid.ColumnDefinitions>
 
                                             <!-- Target name -->
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="💀" FontSize="11" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                <TextBlock Text="{Binding TargetName}" FontSize="12" FontWeight="SemiBold"
+                                                <TextBlock Text="💀" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                <TextBlock Text="{Binding TargetName}" FontSize="13" FontWeight="SemiBold"
                                                            Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
                                             </StackPanel>
 
                                             <!-- Total -->
-                                            <TextBlock Grid.Column="1" Text="{Binding DisplayTotal}" FontSize="11"
+                                            <TextBlock Grid.Column="1" Text="{Binding DisplayTotal}" FontSize="13"
                                                        FontWeight="Bold" Foreground="{DynamicResource BrightGoldBrush}"
                                                        VerticalAlignment="Center"/>
 
                                             <!-- Status badge -->
-                                            <Border Grid.Column="2" CornerRadius="3" Padding="4,1"
+                                            <Border Grid.Column="2" CornerRadius="3" Padding="5,2"
                                                     HorizontalAlignment="Left" VerticalAlignment="Center">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
@@ -111,7 +111,7 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <TextBlock FontSize="8" FontWeight="Bold" VerticalAlignment="Center">
+                                                <TextBlock FontSize="9" FontWeight="Bold" VerticalAlignment="Center">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Text" Value="WANTED"/>
@@ -127,32 +127,39 @@
                                                 </TextBlock>
                                             </Border>
 
-                                            <!-- Reason -->
-                                            <TextBlock Grid.Column="3" Text="{Binding Reason}" FontSize="10"
+                                            <!-- Reason (largest column) -->
+                                            <TextBlock Grid.Column="3" Text="{Binding Reason}" FontSize="12"
                                                        FontStyle="Italic" Foreground="{DynamicResource SubtextBrush}"
-                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding Reason}"/>
 
                                             <!-- Contributors -->
-                                            <TextBlock Grid.Column="4" Text="{Binding ContributorNames}" FontSize="10"
+                                            <TextBlock Grid.Column="4" Text="{Binding ContributorNames}" FontSize="11"
                                                        Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis"/>
 
                                             <!-- Action buttons -->
                                             <StackPanel Grid.Column="5" Orientation="Horizontal"
                                                         HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <Button Content="✏️" FontSize="10" Padding="3,1" Margin="1,0"
+                                                <Button Content="✏️" FontSize="11" Padding="4,1" Margin="1,0"
                                                         Background="Transparent" BorderThickness="0"
                                                         Foreground="LightSkyBlue" Cursor="Hand"
                                                         ToolTip="Éditer"
                                                         Command="{Binding DataContext.EditBountyCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
-                                                <Button Content="📷" FontSize="10" Padding="3,1" Margin="1,0"
+                                                <Button Content="📋" FontSize="11" Padding="4,1" Margin="1,0"
+                                                        Background="Transparent" BorderThickness="0"
+                                                        Foreground="LightSkyBlue" Cursor="Hand"
+                                                        ToolTip="Copier message Discord individuel"
+                                                        Command="{Binding DataContext.CopyIndividualDiscordCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Content="📷" FontSize="11" Padding="4,1" Margin="1,0"
                                                         Background="Transparent" BorderThickness="0"
                                                         Foreground="{DynamicResource BrightGoldBrush}" Cursor="Hand"
                                                         ToolTip="Copier prompt image"
                                                         Command="{Binding DataContext.CopyImagePromptCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}"/>
-                                                <Button Content="✕" FontSize="10" Padding="3,1" Margin="1,0"
+                                                <Button Content="✕" FontSize="11" Padding="4,1" Margin="1,0"
                                                         Background="Transparent" BorderThickness="0"
                                                         Foreground="#FF6B6B" Cursor="Hand"
                                                         ToolTip="Supprimer"
@@ -173,14 +180,13 @@
         <Popup x:Name="PopupEdit" Placement="Center" PlacementTarget="{Binding ElementName=RootGrid}"
                StaysOpen="True" AllowsTransparency="True"
                IsOpen="{Binding IsPopupOpen}">
-            <Border CornerRadius="8" Padding="24" Width="550"
+            <Border CornerRadius="8" Padding="24" Width="500"
                     Background="{DynamicResource PanelBg}"
                     BorderThickness="2" BorderBrush="{DynamicResource BrightGoldBrush}">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="25" ShadowDepth="5" Opacity="0.6"/>
                 </Border.Effect>
                 <StackPanel>
-                    <!-- Header -->
                     <DockPanel Margin="0,0,0,14">
                         <Button DockPanel.Dock="Right" Content="✕" FontSize="13"
                                 Background="Transparent" BorderThickness="0"
@@ -190,7 +196,6 @@
                                    Foreground="{DynamicResource BrightGoldBrush}"/>
                     </DockPanel>
 
-                    <!-- Target name -->
                     <DockPanel Margin="0,0,0,8">
                         <TextBlock Text="Nom :" FontSize="11" Width="90" VerticalAlignment="Center"
                                    Foreground="{DynamicResource SubtextBrush}"/>
@@ -201,7 +206,6 @@
                                  Padding="4,3"/>
                     </DockPanel>
 
-                    <!-- Alt name -->
                     <DockPanel Margin="0,0,0,8">
                         <TextBlock Text="Alt :" FontSize="11" Width="90" VerticalAlignment="Center"
                                    Foreground="{DynamicResource SubtextBrush}"/>
@@ -212,7 +216,6 @@
                                  Padding="4,3"/>
                     </DockPanel>
 
-                    <!-- Class + Race -->
                     <DockPanel Margin="0,0,0,8">
                         <TextBlock Text="Classe :" FontSize="11" Width="90" VerticalAlignment="Center"
                                    Foreground="{DynamicResource SubtextBrush}"/>
@@ -226,7 +229,6 @@
                                   FontSize="11" Width="130" HorizontalAlignment="Left"/>
                     </DockPanel>
 
-                    <!-- Reason -->
                     <DockPanel Margin="0,0,0,12">
                         <TextBlock Text="Motif :" FontSize="11" Width="90" VerticalAlignment="Center"
                                    Foreground="{DynamicResource SubtextBrush}"/>
@@ -239,7 +241,6 @@
 
                     <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,12"/>
 
-                    <!-- Commanditaires -->
                     <TextBlock Text="💰 COMMANDITAIRES" FontSize="11" FontWeight="Bold"
                                Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,6"/>
 
@@ -259,14 +260,8 @@
                                                    Foreground="{DynamicResource TextBrush}">
                                             <Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold"/>
                                             <Run Text=" — " Foreground="{DynamicResource SubtextBrush}"/>
-                                            <Run Foreground="{DynamicResource BrightGoldBrush}">
-                                                <Run.Text>
-                                                    <MultiBinding StringFormat="{}{0}po / {1} bijoux">
-                                                        <Binding Path="GoldAmount"/>
-                                                        <Binding Path="JewelAmount"/>
-                                                    </MultiBinding>
-                                                </Run.Text>
-                                            </Run>
+                                            <Run Text="{Binding GoldAmount, Mode=OneWay, StringFormat='{}{0}po'}"
+                                                 Foreground="{DynamicResource BrightGoldBrush}"/>
                                         </TextBlock>
                                     </DockPanel>
                                 </Border>
@@ -274,7 +269,6 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <!-- Add commanditaire -->
                     <Border CornerRadius="4" Padding="10,8" Background="#08AADDFF"
                             BorderThickness="1" BorderBrush="#18AADDFF" Margin="0,0,0,14">
                         <DockPanel>
@@ -282,36 +276,27 @@
                                     FontSize="10" Padding="12,4" Margin="8,0,0,0"
                                     VerticalAlignment="Bottom"
                                     Command="{Binding AddContributorCommand}"/>
-                            <WrapPanel VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <StackPanel Margin="0,0,10,0">
                                     <TextBlock Text="Commanditaire" FontSize="9" Foreground="{DynamicResource SubtextBrush}"/>
                                     <TextBox Text="{Binding NewContribName, UpdateSourceTrigger=PropertyChanged}"
-                                             Width="130" Height="24" FontSize="10" Padding="4,2"
+                                             Width="150" Height="24" FontSize="10" Padding="4,2"
                                              Background="Transparent" Foreground="{DynamicResource TextBrush}"
                                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
                                              VerticalContentAlignment="Center"/>
                                 </StackPanel>
-                                <StackPanel Margin="0,0,10,0">
+                                <StackPanel>
                                     <TextBlock Text="Or (po)" FontSize="9" Foreground="{DynamicResource SubtextBrush}"/>
                                     <TextBox Text="{Binding NewContribGold, UpdateSourceTrigger=PropertyChanged}"
-                                             Width="60" Height="24" FontSize="10" Padding="4,2"
+                                             Width="70" Height="24" FontSize="10" Padding="4,2"
                                              Background="Transparent" Foreground="{DynamicResource TextBrush}"
                                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
                                              VerticalContentAlignment="Center" TextAlignment="Center"/>
                                 </StackPanel>
-                                <StackPanel>
-                                    <TextBlock Text="Bijoux ZG" FontSize="9" Foreground="{DynamicResource SubtextBrush}"/>
-                                    <TextBox Text="{Binding NewContribJewels, UpdateSourceTrigger=PropertyChanged}"
-                                             Width="60" Height="24" FontSize="10" Padding="4,2"
-                                             Background="Transparent" Foreground="{DynamicResource TextBrush}"
-                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
-                                             VerticalContentAlignment="Center" TextAlignment="Center"/>
-                                </StackPanel>
-                            </WrapPanel>
+                            </StackPanel>
                         </DockPanel>
                     </Border>
 
-                    <!-- Save / Cancel -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <Button Content="💾 Sauvegarder" Style="{DynamicResource WowButton}"
                                 FontSize="11" Padding="20,7" Margin="0,0,8,0"

@@ -33,7 +33,6 @@ public partial class BountyViewModel : ObservableObject
 
     [ObservableProperty] private string _newContribName = string.Empty;
     [ObservableProperty] private int _newContribGold;
-    [ObservableProperty] private int _newContribJewels;
 
     public ObservableCollection<BountyContributor>? EditingContributors =>
         EditingBounty != null ? new ObservableCollection<BountyContributor>(EditingBounty.Contributors) : null;
@@ -43,7 +42,6 @@ public partial class BountyViewModel : ObservableObject
         OnPropertyChanged(nameof(EditingContributors));
         NewContribName = string.Empty;
         NewContribGold = 0;
-        NewContribJewels = 0;
     }
 
     public void Save()
@@ -124,13 +122,11 @@ public partial class BountyViewModel : ObservableObject
         EditingBounty.Contributors.Add(new BountyContributor
         {
             Name = NewContribName.Trim(),
-            GoldAmount = NewContribGold,
-            JewelAmount = NewContribJewels
+            GoldAmount = NewContribGold
         });
 
         NewContribName = string.Empty;
         NewContribGold = 0;
-        NewContribJewels = 0;
 
         OnPropertyChanged(nameof(EditingContributors));
     }
@@ -165,17 +161,7 @@ public partial class BountyViewModel : ObservableObject
         {
             sb.AppendLine("**📋 Primes actives :**");
             foreach (var b in active)
-            {
-                var name = string.IsNullOrWhiteSpace(b.AltName) ? b.TargetName : $"{b.TargetName} ou {b.AltName}";
-                var claimTo = b.ContributorNames;
-
-                sb.Append($"-**{name}** : {b.DisplayTotal}.");
-                if (!string.IsNullOrWhiteSpace(b.Reason))
-                    sb.Append($"     \"{b.Reason}\"");
-                if (!string.IsNullOrWhiteSpace(claimTo))
-                    sb.Append($" (prime à réclamer à {claimTo})");
-                sb.AppendLine();
-            }
+                sb.AppendLine(FormatBountyLine(b));
         }
 
         var completed = Bounties.Where(b => b.IsCompleted).ToList();
@@ -188,6 +174,13 @@ public partial class BountyViewModel : ObservableObject
         }
 
         Clipboard.SetText(sb.ToString());
+    }
+
+    [RelayCommand]
+    private void CopyIndividualDiscord(BountyEntry? bounty)
+    {
+        if (bounty == null) return;
+        Clipboard.SetText(FormatBountyLine(bounty));
     }
 
     [RelayCommand]
@@ -208,6 +201,19 @@ public partial class BountyViewModel : ObservableObject
                      $"Style épique, sombre, avec des pièces d'or.";
 
         Clipboard.SetText(prompt);
+    }
+
+    private static string FormatBountyLine(BountyEntry b)
+    {
+        var name = string.IsNullOrWhiteSpace(b.AltName) ? b.TargetName : $"{b.TargetName} ou {b.AltName}";
+        var claimTo = b.ContributorNames;
+        var sb = new StringBuilder();
+        sb.Append($"-**{name}** : {b.DisplayTotal}.");
+        if (!string.IsNullOrWhiteSpace(b.Reason))
+            sb.Append($"     \"{b.Reason}\"");
+        if (!string.IsNullOrWhiteSpace(claimTo))
+            sb.Append($" (prime à réclamer à {claimTo})");
+        return sb.ToString();
     }
 
     private void RefreshList()

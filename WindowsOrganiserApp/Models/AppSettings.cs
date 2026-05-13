@@ -4,8 +4,8 @@ namespace WindowsOrganiserApp.Models;
 
 public sealed class AppSettings
 {
-    public double WindowWidth { get; set; } = 1200;
-    public double WindowHeight { get; set; } = 700;
+    public double WindowWidth { get; set; } = 1100;
+    public double WindowHeight { get; set; } = 650;
     public double WindowLeft { get; set; } = double.NaN;
     public double WindowTop { get; set; } = double.NaN;
     public string Theme { get; set; } = "Classic";
