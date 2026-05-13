@@ -194,15 +194,16 @@
                 </DockPanel>
             </Border>
 
+            <!-- ═══ DISCORD CHAR COUNT ═══ -->
+            <TextBlock DockPanel.Dock="Top"
+                       Text="{Binding DiscordCharCount}" FontSize="13" FontWeight="SemiBold"
+                       Foreground="{Binding DiscordCharBrush}"
+                       HorizontalAlignment="Right" Margin="0,2,8,4"
+                       ToolTip="Nombre de caractères du message Discord (limite 2000)"/>
+
             <!-- ═══ BOUNTY DATAGRID ═══ -->
             <Border Background="{DynamicResource PanelBg}" CornerRadius="6"
                     Padding="4" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
-                <Grid>
-                    <TextBlock Text="{Binding DiscordCharCount}" FontSize="13" FontWeight="SemiBold"
-                               Foreground="{Binding DiscordCharBrush}"
-                               HorizontalAlignment="Right" VerticalAlignment="Top"
-                               Margin="0,6,12,0" Panel.ZIndex="1"
-                               ToolTip="Nombre de caractères du message Discord (limite 2000)"/>
                 <DataGrid x:Name="BountyGrid"
                           ItemsSource="{Binding Bounties}"
                           AutoGenerateColumns="False"
@@ -364,7 +365,6 @@
                         </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
-                </Grid>
             </Border>
 
         </DockPanel>
