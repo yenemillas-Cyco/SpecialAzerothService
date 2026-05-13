@@ -155,7 +155,7 @@ public partial class BountyViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void CopyDiscordMessage()
+    private void CopyDiscordRules()
     {
         var sb = new StringBuilder();
         sb.AppendLine("**🏴‍☠️ AVIS DE RECHERCHE — CHASSEUR DE PRIMES 🏴‍☠️**");
@@ -163,11 +163,18 @@ public partial class BountyViewModel : ObservableObject
         sb.AppendLine("**Règlement :**");
         foreach (var line in Rules.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             sb.AppendLine(line.Trim());
-        sb.AppendLine();
+        Clipboard.SetText(sb.ToString());
+    }
+
+    [RelayCommand]
+    private void CopyDiscordBounties()
+    {
+        var sb = new StringBuilder();
 
         var active = Bounties.Where(b => !b.IsCompleted).ToList();
         if (active.Count > 0)
         {
+            sb.AppendLine("**📋 Primes actives :**");
             foreach (var b in active)
                 sb.AppendLine(FormatBountyLine(b));
         }

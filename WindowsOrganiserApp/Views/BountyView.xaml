@@ -140,10 +140,14 @@
                         <Button Content="📜 Règlement" Style="{DynamicResource WowButton}"
                                 FontSize="10" Padding="12,5" Margin="0,0,6,0"
                                 Click="ToggleRules_Click"/>
-                        <Button Content="📋 Copier tout" Style="{DynamicResource WowButton}"
-                                FontSize="10" Padding="12,5"
-                                Command="{Binding CopyDiscordMessageCommand}"
-                                ToolTip="Copier le message complet pour Discord"/>
+                        <Button Content="📋 Copier règlement" Style="{DynamicResource WowButton}"
+                                FontSize="10" Padding="10,5" Margin="0,0,4,0"
+                                Command="{Binding CopyDiscordRulesCommand}"
+                                ToolTip="Copier le règlement pour Discord"/>
+                        <Button Content="📋 Copier primes" Style="{DynamicResource WowButton}"
+                                FontSize="10" Padding="10,5"
+                                Command="{Binding CopyDiscordBountiesCommand}"
+                                ToolTip="Copier la liste des primes pour Discord"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
