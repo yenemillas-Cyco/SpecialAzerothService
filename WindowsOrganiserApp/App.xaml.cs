@@ -40,6 +40,7 @@ public partial class App : Application
         services.AddSingleton<IPresetService, PresetService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
         services.AddSingleton<ICartoService, CartoService>();
+        services.AddSingleton<IBountyService, BountyService>();
         services.AddSingleton(sp =>
         {
             var settings = sp.GetRequiredService<ISettingsService>().Load();
@@ -48,6 +49,7 @@ public partial class App : Application
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<AdvancedViewModel>();
         services.AddSingleton<CartoViewModel>();
+        services.AddSingleton<BountyViewModel>();
         services.AddTransient<MainWindow>();
 
         _serviceProvider = services.BuildServiceProvider();
@@ -55,8 +57,10 @@ public partial class App : Application
         var mainVm = _serviceProvider.GetRequiredService<MainViewModel>();
         var advVm = _serviceProvider.GetRequiredService<AdvancedViewModel>();
         var cartoVm = _serviceProvider.GetRequiredService<CartoViewModel>();
+        var bountyVm = _serviceProvider.GetRequiredService<BountyViewModel>();
         mainVm.AdvancedVm = advVm;
         mainVm.CartoVm = cartoVm;
+        mainVm.BountyVm = bountyVm;
 
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
         mainWindow.Show();

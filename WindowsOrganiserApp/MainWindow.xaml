@@ -22,7 +22,9 @@
         <conv:BoolToMainLabelConverter x:Key="MainLabelConverter"/>
         <conv:EnumToBoolConverter x:Key="EnumToBool"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-
+        <conv:NullToVisibilityConverter x:Key="NullToVis"/>
+        <conv:NotNullToVisibilityConverter x:Key="NotNullToVis"/>
+        <conv:BoolToCompletedLabelConverter x:Key="BoolToCompletedLabel"/>
     </Window.Resources>
 
     <!-- Background image + overlay -->
@@ -125,7 +127,9 @@
                         <RadioButton Content="{DynamicResource Mode_Advanced}" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
                                      IsChecked="{Binding IsAdvancedMode}" Margin="0,0,6,0"/>
                         <RadioButton Content="Carto" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
-                                     IsChecked="{Binding IsCartoMode}"/>
+                                     IsChecked="{Binding IsCartoMode}" Margin="0,0,6,0"/>
+                        <RadioButton Content="🏴‍☠️ Primes" Style="{DynamicResource WowPill}" FontSize="12" Height="30"
+                                     IsChecked="{Binding IsBountyMode}"/>
                     </StackPanel>
 
                     <!-- Standard content -->
@@ -736,6 +740,10 @@
                     <!-- Carto content -->
                     <views:CartoView Grid.Row="3" DataContext="{Binding CartoVm}"
                                      Visibility="{Binding DataContext.IsCartoMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
+
+                    <!-- Bounty content -->
+                    <views:BountyView Grid.Row="3" DataContext="{Binding BountyVm}"
+                                      Visibility="{Binding DataContext.IsBountyMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
 
                             <!-- Status bar -->
                             <Border Grid.Row="4" Background="{DynamicResource PanelBg}" CornerRadius="4"

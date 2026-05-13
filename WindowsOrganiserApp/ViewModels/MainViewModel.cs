@@ -51,9 +51,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isCartoMode;
 
+    [ObservableProperty]
+    private bool _isBountyMode;
+
     partial void OnIsStandardModeChanged(bool value)
     {
-        if (value) { IsAdvancedMode = false; IsCartoMode = false; }
+        if (value) { IsAdvancedMode = false; IsCartoMode = false; IsBountyMode = false; }
     }
 
     partial void OnIsAdvancedModeChanged(bool value)
@@ -62,17 +65,24 @@ public partial class MainViewModel : ObservableObject
         {
             IsStandardMode = false;
             IsCartoMode = false;
+            IsBountyMode = false;
             AdvancedVm?.RefreshFromMain();
         }
     }
 
     partial void OnIsCartoModeChanged(bool value)
     {
-        if (value) { IsStandardMode = false; IsAdvancedMode = false; }
+        if (value) { IsStandardMode = false; IsAdvancedMode = false; IsBountyMode = false; }
+    }
+
+    partial void OnIsBountyModeChanged(bool value)
+    {
+        if (value) { IsStandardMode = false; IsAdvancedMode = false; IsCartoMode = false; }
     }
 
     public AdvancedViewModel? AdvancedVm { get; set; }
     public CartoViewModel? CartoVm { get; set; }
+    public BountyViewModel? BountyVm { get; set; }
 
     [ObservableProperty]
     private string _currentThemeLabel;
