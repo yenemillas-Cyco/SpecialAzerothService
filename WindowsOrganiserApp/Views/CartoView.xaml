@@ -40,32 +40,38 @@
                     <!-- Separator -->
                     <Border Width="1" Height="18" Background="{DynamicResource BorderBrush}" Margin="4,0"/>
 
-                    <!-- Filters inline -->
-                    <TextBox Width="70" FontSize="9" Padding="3,2" Margin="2,0"
+                    <!-- Filters inline (all Height=24 for consistency) -->
+                    <TextBox Width="70" Height="24" FontSize="9" Padding="3,0" Margin="2,0"
+                             VerticalContentAlignment="Center"
                              Text="{Binding FilterName, UpdateSourceTrigger=PropertyChanged}"
                              Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                              ToolTip="Filtrer par nom"/>
-                    <ComboBox Width="80" FontSize="9" Height="22" Margin="2,0"
+                    <ComboBox Width="80" Height="24" FontSize="9" Margin="2,0"
+                              VerticalContentAlignment="Center"
                               ItemsSource="{Binding WowClasses}" SelectedItem="{Binding FilterClass}"
                               ToolTip="Classe"/>
-                    <TextBox Width="28" FontSize="9" Padding="2" Margin="2,0,0,0" TextAlignment="Center"
+                    <TextBox Width="28" Height="24" FontSize="9" Padding="2,0" Margin="2,0,0,0" TextAlignment="Center"
+                             VerticalContentAlignment="Center"
                              Text="{Binding FilterLevelMin, UpdateSourceTrigger=PropertyChanged}"
                              Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                              ToolTip="Level min"/>
                     <TextBlock Text="-" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
                                VerticalAlignment="Center" Margin="1,0"/>
-                    <TextBox Width="28" FontSize="9" Padding="2" Margin="0,0,2,0" TextAlignment="Center"
+                    <TextBox Width="28" Height="24" FontSize="9" Padding="2,0" Margin="0,0,2,0" TextAlignment="Center"
+                             VerticalContentAlignment="Center"
                              Text="{Binding FilterLevelMax, UpdateSourceTrigger=PropertyChanged}"
                              Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                              ToolTip="Level max"/>
-                    <ComboBox Width="80" FontSize="9" Height="22" Margin="2,0"
+                    <ComboBox Width="80" Height="24" FontSize="9" Margin="2,0"
+                              VerticalContentAlignment="Center"
                               ItemsSource="{Binding Accounts}" DisplayMemberPath="Name"
                               SelectedValuePath="Id" SelectedValue="{Binding FilterAccountId}"
                               ToolTip="Compte"/>
-                    <ComboBox Width="65" FontSize="9" Height="22" Margin="2,0"
+                    <ComboBox Width="65" Height="24" FontSize="9" Margin="2,0"
+                              VerticalContentAlignment="Center"
                               ItemsSource="{Binding CharacterStatusValues}"
                               SelectedItem="{Binding FilterStatus}"
                               ToolTip="Status">
@@ -75,7 +81,7 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
-                    <Button Content="✕" Style="{DynamicResource StoneButton}" FontSize="9" Padding="5,2" Margin="2,0"
+                    <Button Content="✕" Style="{DynamicResource StoneButton}" FontSize="9" Height="24" Padding="5,0" Margin="2,0"
                             Command="{Binding ClearFiltersCommand}" ToolTip="Effacer les filtres"/>
 
                     <!-- Separator -->
