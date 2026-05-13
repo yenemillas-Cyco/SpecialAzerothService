@@ -3,7 +3,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:conv="clr-namespace:WindowsOrganiserApp.Converters"
              mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="1000">
+    <UserControl.Resources>
+        <conv:NullToVisibilityConverter x:Key="NullToVis"/>
+        <conv:NotNullToVisibilityConverter x:Key="NotNullToVis"/>
+        <conv:BoolToCompletedLabelConverter x:Key="BoolToCompletedLabel"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
     <Grid x:Name="RootGrid">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="300"/>
