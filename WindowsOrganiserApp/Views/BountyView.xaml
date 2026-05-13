@@ -123,19 +123,7 @@
                                Margin="0,0,16,0"/>
                     <Border Width="1" Height="20" Background="{DynamicResource BorderBrush}"
                             Margin="0,0,12,0" VerticalAlignment="Center"/>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Content="➕ Nouvelle prime" Style="{DynamicResource WowButton}"
-                                FontSize="10" Padding="12,5" Margin="0,0,6,0"
-                                Command="{Binding NewBountyCommand}"/>
-                        <Button Content="📜 Règlement" Style="{DynamicResource WowButton}"
-                                FontSize="10" Padding="12,5" Margin="0,0,6,0"
-                                Click="ToggleRules_Click"/>
-                        <Button Content="📋 Copier tout" Style="{DynamicResource WowButton}"
-                                FontSize="10" Padding="12,5" Margin="0,0,6,0"
-                                Command="{Binding CopyDiscordMessageCommand}"
-                                ToolTip="Copier le message complet pour Discord"/>
-                        <Border Width="1" Height="20" Background="{DynamicResource BorderBrush}"
-                                Margin="4,0,10,0" VerticalAlignment="Center"/>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Content="📥 Import" Style="{DynamicResource WowButton}"
                                 FontSize="10" Padding="10,5" Margin="0,0,4,0"
                                 Command="{Binding ImportBountiesCommand}"
@@ -144,6 +132,18 @@
                                 FontSize="10" Padding="10,5"
                                 Command="{Binding ExportBountiesCommand}"
                                 ToolTip="Exporter les primes vers un fichier"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="➕ Nouvelle prime" Style="{DynamicResource WowButton}"
+                                FontSize="10" Padding="12,5" Margin="0,0,6,0"
+                                Command="{Binding NewBountyCommand}"/>
+                        <Button Content="📜 Règlement" Style="{DynamicResource WowButton}"
+                                FontSize="10" Padding="12,5" Margin="0,0,6,0"
+                                Click="ToggleRules_Click"/>
+                        <Button Content="📋 Copier tout" Style="{DynamicResource WowButton}"
+                                FontSize="10" Padding="12,5"
+                                Command="{Binding CopyDiscordMessageCommand}"
+                                ToolTip="Copier le message complet pour Discord"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
