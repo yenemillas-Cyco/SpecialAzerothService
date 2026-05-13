@@ -13,25 +13,19 @@ public class CartoHub : Hub
         _log = log;
     }
 
-    public async Task Connect(string userGuid, string userName)
+    public async Task Connect(string userGuid)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, userGuid);
-        _store.SetUserName(userGuid, userName);
         _store.AddConnection(userGuid, Context.ConnectionId);
-        _log.LogInformation("Connect: {User} ({Guid})", userName, userGuid[..8]);
+        _log.LogInformation("Connect: {Guid}", userGuid[..8]);
 
-        // Notify subscribers that this user is now online
         await Clients.OthersInGroup(userGuid).SendAsync("FriendOnline", userGuid);
 
-        // Send cached data for each friend this user is subscribed to
         foreach (var friendGuid in _store.GetSubscriptions(userGuid))
         {
             var data = _store.GetCachedData(friendGuid);
             if (data != null)
-            {
-                var friendName = _store.GetUserName(friendGuid);
-                await Clients.Caller.SendAsync("ReceiveUpdate", friendGuid, friendName, data);
-            }
+                await Clients.Caller.SendAsync("ReceiveUpdate", friendGuid, data);
         }
     }
 
@@ -45,8 +39,7 @@ public class CartoHub : Hub
         var data = _store.GetCachedData(friendGuid);
         if (data != null)
         {
-            var friendName = _store.GetUserName(friendGuid);
-            await Clients.Caller.SendAsync("ReceiveUpdate", friendGuid, friendName, data);
+            await Clients.Caller.SendAsync("ReceiveUpdate", friendGuid, data);
         }
         else if (_store.IsOnline(friendGuid))
         {
@@ -67,14 +60,12 @@ public class CartoHub : Hub
         _log.LogInformation("Unsubscribe: {User} -> {Friend}", myGuid[..8], friendGuid[..8]);
     }
 
-    public async Task PushUpdate(string userGuid, string userName, string jsonData)
+    public async Task PushUpdate(string userGuid, string jsonData)
     {
         _store.CacheData(userGuid, jsonData);
-        _store.SetUserName(userGuid, userName);
 
-        await Clients.OthersInGroup(userGuid).SendAsync("ReceiveUpdate", userGuid, userName, jsonData);
-        _log.LogInformation("PushUpdate: {User} ({Guid}), {Size} bytes",
-            userName, userGuid[..8], jsonData.Length);
+        await Clients.OthersInGroup(userGuid).SendAsync("ReceiveUpdate", userGuid, jsonData);
+        _log.LogInformation("PushUpdate: {Guid}, {Size} bytes", userGuid[..8], jsonData.Length);
     }
 
     public List<string> GetOnlineFriends(List<string> friendGuids)

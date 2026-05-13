@@ -12,7 +12,6 @@ public sealed class AppSettings
     public string Language { get; set; } = "Français";
 
     public string UserGuid { get; set; } = Guid.NewGuid().ToString();
-    public string UserDisplayName { get; set; } = Environment.UserName;
     public string SyncServerUrl { get; set; } = "https://carto-sync-server.fly.dev/carto";
     public List<FriendEntry> Friends { get; set; } = [];
 

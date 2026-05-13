@@ -19,14 +19,13 @@ public class SyncService : IDisposable
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public event Action<string, string, SyncPayload>? FriendDataReceived;
+    public event Action<string, SyncPayload>? FriendDataReceived;
     public event Action<string>? ConnectionStateChanged;
     public event Action<string, bool>? FriendOnlineChanged;
     public event Action? PushRequested;
 
     public bool IsConnected => _connected;
     public string UserGuid => _settings.UserGuid;
-    public string UserDisplayName => _settings.UserDisplayName;
     public List<FriendEntry> Friends => _settings.Friends;
     public AppSettings Settings => _settings;
 
@@ -79,7 +78,7 @@ public class SyncService : IDisposable
                 ])
                 .Build();
 
-            _hub.On<string, string, string>("ReceiveUpdate", OnReceiveUpdate);
+            _hub.On<string, string>("ReceiveUpdate", OnReceiveUpdate);
             _hub.On<string>("FriendOnline", guid => FriendOnlineChanged?.Invoke(guid, true));
             _hub.On<string>("FriendOffline", guid => FriendOnlineChanged?.Invoke(guid, false));
             _hub.On("RequestPush", () => PushRequested?.Invoke());
@@ -118,7 +117,7 @@ public class SyncService : IDisposable
     private async Task RegisterAndSubscribe()
     {
         if (_hub == null) return;
-        await _hub.InvokeAsync("Connect", _settings.UserGuid, _settings.UserDisplayName);
+        await _hub.InvokeAsync("Connect", _settings.UserGuid);
         foreach (var f in _settings.Friends)
             await _hub.InvokeAsync("Subscribe", _settings.UserGuid, f.Guid);
     }
@@ -168,7 +167,7 @@ public class SyncService : IDisposable
                 Characters = data.Characters.Where(c => !c.IsExternal).ToList()
             };
             var json = JsonSerializer.Serialize(payload, JsonOpts);
-            await _hub.InvokeAsync("PushUpdate", _settings.UserGuid, _settings.UserDisplayName, json);
+            await _hub.InvokeAsync("PushUpdate", _settings.UserGuid, json);
         }
         catch (Exception ex)
         {
@@ -176,17 +175,17 @@ public class SyncService : IDisposable
         }
     }
 
-    private void OnReceiveUpdate(string friendGuid, string friendName, string json)
+    private void OnReceiveUpdate(string friendGuid, string json)
     {
         try
         {
             var payload = JsonSerializer.Deserialize<SyncPayload>(json, JsonOpts);
             if (payload != null)
-                FriendDataReceived?.Invoke(friendGuid, friendName, payload);
+                FriendDataReceived?.Invoke(friendGuid, payload);
         }
         catch (Exception ex)
         {
-            _log.Warning(ex, "Sync: failed to deserialize from {Friend}", friendGuid[..8]);
+            _log.Warning(ex, "Sync: failed to deserialize from {Guid}", friendGuid[..8]);
         }
     }
 

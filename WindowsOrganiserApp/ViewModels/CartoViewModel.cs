@@ -661,7 +661,7 @@ public partial class CartoViewModel : ObservableObject
 
     public string? GetFriendName(string guid) => _syncService.GetFriend(guid)?.Name;
 
-    private void OnFriendDataReceived(string friendGuid, string friendName, SyncPayload payload)
+    private void OnFriendDataReceived(string friendGuid, SyncPayload payload)
     {
         System.Windows.Application.Current?.Dispatcher.Invoke(() =>
         {

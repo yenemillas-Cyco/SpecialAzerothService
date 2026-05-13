@@ -6,7 +6,6 @@ public class SubscriptionStore
 {
     private readonly ConcurrentDictionary<string, HashSet<string>> _subscriptions = new();
     private readonly ConcurrentDictionary<string, string> _dataCache = new();
-    private readonly ConcurrentDictionary<string, string> _userNames = new();
     private readonly ConcurrentDictionary<string, HashSet<string>> _connections = new();
     private readonly string _dataDir;
     private readonly ILogger<SubscriptionStore> _log;
@@ -48,11 +47,6 @@ public class SubscriptionStore
 
     public string? GetCachedData(string userGuid)
         => _dataCache.TryGetValue(userGuid, out var d) ? d : null;
-
-    public void SetUserName(string userGuid, string name) => _userNames[userGuid] = name;
-
-    public string GetUserName(string userGuid)
-        => _userNames.TryGetValue(userGuid, out var n) ? n : "Inconnu";
 
     public void AddConnection(string userGuid, string connectionId)
     {
