@@ -40,6 +40,20 @@ public partial class BountyViewModel : ObservableObject
     public ObservableCollection<BountyContributor>? EditingContributors =>
         EditingBounty != null ? new ObservableCollection<BountyContributor>(EditingBounty.Contributors) : null;
 
+    public string DiscordCharCount
+    {
+        get
+        {
+            var len = BuildDiscordBountiesText().Length;
+            return $"{len}/2000";
+        }
+    }
+
+    public System.Windows.Media.SolidColorBrush DiscordCharBrush =>
+        BuildDiscordBountiesText().Length > 2000
+            ? new(System.Windows.Media.Color.FromRgb(255, 107, 107))
+            : new(System.Windows.Media.Color.FromArgb(136, 255, 255, 255));
+
     partial void OnEditingBountyChanged(BountyEntry? value)
     {
         OnPropertyChanged(nameof(EditingContributors));
@@ -52,6 +66,13 @@ public partial class BountyViewModel : ObservableObject
         _data.Bounties = [.. Bounties];
         _data.Rules = Rules;
         _bountyService.Save(_data);
+        NotifyDiscordCount();
+    }
+
+    private void NotifyDiscordCount()
+    {
+        OnPropertyChanged(nameof(DiscordCharCount));
+        OnPropertyChanged(nameof(DiscordCharBrush));
     }
 
     [RelayCommand]
@@ -169,6 +190,11 @@ public partial class BountyViewModel : ObservableObject
     [RelayCommand]
     private void CopyDiscordBounties()
     {
+        Clipboard.SetText(BuildDiscordBountiesText());
+    }
+
+    private string BuildDiscordBountiesText()
+    {
         var sb = new StringBuilder();
 
         var active = Bounties.Where(b => !b.IsCompleted).ToList();
@@ -198,7 +224,7 @@ public partial class BountyViewModel : ObservableObject
                 sb.AppendLine($"-~~{b.TargetName}~~ {b.DisplayTotal}");
         }
 
-        Clipboard.SetText(sb.ToString());
+        return sb.ToString();
     }
 
     [RelayCommand]
@@ -320,5 +346,6 @@ public partial class BountyViewModel : ObservableObject
         var snapshot = Bounties.ToList();
         Bounties.Clear();
         foreach (var b in snapshot) Bounties.Add(b);
+        NotifyDiscordCount();
     }
 }
