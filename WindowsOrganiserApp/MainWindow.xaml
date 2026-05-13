@@ -745,7 +745,20 @@
                                                FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                                VerticalAlignment="Center"/>
                                     <TextBlock Text="{Binding StatusMessage}" FontSize="11"
-                                               Foreground="{DynamicResource SubtextBrush}"/>
+                                               Foreground="{DynamicResource SubtextBrush}"
+                                               VerticalAlignment="Center"/>
+                                    <Border Width="1" Height="14" Background="{DynamicResource BorderBrush}"
+                                            Margin="10,0" VerticalAlignment="Center"
+                                            Visibility="{Binding IsCartoMode, Converter={StaticResource BoolToVis}}"/>
+                                    <TextBlock Text="🌐" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"
+                                               Visibility="{Binding IsCartoMode, Converter={StaticResource BoolToVis}}"/>
+                                    <TextBlock Text="{Binding CartoVm.SyncStatus}" FontSize="10"
+                                               Foreground="LightSkyBlue" VerticalAlignment="Center"
+                                               Visibility="{Binding IsCartoMode, Converter={StaticResource BoolToVis}}"/>
+                                    <TextBlock Text="{Binding CartoVm.FriendsSummary}" FontSize="10"
+                                               Foreground="{DynamicResource BrightGoldBrush}"
+                                               Margin="10,0,0,0" VerticalAlignment="Center"
+                                               Visibility="{Binding IsCartoMode, Converter={StaticResource BoolToVis}}"/>
                                 </DockPanel>
                             </Border>
                         </Grid>

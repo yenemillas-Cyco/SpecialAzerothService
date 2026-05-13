@@ -256,14 +256,6 @@
                             </UniformGrid>
                         </Border>
 
-                        <!-- Sync status -->
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6" HorizontalAlignment="Center">
-                            <TextBlock Text="🌐" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                            <TextBlock Text="{Binding SyncStatus}" FontSize="9" Foreground="LightSkyBlue" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding FriendsSummary}" FontSize="9" Foreground="{DynamicResource BrightGoldBrush}"
-                                       Margin="10,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-
                         <!-- Characters tree -->
                         <Expander IsExpanded="True" Margin="0,0,0,4">
                             <Expander.Header>
