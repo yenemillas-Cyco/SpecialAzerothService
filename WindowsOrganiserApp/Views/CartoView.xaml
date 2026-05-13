@@ -319,9 +319,14 @@
                                                                    Tag="{Binding}"/>
                                                         <!-- Label + duration -->
                                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                            <TextBlock FontSize="12" FontWeight="SemiBold"
-                                                                       Foreground="{DynamicResource TextBrush}"
-                                                                       Text="{Binding Label}" VerticalAlignment="Center"/>
+                                                            <TextBox FontSize="12" FontWeight="SemiBold"
+                                                                     Foreground="{DynamicResource TextBrush}"
+                                                                     Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"
+                                                                     VerticalAlignment="Center"
+                                                                     Background="Transparent" BorderThickness="0"
+                                                                     Padding="0" MinWidth="40"
+                                                                     LostFocus="TimerLabel_Changed"
+                                                                     VerticalContentAlignment="Center"/>
                                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
                                                                         Opacity="0.7" Margin="10,0,0,0"
                                                                         Loaded="TimerDurationPanel_Loaded">

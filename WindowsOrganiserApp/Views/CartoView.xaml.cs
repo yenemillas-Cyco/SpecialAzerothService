@@ -783,6 +783,16 @@ public partial class CartoView : UserControl
         }
     }
 
+    private void TimerLabel_Changed(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox tb && tb.DataContext is MapTimer t)
+        {
+            t.Label = tb.Text;
+            Vm.Save();
+            RedrawAll();
+        }
+    }
+
     private void TimerDuration_Changed(object sender, RoutedEventArgs e)
     {
         if (sender is not TextBox tb || tb.DataContext is not MapTimer t) return;
