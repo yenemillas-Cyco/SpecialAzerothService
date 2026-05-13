@@ -15,7 +15,7 @@
         <conv:BoolToOnlineTooltipConverter x:Key="BoolToOnlineTooltip"/>
     </UserControl.Resources>
 
-    <Grid>
+    <Grid x:Name="RootGrid">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="14"/>
@@ -418,7 +418,7 @@
 
                 <!-- Add Character Popup -->
                 <Popup x:Name="PopupAddChar" Placement="Center" StaysOpen="False" AllowsTransparency="True"
-                       PlacementTarget="{Binding ElementName=BtnActionChar}">
+                       PlacementTarget="{Binding ElementName=RootGrid}">
                     <Border Background="#F0141008" CornerRadius="8" Padding="14"
                             BorderThickness="1.5" MinWidth="280" MaxWidth="320">
                         <Border.BorderBrush>
@@ -477,7 +477,7 @@
 
                 <!-- Add Account Popup -->
                 <Popup x:Name="PopupAddAccount" Placement="Center" StaysOpen="False" AllowsTransparency="True"
-                       PlacementTarget="{Binding ElementName=BtnActionAccount}">
+                       PlacementTarget="{Binding ElementName=RootGrid}">
                     <Border Background="#F0141008" CornerRadius="8" Padding="14"
                             BorderThickness="1.5" MinWidth="250">
                         <Border.BorderBrush>
@@ -519,7 +519,7 @@
 
                 <!-- Add Timer Popup -->
                 <Popup x:Name="PopupAddTimer" Placement="Center" StaysOpen="False" AllowsTransparency="True"
-                       PlacementTarget="{Binding ElementName=BtnActionTimer}">
+                       PlacementTarget="{Binding ElementName=RootGrid}">
                     <Border Background="#F0141008" CornerRadius="8" Padding="14"
                             BorderThickness="1.5" MinWidth="250">
                         <Border.BorderBrush>
@@ -569,7 +569,7 @@
 
                 <!-- Add Friend Popup -->
                 <Popup x:Name="PopupAddFriend" Placement="Center" StaysOpen="False" AllowsTransparency="True"
-                       PlacementTarget="{Binding ElementName=BtnActionFriend}">
+                       PlacementTarget="{Binding ElementName=RootGrid}">
                     <Border Background="#F0141008" CornerRadius="8" Padding="14"
                             BorderThickness="1.5" MinWidth="280">
                         <Border.BorderBrush>

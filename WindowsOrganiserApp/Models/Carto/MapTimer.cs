@@ -28,6 +28,9 @@ public sealed class MapTimer
         }
     }
 
-    public bool IsExpired => IsRunning && StartedAt.HasValue && Remaining <= TimeSpan.Zero;
+    public bool IsExpired =>
+        (IsRunning && StartedAt.HasValue && Remaining <= TimeSpan.Zero) ||
+        (!IsRunning && StartedAt.HasValue && (PausedRemainingSeconds == null || PausedRemainingSeconds <= 0));
+
     public bool IsPaused => !IsRunning && PausedRemainingSeconds.HasValue && PausedRemainingSeconds > 0;
 }
