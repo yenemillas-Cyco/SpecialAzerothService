@@ -10,6 +10,7 @@
         <conv:NotNullToVisibilityConverter x:Key="NotNullToVis"/>
         <conv:BoolToCompletedLabelConverter x:Key="BoolToCompletedLabel"/>
         <conv:BountyClassColorConverter x:Key="ClassColorConv"/>
+        <conv:BoolToExportIconConverter x:Key="ExportIconConv"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
         <!-- Row style: transparent background + class-colored left border -->
@@ -185,16 +186,18 @@
                           MouseDoubleClick="BountyGrid_MouseDoubleClick">
 
                     <DataGrid.Columns>
-                        <!-- EXPORT CHECKBOX -->
-                        <DataGridTemplateColumn Header="📋" Width="30" CanUserSort="False"
+                        <!-- EXPORT TOGGLE -->
+                        <DataGridTemplateColumn Header="📋" Width="36" CanUserSort="False"
                                                 CanUserResize="False" CanUserReorder="False">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <CheckBox IsChecked="{Binding IsSelectedForExport, UpdateSourceTrigger=PropertyChanged}"
-                                              HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              ToolTip="Inclure dans le message Discord"
-                                              Command="{Binding DataContext.ToggleExportCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                              CommandParameter="{Binding}"/>
+                                    <Button Content="{Binding IsSelectedForExport, Converter={StaticResource ExportIconConv}}"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            Background="Transparent" BorderThickness="0"
+                                            Cursor="Hand" Padding="4,2" FontSize="14"
+                                            ToolTip="Inclure/exclure du message Discord"
+                                            Command="{Binding DataContext.ToggleExportCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

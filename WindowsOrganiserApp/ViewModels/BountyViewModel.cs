@@ -192,6 +192,7 @@ public partial class BountyViewModel : ObservableObject
         if (bounty == null) return;
         bounty.IsSelectedForExport = !bounty.IsSelectedForExport;
         NotifyDiscordCount();
+        RefreshList();
     }
 
     [RelayCommand]

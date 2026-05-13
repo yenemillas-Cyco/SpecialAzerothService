@@ -34,4 +34,5 @@ public partial class BountyView : UserControl
             e.Handled = true;
         }
     }
+
 }
