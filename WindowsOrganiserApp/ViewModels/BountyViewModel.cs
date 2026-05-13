@@ -25,6 +25,7 @@ public partial class BountyViewModel : ObservableObject
         _data = _bountyService.Load();
         Bounties = new ObservableCollection<BountyEntry>(_data.Bounties);
         _rules = _data.Rules;
+        RefreshStats();
     }
 
     public ObservableCollection<BountyEntry> Bounties { get; }
@@ -40,35 +41,12 @@ public partial class BountyViewModel : ObservableObject
     public ObservableCollection<BountyContributor>? EditingContributors =>
         EditingBounty != null ? new ObservableCollection<BountyContributor>(EditingBounty.Contributors) : null;
 
-    public string DiscordCharCount
-    {
-        get
-        {
-            var len = BuildDiscordBountiesText().Length;
-            return $"{len}/2000";
-        }
-    }
+    [ObservableProperty] private string _discordCharCount = "0/2000";
+    [ObservableProperty] private System.Windows.Media.SolidColorBrush _discordCharBrush =
+        new(System.Windows.Media.Color.FromArgb(136, 255, 255, 255));
 
-    public System.Windows.Media.SolidColorBrush DiscordCharBrush =>
-        BuildDiscordBountiesText().Length > 2000
-            ? new(System.Windows.Media.Color.FromRgb(255, 107, 107))
-            : new(System.Windows.Media.Color.FromArgb(136, 255, 255, 255));
-
-    public string ContributorSummary
-    {
-        get
-        {
-            var totals = Bounties
-                .Where(b => !b.IsCompleted)
-                .SelectMany(b => b.Contributors)
-                .GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(g => $"{g.Key} {g.Sum(c => c.GoldAmount)}po")
-                .ToList();
-            if (totals.Count == 0) return "";
-            var grandTotal = Bounties.Where(b => !b.IsCompleted).Sum(b => b.TotalGold);
-            return string.Join("  ·  ", totals) + $"  ║  Total {grandTotal}po";
-        }
-    }
+    public ObservableCollection<ContributorTotal> ContributorTotals { get; } = [];
+    [ObservableProperty] private int _grandTotal;
 
     partial void OnEditingBountyChanged(BountyEntry? value)
     {
@@ -82,14 +60,26 @@ public partial class BountyViewModel : ObservableObject
         _data.Bounties = [.. Bounties];
         _data.Rules = Rules;
         _bountyService.Save(_data);
-        NotifyDiscordCount();
+        RefreshStats();
     }
 
-    private void NotifyDiscordCount()
+    private void RefreshStats()
     {
-        OnPropertyChanged(nameof(DiscordCharCount));
-        OnPropertyChanged(nameof(DiscordCharBrush));
-        OnPropertyChanged(nameof(ContributorSummary));
+        var text = BuildDiscordBountiesText();
+        DiscordCharCount = $"{text.Length}/2000";
+        DiscordCharBrush = text.Length > 2000
+            ? new(System.Windows.Media.Color.FromRgb(255, 107, 107))
+            : new(System.Windows.Media.Color.FromArgb(136, 255, 255, 255));
+
+        ContributorTotals.Clear();
+        var groups = Bounties
+            .Where(b => !b.IsCompleted)
+            .SelectMany(b => b.Contributors)
+            .GroupBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Sum(c => c.GoldAmount));
+        foreach (var g in groups)
+            ContributorTotals.Add(new ContributorTotal(g.Key, g.Sum(c => c.GoldAmount)));
+        GrandTotal = Bounties.Where(b => !b.IsCompleted).Sum(b => b.TotalGold);
     }
 
     [RelayCommand]
@@ -191,7 +181,6 @@ public partial class BountyViewModel : ObservableObject
     {
         if (bounty == null) return;
         bounty.IsSelectedForExport = !bounty.IsSelectedForExport;
-        NotifyDiscordCount();
         RefreshList();
     }
 
@@ -201,7 +190,6 @@ public partial class BountyViewModel : ObservableObject
         var allSelected = Bounties.All(b => b.IsSelectedForExport);
         foreach (var b in Bounties)
             b.IsSelectedForExport = !allSelected;
-        NotifyDiscordCount();
         RefreshList();
     }
 
@@ -382,6 +370,8 @@ public partial class BountyViewModel : ObservableObject
         var snapshot = Bounties.ToList();
         Bounties.Clear();
         foreach (var b in snapshot) Bounties.Add(b);
-        NotifyDiscordCount();
+        RefreshStats();
     }
 }
+
+public sealed record ContributorTotal(string Name, int Gold);

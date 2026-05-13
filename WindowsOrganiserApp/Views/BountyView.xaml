@@ -154,6 +154,45 @@
                 </DockPanel>
             </Border>
 
+            <!-- ═══ CONTRIBUTOR SUMMARY ═══ -->
+            <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" CornerRadius="6"
+                    Padding="10,8" Margin="0,6,0,0" BorderThickness="1"
+                    BorderBrush="{DynamicResource InnerBorderBrush}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Right" CornerRadius="4" Padding="10,4"
+                            Background="#30FFD700" BorderThickness="1" BorderBrush="#50FFD700">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="💰 TOTAL " FontSize="11" FontWeight="Bold"
+                                       Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding GrandTotal, StringFormat='{}{0} po'}" FontSize="13" FontWeight="Bold"
+                                       Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="💸 Dettes :" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
+                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ItemsControl ItemsSource="{Binding ContributorTotals}" VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border CornerRadius="3" Padding="8,3" Margin="0,0,6,0"
+                                        Background="#18FFFFFF" BorderThickness="1" BorderBrush="#25FFFFFF">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextBrush}" Margin="0,0,4,0"/>
+                                        <TextBlock Text="{Binding Gold, StringFormat='{}{0} po'}" FontSize="11"
+                                                   Foreground="{DynamicResource BrightGoldBrush}" FontWeight="Bold"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+            </Border>
+
             <!-- ═══ BOUNTY DATAGRID ═══ -->
             <Border Background="{DynamicResource PanelBg}" CornerRadius="6"
                     Padding="4" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
@@ -329,14 +368,6 @@
                 </Grid>
             </Border>
 
-            <!-- ═══ CONTRIBUTOR SUMMARY ═══ -->
-            <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" CornerRadius="4"
-                    Padding="12,6" Margin="0,4,0,0" BorderThickness="1"
-                    BorderBrush="{DynamicResource InnerBorderBrush}">
-                <TextBlock Text="{Binding ContributorSummary}" FontSize="11"
-                           Foreground="{DynamicResource BrightGoldBrush}"
-                           HorizontalAlignment="Center"/>
-            </Border>
         </DockPanel>
 
         <!-- ═══ EDIT POPUP ═══ -->
