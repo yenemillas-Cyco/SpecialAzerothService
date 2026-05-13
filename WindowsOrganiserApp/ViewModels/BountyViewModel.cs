@@ -187,6 +187,14 @@ public partial class BountyViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ToggleExport(BountyEntry? bounty)
+    {
+        if (bounty == null) return;
+        bounty.IsSelectedForExport = !bounty.IsSelectedForExport;
+        NotifyDiscordCount();
+    }
+
+    [RelayCommand]
     private void SaveRules()
     {
         Save();
@@ -214,7 +222,7 @@ public partial class BountyViewModel : ObservableObject
     {
         var sb = new StringBuilder();
 
-        var active = Bounties.Where(b => !b.IsCompleted).ToList();
+        var active = Bounties.Where(b => !b.IsCompleted && b.IsSelectedForExport).ToList();
         if (active.Count > 0)
         {
             var nameWidth = active.Max(b =>

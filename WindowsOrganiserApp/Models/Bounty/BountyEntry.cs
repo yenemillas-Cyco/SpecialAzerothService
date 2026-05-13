@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace WindowsOrganiserApp.Models.Bounty;
 
 public sealed class BountyEntry
@@ -10,6 +12,9 @@ public sealed class BountyEntry
     public string Reason { get; set; } = string.Empty;
     public bool IsCompleted { get; set; }
     public List<BountyContributor> Contributors { get; set; } = [];
+
+    [JsonIgnore]
+    public bool IsSelectedForExport { get; set; } = true;
 
     public int TotalGold => Contributors.Sum(c => c.GoldAmount);
 
