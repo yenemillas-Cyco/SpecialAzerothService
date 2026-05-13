@@ -11,6 +11,104 @@
         <conv:BoolToCompletedLabelConverter x:Key="BoolToCompletedLabel"/>
         <conv:BountyClassColorConverter x:Key="ClassColorConv"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- Row style: transparent background + class-colored left border -->
+        <Style x:Key="BountyRowStyle" TargetType="DataGridRow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#18FFFFFF"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#10FFFFFF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Cell style: remove focus highlight -->
+        <Style x:Key="BountyCellStyle" TargetType="DataGridCell">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="6,5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Column header style -->
+        <Style x:Key="BountyHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource SubtextBrush}"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="6,6"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="BorderBrush" Value="#15FFFFFF"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridColumnHeader">
+                        <Grid>
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    Padding="{TemplateBinding Padding}">
+                                <DockPanel>
+                                    <Path x:Name="SortArrow" DockPanel.Dock="Right"
+                                          Fill="{DynamicResource SubtextBrush}"
+                                          Margin="4,0,0,0" VerticalAlignment="Center"
+                                          Visibility="Collapsed"/>
+                                    <ContentPresenter VerticalAlignment="Center"
+                                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                                </DockPanel>
+                            </Border>
+                            <Thumb x:Name="PART_RightHeaderGripper" HorizontalAlignment="Right"
+                                   Width="4" Cursor="SizeWE"
+                                   Style="{x:Null}">
+                                <Thumb.Template>
+                                    <ControlTemplate TargetType="Thumb">
+                                        <Border Background="Transparent" Width="4"/>
+                                    </ControlTemplate>
+                                </Thumb.Template>
+                            </Thumb>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="SortDirection" Value="Ascending">
+                                <Setter TargetName="SortArrow" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="SortArrow" Property="Data" Value="M 0,5 L 4,0 L 8,5 Z"/>
+                            </Trigger>
+                            <Trigger Property="SortDirection" Value="Descending">
+                                <Setter TargetName="SortArrow" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="SortArrow" Property="Data" Value="M 0,0 L 4,5 L 8,0 Z"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#10FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid x:Name="RootGrid">
@@ -50,124 +148,148 @@
                 </DockPanel>
             </Border>
 
-            <!-- ═══ BOUNTY LIST ═══ -->
+            <!-- ═══ BOUNTY DATAGRID ═══ -->
             <Border Background="{DynamicResource PanelBg}" CornerRadius="6"
-                    Padding="12" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
-                <DockPanel>
-                    <!-- Column headers -->
-                    <Grid DockPanel.Dock="Top" Margin="8,0,8,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="140"/>
-                            <ColumnDefinition Width="80"/>
-                            <ColumnDefinition Width="120"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="140"/>
-                            <ColumnDefinition Width="140"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="CIBLE" FontSize="10" FontWeight="Bold"
-                                   Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBlock Grid.Column="1" Text="PRIME" FontSize="10" FontWeight="Bold"
-                                   Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBlock Grid.Column="2" Text="CLASSE / RACE" FontSize="10" FontWeight="Bold"
-                                   Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBlock Grid.Column="3" Text="MOTIF" FontSize="10" FontWeight="Bold"
-                                   Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBlock Grid.Column="4" Text="COMMANDITAIRES" FontSize="10" FontWeight="Bold"
-                                   Foreground="{DynamicResource SubtextBrush}"/>
-                        <TextBlock Grid.Column="5" Text="ACTIONS" FontSize="10" FontWeight="Bold"
-                                   Foreground="{DynamicResource SubtextBrush}" HorizontalAlignment="Center"/>
-                    </Grid>
-                    <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,4"/>
+                    Padding="4" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
+                <DataGrid x:Name="BountyGrid"
+                          ItemsSource="{Binding Bounties}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False" CanUserDeleteRows="False"
+                          CanUserResizeColumns="True"
+                          CanUserSortColumns="True"
+                          CanUserReorderColumns="True"
+                          CanUserResizeRows="False"
+                          SelectionMode="Single"
+                          IsReadOnly="True"
+                          HeadersVisibility="Column"
+                          GridLinesVisibility="None"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          RowBackground="Transparent"
+                          AlternatingRowBackground="Transparent"
+                          HorizontalGridLinesBrush="Transparent"
+                          VerticalGridLinesBrush="Transparent"
+                          RowStyle="{StaticResource BountyRowStyle}"
+                          CellStyle="{StaticResource BountyCellStyle}"
+                          ColumnHeaderStyle="{StaticResource BountyHeaderStyle}"
+                          MouseDoubleClick="BountyGrid_MouseDoubleClick">
 
-                    <!-- List -->
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding Bounties}">
-                            <ItemsControl.ItemTemplate>
+                    <DataGrid.Columns>
+                        <!-- CIBLE -->
+                        <DataGridTemplateColumn Header="CIBLE" Width="140" MinWidth="80"
+                                                SortMemberPath="TargetName" CanUserSort="True">
+                            <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Border CornerRadius="4" Padding="8,7" Margin="0,0,0,3"
-                                            BorderThickness="1" Cursor="Hand"
-                                            MouseLeftButtonDown="BountyRow_MouseDown"
-                                            BorderBrush="{Binding TargetClass, Converter={StaticResource ClassColorConv}}">
-                                        <Border.Background>
-                                            <SolidColorBrush Color="#10FFFFFF"/>
-                                        </Border.Background>
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="140"/>
-                                                <ColumnDefinition Width="80"/>
-                                                <ColumnDefinition Width="120"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="140"/>
-                                                <ColumnDefinition Width="140"/>
-                                            </Grid.ColumnDefinitions>
-
-                                            <!-- Target name -->
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="💀" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                                <TextBlock Text="{Binding TargetName}" FontSize="13" FontWeight="SemiBold"
-                                                           Foreground="{Binding TargetClass, Converter={StaticResource ClassColorConv}}"
-                                                           VerticalAlignment="Center"/>
-                                            </StackPanel>
-
-                                            <!-- Total -->
-                                            <TextBlock Grid.Column="1" Text="{Binding DisplayTotal}" FontSize="13"
-                                                       FontWeight="Bold" Foreground="{DynamicResource BrightGoldBrush}"
-                                                       VerticalAlignment="Center"/>
-
-                                            <!-- Class / Race -->
-                                            <TextBlock Grid.Column="2" FontSize="10" VerticalAlignment="Center"
-                                                       Foreground="{DynamicResource SubtextBrush}">
-                                                <Run Text="{Binding TargetClass, Mode=OneWay}"/>
-                                                <Run Text=" "/>
-                                                <Run Text="{Binding TargetRace, Mode=OneWay}" FontStyle="Italic"/>
-                                            </TextBlock>
-
-                                            <!-- Reason (largest column) -->
-                                            <TextBlock Grid.Column="3" Text="{Binding Reason}" FontSize="12"
-                                                       FontStyle="Italic" Foreground="{DynamicResource SubtextBrush}"
-                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                                       ToolTip="{Binding Reason}"/>
-
-                                            <!-- Contributors -->
-                                            <TextBlock Grid.Column="4" Text="{Binding ContributorNames}" FontSize="11"
-                                                       Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis"/>
-
-                                            <!-- Action buttons -->
-                                            <StackPanel Grid.Column="5" Orientation="Horizontal"
-                                                        HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <Button Content="Édit" FontSize="9" Padding="5,2" Margin="1,0"
-                                                        Background="Transparent" BorderThickness="0"
-                                                        Foreground="LightSkyBlue" Cursor="Hand"
-                                                        ToolTip="Modifier la prime"
-                                                        Command="{Binding DataContext.EditBountyCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"/>
-                                                <Button Content="Msg" FontSize="9" Padding="5,2" Margin="1,0"
-                                                        Background="Transparent" BorderThickness="0"
-                                                        Foreground="MediumAquamarine" Cursor="Hand"
-                                                        ToolTip="Copier la ligne Discord de cette prime"
-                                                        Command="{Binding DataContext.CopyIndividualDiscordCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"/>
-                                                <Button Content="Img" FontSize="9" Padding="5,2" Margin="1,0"
-                                                        Background="Transparent" BorderThickness="0"
-                                                        Foreground="{DynamicResource BrightGoldBrush}" Cursor="Hand"
-                                                        ToolTip="Copier le prompt ChatGPT pour l'affiche"
-                                                        Command="{Binding DataContext.CopyImagePromptCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"/>
-                                                <Button Content="✕" FontSize="10" Padding="5,2" Margin="1,0"
-                                                        Background="Transparent" BorderThickness="0"
-                                                        Foreground="#FF6B6B" Cursor="Hand"
-                                                        ToolTip="Supprimer"
-                                                        Command="{Binding DataContext.RemoveBountyCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                        CommandParameter="{Binding}"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="💀" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                        <TextBlock Text="{Binding TargetName}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{Binding TargetClass, Converter={StaticResource ClassColorConv}}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
                                 </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                </DockPanel>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- PRIME -->
+                        <DataGridTemplateColumn Header="PRIME" Width="80" MinWidth="60"
+                                                SortMemberPath="TotalGold" CanUserSort="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayTotal}" FontSize="13"
+                                               FontWeight="Bold" Foreground="{DynamicResource BrightGoldBrush}"
+                                               VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- CLASSE -->
+                        <DataGridTemplateColumn Header="CLASSE" Width="90" MinWidth="60"
+                                                SortMemberPath="TargetClass" CanUserSort="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding TargetClass}" FontSize="11"
+                                               Foreground="{Binding TargetClass, Converter={StaticResource ClassColorConv}}"
+                                               VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- RACE -->
+                        <DataGridTemplateColumn Header="RACE" Width="90" MinWidth="60"
+                                                SortMemberPath="TargetRace" CanUserSort="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding TargetRace}" FontSize="11"
+                                               FontStyle="Italic"
+                                               Foreground="{DynamicResource SubtextBrush}"
+                                               VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- MOTIF -->
+                        <DataGridTemplateColumn Header="MOTIF" Width="*" MinWidth="100"
+                                                SortMemberPath="Reason" CanUserSort="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Reason}" FontSize="12"
+                                               FontStyle="Italic" Foreground="{DynamicResource SubtextBrush}"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding Reason}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- COMMANDITAIRES -->
+                        <DataGridTemplateColumn Header="COMMANDITAIRES" Width="140" MinWidth="80"
+                                                SortMemberPath="ContributorNames" CanUserSort="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding ContributorNames}" FontSize="11"
+                                               Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding ContributorNames}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <!-- ACTIONS -->
+                        <DataGridTemplateColumn Header="ACTIONS" Width="130" MinWidth="100"
+                                                CanUserSort="False" CanUserResize="False">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Button Content="Édit" FontSize="9" Padding="5,2" Margin="1,0"
+                                                Background="Transparent" BorderThickness="0"
+                                                Foreground="LightSkyBlue" Cursor="Hand"
+                                                ToolTip="Modifier la prime"
+                                                Command="{Binding DataContext.EditBountyCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Content="Msg" FontSize="9" Padding="5,2" Margin="1,0"
+                                                Background="Transparent" BorderThickness="0"
+                                                Foreground="MediumAquamarine" Cursor="Hand"
+                                                ToolTip="Copier la ligne Discord de cette prime"
+                                                Command="{Binding DataContext.CopyIndividualDiscordCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Content="Img" FontSize="9" Padding="5,2" Margin="1,0"
+                                                Background="Transparent" BorderThickness="0"
+                                                Foreground="{DynamicResource BrightGoldBrush}" Cursor="Hand"
+                                                ToolTip="Copier le prompt ChatGPT pour l'affiche"
+                                                Command="{Binding DataContext.CopyImagePromptCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Content="✕" FontSize="10" Padding="5,2" Margin="1,0"
+                                                Background="Transparent" BorderThickness="0"
+                                                Foreground="#FF6B6B" Cursor="Hand"
+                                                ToolTip="Supprimer"
+                                                Command="{Binding DataContext.RemoveBountyCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
             </Border>
         </DockPanel>
 

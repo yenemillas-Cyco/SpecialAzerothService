@@ -26,9 +26,9 @@ public partial class BountyView : UserControl
         Vm?.SaveRulesCommand.Execute(null);
     }
 
-    private void BountyRow_MouseDown(object sender, MouseButtonEventArgs e)
+    private void BountyGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (e.ClickCount == 2 && sender is FrameworkElement fe && fe.DataContext is BountyEntry bounty)
+        if (BountyGrid.SelectedItem is BountyEntry bounty)
         {
             Vm?.EditBountyCommand.Execute(bounty);
             e.Handled = true;
