@@ -174,15 +174,25 @@ public partial class BountyViewModel : ObservableObject
         var active = Bounties.Where(b => !b.IsCompleted).ToList();
         if (active.Count > 0)
         {
+            var nameWidth = active.Max(b =>
+            {
+                var n = string.IsNullOrWhiteSpace(b.AltName) ? b.TargetName : $"{b.TargetName} ou {b.AltName}";
+                return n.Length;
+            });
+            var goldWidth = active.Max(b => b.DisplayTotal.Length);
+            var reasonWidth = active.Max(b => string.IsNullOrWhiteSpace(b.Reason) ? 0 : b.Reason.Length + 2);
+            nameWidth = Math.Max(nameWidth, 8);
+
             sb.AppendLine("**📋 Primes actives :**");
+            sb.AppendLine("```");
             foreach (var b in active)
-                sb.AppendLine(FormatBountyLine(b));
+                sb.AppendLine(FormatBountyLineAligned(b, nameWidth, goldWidth, reasonWidth));
+            sb.AppendLine("```");
         }
 
         var completed = Bounties.Where(b => b.IsCompleted).ToList();
         if (completed.Count > 0)
         {
-            sb.AppendLine();
             sb.AppendLine("**✅ Primes réclamées :**");
             foreach (var b in completed)
                 sb.AppendLine($"-~~{b.TargetName}~~ {b.DisplayTotal}");
