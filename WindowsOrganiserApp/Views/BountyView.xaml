@@ -197,10 +197,10 @@
             <Border Background="{DynamicResource PanelBg}" CornerRadius="6"
                     Padding="4" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
                 <Grid>
-                    <TextBlock Text="{Binding DiscordCharCount}" FontSize="10"
+                    <TextBlock Text="{Binding DiscordCharCount}" FontSize="13" FontWeight="SemiBold"
                                Foreground="{Binding DiscordCharBrush}"
                                HorizontalAlignment="Right" VerticalAlignment="Top"
-                               Margin="0,4,10,0" Panel.ZIndex="1"
+                               Margin="0,6,12,0" Panel.ZIndex="1"
                                ToolTip="Nombre de caractères du message Discord (limite 2000)"/>
                 <DataGrid x:Name="BountyGrid"
                           ItemsSource="{Binding Bounties}"
@@ -240,7 +240,7 @@
                                 <DataTemplate>
                                     <CheckBox IsChecked="{Binding IsSelectedForExport, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                               Style="{DynamicResource SelectionCheck}"
-                                              HorizontalAlignment="Center"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
                                               ToolTip="Inclure/exclure du message Discord"
                                               Click="ExportCheckBox_Click"/>
                                 </DataTemplate>

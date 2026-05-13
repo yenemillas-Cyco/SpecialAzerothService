@@ -43,7 +43,7 @@ public partial class BountyViewModel : ObservableObject
 
     [ObservableProperty] private string _discordCharCount = "0/2000";
     [ObservableProperty] private System.Windows.Media.SolidColorBrush _discordCharBrush =
-        new(System.Windows.Media.Color.FromArgb(136, 255, 255, 255));
+        new(System.Windows.Media.Color.FromRgb(255, 215, 0));
 
     public ObservableCollection<ContributorTotal> ContributorTotals { get; } = [];
     [ObservableProperty] private int _grandTotal;
@@ -69,7 +69,7 @@ public partial class BountyViewModel : ObservableObject
         DiscordCharCount = $"{text.Length}/2000";
         DiscordCharBrush = text.Length > 2000
             ? new(System.Windows.Media.Color.FromRgb(255, 107, 107))
-            : new(System.Windows.Media.Color.FromArgb(136, 255, 255, 255));
+            : new(System.Windows.Media.Color.FromRgb(255, 215, 0));
 
         ContributorTotals.Clear();
         var groups = Bounties
