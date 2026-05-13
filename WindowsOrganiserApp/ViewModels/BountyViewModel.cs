@@ -168,28 +168,17 @@ public partial class BountyViewModel : ObservableObject
         var active = Bounties.Where(b => !b.IsCompleted).ToList();
         if (active.Count > 0)
         {
-            var nameWidth = active.Max(b =>
-            {
-                var n = string.IsNullOrWhiteSpace(b.AltName) ? b.TargetName : $"{b.TargetName} ou {b.AltName}";
-                return n.Length;
-            });
-            var goldWidth = active.Max(b => b.DisplayTotal.Length);
-            var reasonWidth = active.Max(b => string.IsNullOrWhiteSpace(b.Reason) ? 0 : b.Reason.Length + 2);
-            nameWidth = Math.Max(nameWidth, 8);
-
-            sb.AppendLine("**📋 Primes actives :**");
-            sb.AppendLine("```");
             foreach (var b in active)
-                sb.AppendLine(FormatBountyLineAligned(b, nameWidth, goldWidth, reasonWidth));
-            sb.AppendLine("```");
+                sb.AppendLine(FormatBountyLine(b));
         }
 
         var completed = Bounties.Where(b => b.IsCompleted).ToList();
         if (completed.Count > 0)
         {
+            sb.AppendLine();
             sb.AppendLine("**✅ Primes réclamées :**");
             foreach (var b in completed)
-                sb.AppendLine($"-~~{b.TargetName}~~ : {b.DisplayTotal}");
+                sb.AppendLine($"-~~{b.TargetName}~~ {b.DisplayTotal}");
         }
 
         Clipboard.SetText(sb.ToString());
@@ -225,14 +214,12 @@ public partial class BountyViewModel : ObservableObject
     private static string FormatBountyLine(BountyEntry b)
     {
         var name = string.IsNullOrWhiteSpace(b.AltName) ? b.TargetName : $"{b.TargetName} ou {b.AltName}";
-        var claimTo = b.ContributorNames;
-        var sb = new StringBuilder();
-        sb.Append($"-**{name}** : {b.DisplayTotal}.");
+        var parts = new List<string> { $"-**{name}** {b.DisplayTotal}" };
         if (!string.IsNullOrWhiteSpace(b.Reason))
-            sb.Append($"     \"{b.Reason}\"");
-        if (!string.IsNullOrWhiteSpace(claimTo))
-            sb.Append($" (prime à réclamer à {claimTo})");
-        return sb.ToString();
+            parts.Add($"\"{b.Reason}\"");
+        if (!string.IsNullOrEmpty(b.ContributorNames))
+            parts.Add($"({b.ContributorNames})");
+        return string.Join(" ", parts);
     }
 
     private static string FormatBountyLineAligned(BountyEntry b, int nameWidth, int goldWidth, int reasonWidth)
