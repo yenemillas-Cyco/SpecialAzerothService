@@ -469,12 +469,46 @@ public partial class CartoView : UserControl
 
         foreach (var group in grouped)
         {
-            var accountName = Vm.Accounts.FirstOrDefault(a => a.Id == group.Key)?.Name ?? "Sans compte";
+            var account = Vm.Accounts.FirstOrDefault(a => a.Id == group.Key);
+            var accountName = account?.Name ?? "Sans compte";
+            var visibleCount = group.Count(c => !c.IsHidden);
+            var totalCount = group.Count();
+
+            var headerPanel = new DockPanel();
+            if (account != null)
+            {
+                var toggleBtn = new Button
+                {
+                    Content = account.IsHidden ? "🚫" : "👁",
+                    FontSize = 9, Padding = new Thickness(3, 0, 3, 0),
+                    Margin = new Thickness(4, 0, 0, 0), Cursor = Cursors.Hand,
+                    Foreground = account.IsHidden ? Brushes.Gray : Brushes.LightGreen,
+                    Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                    ToolTip = account.IsHidden ? "Afficher le compte" : "Masquer le compte"
+                };
+                var capturedAccount = account;
+                toggleBtn.Click += (_, _) =>
+                {
+                    Vm.ToggleAccountVisibilityCommand.Execute(capturedAccount);
+                    toggleBtn.Content = capturedAccount.IsHidden ? "🚫" : "👁";
+                    toggleBtn.Foreground = capturedAccount.IsHidden ? Brushes.Gray : Brushes.LightGreen;
+                    toggleBtn.ToolTip = capturedAccount.IsHidden ? "Afficher le compte" : "Masquer le compte";
+                };
+                DockPanel.SetDock(toggleBtn, Dock.Right);
+                headerPanel.Children.Add(toggleBtn);
+            }
+            headerPanel.Children.Add(new TextBlock
+            {
+                Text = $"👤 {accountName} ({visibleCount}/{totalCount})",
+                FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Foreground = account?.IsHidden == true ? Brushes.Gray : Brushes.Gold,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
             var parentItem = new TreeViewItem
             {
-                Header = $"👤 {accountName} ({group.Count()})",
+                Header = headerPanel,
                 IsExpanded = true,
-                Foreground = Brushes.Gold,
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold
             };
@@ -513,12 +547,37 @@ public partial class CartoView : UserControl
         var classHex = WowClassColors.GetHexColor(ch.Class);
         var classBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(classHex));
 
+        var dock = new DockPanel();
+
+        if (!isExternal)
+        {
+            var toggleBtn = new Button
+            {
+                Content = ch.IsHidden ? "🚫" : "👁",
+                FontSize = 8, Padding = new Thickness(2, 0, 2, 0),
+                Margin = new Thickness(4, 0, 0, 0), Cursor = Cursors.Hand,
+                Foreground = ch.IsHidden ? Brushes.Gray : Brushes.LightGreen,
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                ToolTip = ch.IsHidden ? "Afficher" : "Masquer"
+            };
+            var capturedCh = ch;
+            toggleBtn.Click += (_, _) =>
+            {
+                Vm.ToggleCharacterVisibilityCommand.Execute(capturedCh);
+                toggleBtn.Content = capturedCh.IsHidden ? "🚫" : "👁";
+                toggleBtn.Foreground = capturedCh.IsHidden ? Brushes.Gray : Brushes.LightGreen;
+                toggleBtn.ToolTip = capturedCh.IsHidden ? "Afficher" : "Masquer";
+            };
+            DockPanel.SetDock(toggleBtn, Dock.Right);
+            dock.Children.Add(toggleBtn);
+        }
+
         var panel = new StackPanel { Orientation = Orientation.Horizontal };
 
-        // Class colored dot
         panel.Children.Add(new Ellipse
         {
-            Width = 8, Height = 8, Fill = classBrush,
+            Width = 8, Height = 8,
+            Fill = ch.IsHidden ? Brushes.Gray : classBrush,
             VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0)
         });
 
@@ -531,26 +590,25 @@ public partial class CartoView : UserControl
         panel.Children.Add(new TextBlock
         {
             Text = $"{prefix}{ch.Name}", FontSize = 10,
-            Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center
+            Foreground = ch.IsHidden ? Brushes.Gray : Brushes.White,
+            VerticalAlignment = VerticalAlignment.Center
         });
 
-        // Class
         panel.Children.Add(new TextBlock
         {
             Text = $"  {ch.Class}", FontSize = 9,
-            Foreground = classBrush, FontStyle = FontStyles.Italic,
+            Foreground = ch.IsHidden ? Brushes.DarkGray : classBrush,
+            FontStyle = FontStyles.Italic,
             VerticalAlignment = VerticalAlignment.Center
         });
 
-        // Level
         panel.Children.Add(new TextBlock
         {
             Text = $"  Lv.{ch.Level}", FontSize = 9,
-            Foreground = new SolidColorBrush(Color.FromRgb(180, 180, 180)),
+            Foreground = new SolidColorBrush(ch.IsHidden ? Color.FromRgb(100, 100, 100) : Color.FromRgb(180, 180, 180)),
             VerticalAlignment = VerticalAlignment.Center
         });
 
-        // Status
         panel.Children.Add(new TextBlock
         {
             Text = $"  [{ch.Status.DisplayName()}]", FontSize = 8,
@@ -559,7 +617,6 @@ public partial class CartoView : UserControl
             VerticalAlignment = VerticalAlignment.Center
         });
 
-        // Placed indicator
         if (ch.MapX == 0 && ch.MapY == 0)
         {
             panel.Children.Add(new TextBlock
@@ -569,10 +626,13 @@ public partial class CartoView : UserControl
             });
         }
 
+        dock.Children.Add(panel);
+
         return new TreeViewItem
         {
-            Header = panel, Tag = ch,
-            FontSize = 10, FontWeight = FontWeights.Normal
+            Header = dock, Tag = ch,
+            FontSize = 10, FontWeight = FontWeights.Normal,
+            Opacity = ch.IsHidden ? 0.5 : 1.0
         };
     }
 
@@ -695,24 +755,37 @@ public partial class CartoView : UserControl
             btn.Content = friend.IsVisible ? "👁" : "🚫";
     }
 
-    private void AddAccount_Click(object sender, RoutedEventArgs e) => DoAddAccount();
+    private void ActionChar_Click(object sender, RoutedEventArgs e) => PopupAddChar.IsOpen = true;
+    private void ActionAccount_Click(object sender, RoutedEventArgs e) => PopupAddAccount.IsOpen = true;
+    private void ActionTimer_Click(object sender, RoutedEventArgs e) => PopupAddTimer.IsOpen = true;
+    private void ActionFriend_Click(object sender, RoutedEventArgs e) => PopupAddFriend.IsOpen = true;
 
-    private void NewAccountBox_KeyDown(object sender, KeyEventArgs e)
+    private void PopupClose_Click(object sender, RoutedEventArgs e)
+    {
+        PopupAddChar.IsOpen = false;
+        PopupAddAccount.IsOpen = false;
+        PopupAddTimer.IsOpen = false;
+        PopupAddFriend.IsOpen = false;
+    }
+
+    private void PopupAddAccount_Click(object sender, RoutedEventArgs e) => DoAddAccountFromPopup();
+
+    private void PopupNewAccountBox_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Return)
         {
-            DoAddAccount();
+            DoAddAccountFromPopup();
             e.Handled = true;
         }
     }
 
-    private void DoAddAccount()
+    private void DoAddAccountFromPopup()
     {
-        var name = NewAccountBox.Text.Trim();
+        var name = PopupNewAccountBox.Text.Trim();
         if (!string.IsNullOrEmpty(name))
         {
             Vm.AddAccountCommand.Execute(name);
-            NewAccountBox.Text = string.Empty;
+            PopupNewAccountBox.Text = string.Empty;
         }
     }
 

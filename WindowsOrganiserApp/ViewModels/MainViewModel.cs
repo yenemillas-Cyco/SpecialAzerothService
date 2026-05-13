@@ -102,11 +102,9 @@ public partial class MainViewModel : ObservableObject
 
     public AppSettings GetCurrentSettings()
     {
-        var settings = new AppSettings
-        {
-            Theme = _themeService.CurrentTheme,
-            Language = _localizationService.CurrentLanguage
-        };
+        var settings = _settingsService.Load();
+        settings.Theme = _themeService.CurrentTheme;
+        settings.Language = _localizationService.CurrentLanguage;
 
         settings.MonitorConfigs = MonitorConfigs.Select(c => new MonitorConfigSettings
         {

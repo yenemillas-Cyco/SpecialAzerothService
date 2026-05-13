@@ -216,9 +216,12 @@ public partial class CartoViewModel : ObservableObject
     {
         var hiddenFriends = _syncService.Friends
             .Where(f => !f.IsVisible).Select(f => f.Guid).ToHashSet();
+        var hiddenAccounts = Accounts.Where(a => a.IsHidden).Select(a => a.Id).ToHashSet();
 
         var filtered = Characters.AsEnumerable()
-            .Where(c => !c.IsExternal || (c.ExternalSource != null && !hiddenFriends.Contains(c.ExternalSource)));
+            .Where(c => !c.IsHidden)
+            .Where(c => !c.IsExternal || (c.ExternalSource != null && !hiddenFriends.Contains(c.ExternalSource)))
+            .Where(c => c.AccountId == null || !hiddenAccounts.Contains(c.AccountId));
 
         if (FilterClass.HasValue)
             filtered = filtered.Where(c => c.Class == FilterClass.Value);
@@ -613,6 +616,22 @@ public partial class CartoViewModel : ObservableObject
         RefreshFriends();
         SaveSettings();
         ApplyFilters();
+    }
+
+    [RelayCommand]
+    private void ToggleAccountVisibility(WowAccount account)
+    {
+        account.IsHidden = !account.IsHidden;
+        ApplyFilters();
+        Save();
+    }
+
+    [RelayCommand]
+    private void ToggleCharacterVisibility(WowCharacter character)
+    {
+        character.IsHidden = !character.IsHidden;
+        ApplyFilters();
+        Save();
     }
 
     [ObservableProperty]
