@@ -174,12 +174,13 @@ public partial class BountyViewModel : ObservableObject
                 return n.Length;
             });
             var goldWidth = active.Max(b => b.DisplayTotal.Length);
+            var reasonWidth = active.Max(b => string.IsNullOrWhiteSpace(b.Reason) ? 0 : b.Reason.Length + 2);
             nameWidth = Math.Max(nameWidth, 8);
 
             sb.AppendLine("**📋 Primes actives :**");
             sb.AppendLine("```");
             foreach (var b in active)
-                sb.AppendLine(FormatBountyLineAligned(b, nameWidth, goldWidth));
+                sb.AppendLine(FormatBountyLineAligned(b, nameWidth, goldWidth, reasonWidth));
             sb.AppendLine("```");
         }
 
@@ -234,14 +235,14 @@ public partial class BountyViewModel : ObservableObject
         return sb.ToString();
     }
 
-    private static string FormatBountyLineAligned(BountyEntry b, int nameWidth, int goldWidth)
+    private static string FormatBountyLineAligned(BountyEntry b, int nameWidth, int goldWidth, int reasonWidth)
     {
         var name = string.IsNullOrWhiteSpace(b.AltName) ? b.TargetName : $"{b.TargetName} ou {b.AltName}";
         var reason = string.IsNullOrWhiteSpace(b.Reason) ? "" : $"\"{b.Reason}\"";
         var claimTo = b.ContributorNames;
-        var claim = string.IsNullOrWhiteSpace(claimTo) ? "" : $"→ {claimTo}";
+        var claim = string.IsNullOrWhiteSpace(claimTo) ? "" : $"-> {claimTo}";
 
-        return $"  {name.PadRight(nameWidth)} : {b.DisplayTotal.PadRight(goldWidth)}  {reason.PadRight(1)}  {claim}";
+        return $"  {name.PadRight(nameWidth)} : {b.DisplayTotal.PadRight(goldWidth)}  {reason.PadRight(reasonWidth)}  {claim}";
     }
 
     private static readonly JsonSerializerOptions JsonOpts = new()
