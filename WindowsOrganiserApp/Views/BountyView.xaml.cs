@@ -39,4 +39,9 @@ public partial class BountyView : UserControl
     {
         Vm?.ToggleAllExportCommand.Execute(null);
     }
+
+    private void ExportCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        Vm?.RefreshAfterExportToggle();
+    }
 }

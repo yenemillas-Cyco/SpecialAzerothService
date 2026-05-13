@@ -176,6 +176,8 @@ public partial class BountyViewModel : ObservableObject
         OnPropertyChanged(nameof(EditingContributors));
     }
 
+    public void RefreshAfterExportToggle() => RefreshStats();
+
     [RelayCommand]
     private void ToggleExport(BountyEntry? bounty)
     {
