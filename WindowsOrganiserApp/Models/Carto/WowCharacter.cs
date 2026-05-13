@@ -38,6 +38,8 @@ public sealed class WowCharacter
     public string Note { get; set; } = string.Empty;
     public int ShardCount { get; set; }
     public bool IsHidden { get; set; }
+    public bool IsLocked { get; set; }
+    public bool ExcludeFromSync { get; set; }
     public bool IsExternal { get; set; }
     public string? ExternalSource { get; set; }
 }

@@ -164,7 +164,7 @@ public class SyncService : IDisposable
             var payload = new SyncPayload
             {
                 Accounts = data.Accounts,
-                Characters = data.Characters.Where(c => !c.IsExternal).ToList()
+                Characters = data.Characters.Where(c => !c.IsExternal && !c.ExcludeFromSync).ToList()
             };
             var json = JsonSerializer.Serialize(payload, JsonOpts);
             await _hub.InvokeAsync("PushUpdate", _settings.UserGuid, json);

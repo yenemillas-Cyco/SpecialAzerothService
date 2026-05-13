@@ -142,14 +142,15 @@ public partial class CartoView : UserControl
             MapCanvas.Children.Add(marker);
 
             var accountName = Vm.Accounts.FirstOrDefault(a => a.Id == ch.AccountId)?.Name;
+            var lockPrefix = ch.IsLocked ? "🔒 " : "";
             string labelText;
             if (ch.IsExternal && ch.ExternalSource != null)
             {
                 var friendName = Vm.GetFriendName(ch.ExternalSource) ?? ch.ExternalSource[..Math.Min(8, ch.ExternalSource.Length)];
-                labelText = $"[{friendName}] {ch.Name}";
+                labelText = $"{lockPrefix}[{friendName}] {ch.Name}";
             }
             else
-                labelText = accountName != null ? $"{ch.Name} ({accountName})" : ch.Name;
+                labelText = accountName != null ? $"{lockPrefix}{ch.Name} ({accountName})" : $"{lockPrefix}{ch.Name}";
             var label = new Border
             {
                 Tag = "marker",
@@ -382,10 +383,19 @@ public partial class CartoView : UserControl
         // Marker click: drag or tooltip toggle
         if (e.OriginalSource is Ellipse { Tag: WowCharacter ch })
         {
-            _draggingCharacter = ch;
-            _isDragging = false;
-            _panStart = e.GetPosition(MapBorder);
-            MapBorder.CaptureMouse();
+            if (!ch.IsLocked)
+            {
+                _draggingCharacter = ch;
+                _isDragging = false;
+                _panStart = e.GetPosition(MapBorder);
+                MapBorder.CaptureMouse();
+            }
+            else
+            {
+                Vm.SelectedCharacter = ch;
+                RedrawAll();
+                ShowCharacterTooltip(ch);
+            }
             e.Handled = true;
             return;
         }
@@ -617,18 +627,59 @@ public partial class CartoView : UserControl
 
         var dock = new DockPanel();
 
+        {
+            var lockBtn = new Button
+            {
+                Content = ch.IsLocked ? "🔒" : "🔓",
+                FontSize = 8, Padding = new Thickness(2, 0, 2, 0),
+                Margin = new Thickness(2, 0, 0, 0), Cursor = Cursors.Hand,
+                Foreground = ch.IsLocked ? Brushes.OrangeRed : Brushes.LightGray,
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                ToolTip = ch.IsLocked ? "Déverrouiller (autoriser le déplacement)" : "Verrouiller (empêcher le déplacement)"
+            };
+            var capturedCh = ch;
+            lockBtn.Click += (_, _) =>
+            {
+                Vm.ToggleCharacterLockCommand.Execute(capturedCh);
+                lockBtn.Content = capturedCh.IsLocked ? "🔒" : "🔓";
+                lockBtn.Foreground = capturedCh.IsLocked ? Brushes.OrangeRed : Brushes.LightGray;
+                lockBtn.ToolTip = capturedCh.IsLocked ? "Déverrouiller (autoriser le déplacement)" : "Verrouiller (empêcher le déplacement)";
+            };
+            DockPanel.SetDock(lockBtn, Dock.Right);
+            dock.Children.Add(lockBtn);
+        }
+
         if (!isExternal)
         {
+            var syncBtn = new Button
+            {
+                Content = ch.ExcludeFromSync ? "🔇" : "📡",
+                FontSize = 8, Padding = new Thickness(2, 0, 2, 0),
+                Margin = new Thickness(2, 0, 0, 0), Cursor = Cursors.Hand,
+                Foreground = ch.ExcludeFromSync ? Brushes.Gray : Brushes.LightSkyBlue,
+                Background = Brushes.Transparent, BorderThickness = new Thickness(0),
+                ToolTip = ch.ExcludeFromSync ? "Activer la sync" : "Exclure de la sync"
+            };
+            var capturedCh = ch;
+            syncBtn.Click += (_, _) =>
+            {
+                Vm.ToggleCharacterSyncCommand.Execute(capturedCh);
+                syncBtn.Content = capturedCh.ExcludeFromSync ? "🔇" : "📡";
+                syncBtn.Foreground = capturedCh.ExcludeFromSync ? Brushes.Gray : Brushes.LightSkyBlue;
+                syncBtn.ToolTip = capturedCh.ExcludeFromSync ? "Activer la sync" : "Exclure de la sync";
+            };
+            DockPanel.SetDock(syncBtn, Dock.Right);
+            dock.Children.Add(syncBtn);
+
             var toggleBtn = new Button
             {
                 Content = ch.IsHidden ? "🚫" : "👁",
                 FontSize = 8, Padding = new Thickness(2, 0, 2, 0),
-                Margin = new Thickness(4, 0, 0, 0), Cursor = Cursors.Hand,
+                Margin = new Thickness(2, 0, 0, 0), Cursor = Cursors.Hand,
                 Foreground = ch.IsHidden ? Brushes.Gray : Brushes.LightGreen,
                 Background = Brushes.Transparent, BorderThickness = new Thickness(0),
                 ToolTip = ch.IsHidden ? "Afficher" : "Masquer"
             };
-            var capturedCh = ch;
             toggleBtn.Click += (_, _) =>
             {
                 Vm.ToggleCharacterVisibilityCommand.Execute(capturedCh);

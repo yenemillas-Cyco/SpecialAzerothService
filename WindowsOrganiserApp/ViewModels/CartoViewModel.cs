@@ -313,6 +313,7 @@ public partial class CartoViewModel : ObservableObject
     [RelayCommand]
     private void MoveCharacter(WowCharacter character)
     {
+        if (character.IsLocked) return;
         _movingCharacter = character;
         SelectedCharacter = character;
         IsPlacingCharacter = true;
@@ -634,6 +635,20 @@ public partial class CartoViewModel : ObservableObject
         Save();
     }
 
+    [RelayCommand]
+    private void ToggleCharacterLock(WowCharacter character)
+    {
+        character.IsLocked = !character.IsLocked;
+        Save();
+    }
+
+    [RelayCommand]
+    private void ToggleCharacterSync(WowCharacter character)
+    {
+        character.ExcludeFromSync = !character.ExcludeFromSync;
+        Save();
+    }
+
     [ObservableProperty]
     private ObservableCollection<FriendEntry> _friends = [];
 
@@ -676,6 +691,7 @@ public partial class CartoViewModel : ObservableObject
             {
                 ch.IsExternal = true;
                 ch.ExternalSource = friendGuid;
+                ch.IsLocked = true;
                 Characters.Add(ch);
             }
 

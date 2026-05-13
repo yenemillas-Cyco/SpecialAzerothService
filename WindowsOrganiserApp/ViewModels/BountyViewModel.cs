@@ -104,6 +104,12 @@ public partial class BountyViewModel : ObservableObject
     private void RemoveBounty(BountyEntry? bounty)
     {
         if (bounty == null) return;
+        var result = MessageBox.Show(
+            $"Supprimer la prime sur {bounty.TargetName} ({bounty.DisplayTotal}) ?",
+            "Confirmation",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes) return;
         Bounties.Remove(bounty);
         Save();
     }

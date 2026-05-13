@@ -35,6 +35,7 @@ public class SettingsService : ISettingsService
 
     public AppSettings Load()
     {
+        string? existingGuid = null;
         try
         {
             if (!File.Exists(_filePath))
@@ -47,6 +48,14 @@ public class SettingsService : ISettingsService
 
             var json = File.ReadAllText(_filePath);
             var settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOpts) ?? new AppSettings();
+            existingGuid = settings.UserGuid;
+
+            if (string.IsNullOrWhiteSpace(settings.UserGuid))
+            {
+                settings.UserGuid = Guid.NewGuid().ToString();
+                _logger.Warning("UserGuid was empty, generated new one: {Guid}", settings.UserGuid);
+                Save(settings);
+            }
 
             if (settings.FriendGuids.Count > 0 && settings.Friends.Count == 0)
             {
@@ -64,6 +73,8 @@ public class SettingsService : ISettingsService
         {
             _logger.Warning(ex, "Failed to load settings, using defaults");
             var fallback = new AppSettings();
+            if (!string.IsNullOrWhiteSpace(existingGuid))
+                fallback.UserGuid = existingGuid;
             Save(fallback);
             return fallback;
         }
