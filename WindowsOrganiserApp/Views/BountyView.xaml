@@ -230,11 +230,11 @@
                         <DataGridTemplateColumn Width="40" CanUserSort="False"
                                                 CanUserResize="False" CanUserReorder="False">
                             <DataGridTemplateColumn.Header>
-                                <Button Content="☑" FontSize="14" Padding="2"
-                                        Background="Transparent" BorderThickness="0"
-                                        Foreground="LightGreen" Cursor="Hand"
-                                        ToolTip="Tout cocher / décocher"
-                                        Click="ToggleAllExport_Click"/>
+                                <CheckBox x:Name="HeaderCheckAll"
+                                          Style="{DynamicResource SelectionCheck}"
+                                          IsChecked="True"
+                                          ToolTip="Tout cocher / décocher"
+                                          Click="ToggleAllExport_Click"/>
                             </DataGridTemplateColumn.Header>
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
