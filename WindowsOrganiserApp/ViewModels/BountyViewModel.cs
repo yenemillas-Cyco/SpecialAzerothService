@@ -196,6 +196,16 @@ public partial class BountyViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ToggleAllExport()
+    {
+        var allSelected = Bounties.All(b => b.IsSelectedForExport);
+        foreach (var b in Bounties)
+            b.IsSelectedForExport = !allSelected;
+        NotifyDiscordCount();
+        RefreshList();
+    }
+
+    [RelayCommand]
     private void SaveRules()
     {
         Save();

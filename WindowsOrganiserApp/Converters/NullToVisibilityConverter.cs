@@ -34,7 +34,18 @@ public sealed class BoolToCompletedLabelConverter : IValueConverter
 public sealed class BoolToExportIconConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
-        value is true ? "✅" : "⬜";
+        value is true ? "☑" : "☐";
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
+public sealed class BoolToExportBrushConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is true
+            ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 220, 100))
+            : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(120, 120, 120));
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();

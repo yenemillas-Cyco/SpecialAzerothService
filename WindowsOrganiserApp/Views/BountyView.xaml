@@ -11,6 +11,7 @@
         <conv:BoolToCompletedLabelConverter x:Key="BoolToCompletedLabel"/>
         <conv:BountyClassColorConverter x:Key="ClassColorConv"/>
         <conv:BoolToExportIconConverter x:Key="ExportIconConv"/>
+        <conv:BoolToExportBrushConverter x:Key="ExportBrushConv"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
         <!-- Row style: transparent background + class-colored left border -->
@@ -187,14 +188,22 @@
 
                     <DataGrid.Columns>
                         <!-- EXPORT TOGGLE -->
-                        <DataGridTemplateColumn Header="📋" Width="36" CanUserSort="False"
+                        <DataGridTemplateColumn Width="40" CanUserSort="False"
                                                 CanUserResize="False" CanUserReorder="False">
+                            <DataGridTemplateColumn.Header>
+                                <Button Content="☑" FontSize="14" Padding="2"
+                                        Background="Transparent" BorderThickness="0"
+                                        Foreground="LightGreen" Cursor="Hand"
+                                        ToolTip="Tout cocher / décocher"
+                                        Click="ToggleAllExport_Click"/>
+                            </DataGridTemplateColumn.Header>
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Button Content="{Binding IsSelectedForExport, Converter={StaticResource ExportIconConv}}"
+                                            Foreground="{Binding IsSelectedForExport, Converter={StaticResource ExportBrushConv}}"
                                             HorizontalAlignment="Center" VerticalAlignment="Center"
                                             Background="Transparent" BorderThickness="0"
-                                            Cursor="Hand" Padding="4,2" FontSize="14"
+                                            Cursor="Hand" Padding="4,2" FontSize="16"
                                             ToolTip="Inclure/exclure du message Discord"
                                             Command="{Binding DataContext.ToggleExportCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                             CommandParameter="{Binding}"/>

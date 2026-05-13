@@ -35,4 +35,8 @@ public partial class BountyView : UserControl
         }
     }
 
+    private void ToggleAllExport_Click(object sender, RoutedEventArgs e)
+    {
+        Vm?.ToggleAllExportCommand.Execute(null);
+    }
 }
