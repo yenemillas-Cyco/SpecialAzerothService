@@ -56,7 +56,7 @@
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsSelected" Value="True">
                                                 <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BrightGoldBrush}"/>
-                                                <Setter TargetName="Bd" Property="Background" Value="#28FFD70033"/>
+                                                <Setter TargetName="Bd" Property="Background" Value="#28FFD700"/>
                                             </Trigger>
                                             <Trigger Property="IsMouseOver" Value="True">
                                                 <Setter TargetName="Bd" Property="Background" Value="#20FFFFFF"/>
