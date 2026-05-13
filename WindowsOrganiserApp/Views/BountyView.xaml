@@ -64,6 +64,7 @@
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Padding" Value="6,6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
             <Setter Property="BorderBrush" Value="#15FFFFFF"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -233,6 +234,7 @@
                                 <CheckBox x:Name="HeaderCheckAll"
                                           Style="{DynamicResource SelectionCheck}"
                                           IsChecked="True"
+                                          HorizontalAlignment="Center"
                                           ToolTip="Tout cocher / décocher"
                                           Click="ToggleAllExport_Click"/>
                             </DataGridTemplateColumn.Header>
@@ -269,7 +271,7 @@
                                 <DataTemplate>
                                     <TextBlock Text="{Binding DisplayTotal}" FontSize="13"
                                                FontWeight="Bold" Foreground="{DynamicResource BrightGoldBrush}"
-                                               VerticalAlignment="Center"/>
+                                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -281,7 +283,7 @@
                                 <DataTemplate>
                                     <TextBlock Text="{Binding TargetClass}" FontSize="11"
                                                Foreground="{Binding TargetClass, Converter={StaticResource ClassColorConv}}"
-                                               VerticalAlignment="Center"/>
+                                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -294,7 +296,7 @@
                                     <TextBlock Text="{Binding TargetRace}" FontSize="11"
                                                FontStyle="Italic"
                                                Foreground="{DynamicResource SubtextBrush}"
-                                               VerticalAlignment="Center"/>
+                                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
