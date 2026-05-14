@@ -257,12 +257,15 @@ public partial class MainViewModel : ObservableObject
                 if (e.PropertyName is nameof(WindowInfo.IsSelected) or nameof(WindowInfo.IsMainWindow)
                     or nameof(WindowInfo.AssignedMonitor))
                 {
-                    if (IsOrganiserMode)
+                    if (IsOrganiserMode && AdvancedVm is { } adv)
                     {
                         if (e.PropertyName == nameof(WindowInfo.IsSelected))
-                            AdvancedVm?.RefreshFromMain();
+                            adv.RefreshFromMain();
                         else if (e.PropertyName == nameof(WindowInfo.AssignedMonitor))
-                            AdvancedVm?.MoveWindowToAssignedMonitor(w);
+                            adv.MoveWindowToAssignedMonitor(w);
+
+                        // Any layout-relevant change invalidates the canvas
+                        adv.MarkCanvasStale();
                     }
                 }
             };
@@ -319,7 +322,9 @@ public partial class MainViewModel : ObservableObject
                 w.IsMainWindow = false;
         }
         window.IsMainWindow = true;
-        window.IsSelected = true;
+        if (!window.IsSelected)
+            window.IsSelected = true;
         _logger.Information("Set main window: {Title} on {Mon}", window.Title, targetMonitor?.DisplayLabel);
+        StatusMessage = $"★ {window.DisplayName} défini comme leader sur {targetMonitor?.DisplayLabel ?? "écran"}";
     }
 }

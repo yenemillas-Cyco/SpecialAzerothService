@@ -730,12 +730,16 @@ public partial class MainWindow
 
     private void AdvCanvas_MouseUp(object sender, MouseButtonEventArgs e)
     {
-        if (_dragSlot is not null && _dragMode == DragMode.Move)
+        if (_dragSlot is not null && _dragMode != DragMode.None)
         {
             var vm = (MainViewModel)DataContext;
             var advVm = vm.AdvancedVm;
             if (advVm is not null)
-                advVm.ResolveMonitorAfterDrop(_dragSlot);
+            {
+                advVm.MarkCanvasModified();
+                if (_dragMode == DragMode.Move)
+                    advVm.ResolveMonitorAfterDrop(_dragSlot);
+            }
         }
         _dragSlot = null;
         _dragMode = DragMode.None;

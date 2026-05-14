@@ -103,37 +103,47 @@ public class WindowService : IWindowService
         _logger.Information("Moving window {Handle} to ({X},{Y}) size ({W}x{H})",
             handle, rect.X, rect.Y, rect.Width, rect.Height);
 
-        // Retirer le style WS_MAXIMIZE s'il est présent (fenêtre snappée ou maximisée)
         var style = NativeMethods.GetWindowLongA(handle, NativeMethods.GWL_STYLE);
         if ((style & (int)NativeMethods.WS_MAXIMIZE) != 0)
         {
             NativeMethods.SetWindowLongA(handle, NativeMethods.GWL_STYLE,
                 style & ~(int)NativeMethods.WS_MAXIMIZE);
-            _logger.Information("Removed WS_MAXIMIZE from window {Handle}", handle);
         }
 
-        // Forcer l'état normal (ni minimisé, ni maximisé)
-        NativeMethods.ShowWindow(handle, NativeMethods.SW_SHOWNORMAL);
-        Thread.Sleep(50);
+        NativeMethods.ShowWindow(handle, NativeMethods.SW_RESTORE);
+        Thread.Sleep(100);
 
-        // Déplacer et redimensionner
-        var ok = NativeMethods.SetWindowPos(
-            handle,
-            NativeMethods.HWND_TOP,
-            rect.X, rect.Y, rect.Width, rect.Height,
-            NativeMethods.SWP_FRAMECHANGED | NativeMethods.SWP_SHOWWINDOW);
+        // NOACTIVATE + NOZORDER: avoid Z-order race when moving multiple windows
+        const uint flags = NativeMethods.SWP_FRAMECHANGED
+                         | NativeMethods.SWP_NOACTIVATE
+                         | NativeMethods.SWP_NOZORDER
+                         | NativeMethods.SWP_ASYNCWINDOWPOS;
+
+        var ok = NativeMethods.SetWindowPos(handle, IntPtr.Zero,
+            rect.X, rect.Y, rect.Width, rect.Height, flags);
 
         if (!ok)
         {
             var error = Marshal.GetLastWin32Error();
-            _logger.Error("SetWindowPos failed for {Handle}, Win32 error={Error}", handle, error);
-
-            // Fallback avec MoveWindow
-            _logger.Information("Trying MoveWindow fallback for {Handle}", handle);
+            _logger.Warning("SetWindowPos failed for {Handle}, error={Error} — retrying with MoveWindow", handle, error);
             NativeMethods.MoveWindow(handle, rect.X, rect.Y, rect.Width, rect.Height, true);
         }
 
-        NativeMethods.SetForegroundWindow(handle);
+        // Verify position was actually applied
+        Thread.Sleep(30);
+        NativeMethods.GetWindowRect(handle, out var actual);
+        var actualX = actual.Left;
+        var actualY = actual.Top;
+        var actualW = actual.Right - actual.Left;
+        var actualH = actual.Bottom - actual.Top;
+        if (Math.Abs(actualX - rect.X) > 8 || Math.Abs(actualY - rect.Y) > 8 ||
+            Math.Abs(actualW - rect.Width) > 16 || Math.Abs(actualH - rect.Height) > 16)
+        {
+            _logger.Warning("Position mismatch for {Handle}: expected ({X},{Y},{W},{H}) got ({AX},{AY},{AW},{AH}) — retrying",
+                handle, rect.X, rect.Y, rect.Width, rect.Height, actualX, actualY, actualW, actualH);
+            Thread.Sleep(100);
+            NativeMethods.MoveWindow(handle, rect.X, rect.Y, rect.Width, rect.Height, true);
+        }
     }
 
     public WindowRect GetWorkArea()
