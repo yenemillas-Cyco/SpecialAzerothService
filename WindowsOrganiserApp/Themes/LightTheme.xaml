@@ -275,6 +275,34 @@
         </Setter>
     </Style>
 
+    <Style x:Key="SelectionCheck" TargetType="CheckBox">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Border x:Name="Bd" Width="18" Height="18" CornerRadius="3"
+                            BorderThickness="1.5" BorderBrush="{StaticResource BorderBrush}"
+                            Background="{StaticResource SelectionBgBrush}">
+                        <TextBlock x:Name="Check" Text="✓" FontSize="12" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="Transparent"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource SelectionActiveBgBrush}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BrightGoldBrush}"/>
+                            <Setter TargetName="Check" Property="Foreground" Value="White"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Toggle button style (stone look, glows when active) — for ToggleButton -->
     <Style x:Key="StoneToggle" TargetType="ToggleButton">
         <Setter Property="Foreground" Value="{StaticResource SubtextBrush}"/>

@@ -83,8 +83,10 @@ public class WindowService : IWindowService
             return true;
         }, IntPtr.Zero);
 
-        // Trier par ordre de lancement et assigner le numéro
-        windows = windows.OrderBy(w => w.StartTime).ToList();
+        // Deduplicate by handle then sort by launch order
+        windows = windows
+            .GroupBy(w => w.Handle).Select(g => g.First())
+            .OrderBy(w => w.StartTime).ToList();
         for (var i = 0; i < windows.Count; i++)
             windows[i].LaunchOrder = i + 1;
 
@@ -144,6 +146,14 @@ public class WindowService : IWindowService
             Thread.Sleep(100);
             NativeMethods.MoveWindow(handle, rect.X, rect.Y, rect.Width, rect.Height, true);
         }
+    }
+
+    public void BringToFront(IntPtr handle)
+    {
+        if (!NativeMethods.IsWindow(handle)) return;
+        if (NativeMethods.IsIconic(handle))
+            NativeMethods.ShowWindow(handle, NativeMethods.SW_RESTORE);
+        NativeMethods.SetForegroundWindow(handle);
     }
 
     public WindowRect GetWorkArea()

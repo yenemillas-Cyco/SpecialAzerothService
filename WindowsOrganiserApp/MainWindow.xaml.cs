@@ -1,9 +1,12 @@
-﻿using System.Windows;
+﻿using System.Runtime.InteropServices;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
+using System.Windows.Shapes;
 using WindowsOrganiserApp.Models;
 using WindowsOrganiserApp.Services;
 using WindowsOrganiserApp.Models.Carto;
@@ -57,11 +60,7 @@ public partial class MainWindow : Window
                 Dispatcher.Invoke(() =>
                 {
                     var (character, cooldown) = args;
-                    MessageBox.Show(
-                        $"⏱ {character.Name} — {cooldown.Type.DisplayName()} est prêt !",
-                        "Cooldown prêt",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
+                    viewModel.ShowToast(BuildCooldownToast(character, cooldown));
                 });
             };
         }
@@ -108,8 +107,130 @@ public partial class MainWindow : Window
     private void Minimize_Click(object sender, RoutedEventArgs e) =>
         WindowState = WindowState.Minimized;
 
+    private void Maximize_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+        UpdateMaximizeIcon();
+    }
+
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+        UpdateMaximizeIcon();
+    }
+
+    private void UpdateMaximizeIcon()
+    {
+        if (MaximizeIcon != null)
+            MaximizeIcon.Text = WindowState == WindowState.Maximized ? "❐" : "☐";
+    }
+
     private void Close_Click(object sender, RoutedEventArgs e) =>
         Close();
+
+    private void Toast_Click(object sender, MouseButtonEventArgs e) =>
+        ((MainViewModel)DataContext).DismissToastCommand.Execute(null);
+
+    private void ToastDismiss_Click(object sender, RoutedEventArgs e) =>
+        ((MainViewModel)DataContext).DismissToastCommand.Execute(null);
+
+    private static UIElement BuildCooldownToast(WowCharacter character, CooldownEntry cooldown)
+    {
+        var classHex = WowClassColors.GetHexColor(character.Class);
+        var classBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(classHex));
+
+        var cdIcon = cooldown.Type switch
+        {
+            CooldownType.Arcanite => "⚗",
+            CooldownType.Transmute_Elementaire => "🔥",
+            CooldownType.Mooncloth or CooldownType.Etoffe_lunaire => "🧵",
+            CooldownType.Sel_raffine => "🧂",
+            _ => "⏱"
+        };
+
+        var root = new StackPanel();
+
+        // Header: icon + "Cooldown prêt !"
+        var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+        header.Children.Add(new TextBlock
+        {
+            Text = cdIcon, FontSize = 22, VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0)
+        });
+        header.Children.Add(new TextBlock
+        {
+            Text = "Cooldown prêt !", FontSize = 15, FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(76, 209, 55)),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        root.Children.Add(header);
+
+        // Character name in class color + level
+        var charLine = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+        charLine.Children.Add(new Ellipse
+        {
+            Width = 10, Height = 10, Fill = classBrush,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 6, 0)
+        });
+        charLine.Children.Add(new TextBlock
+        {
+            Text = character.Name, FontSize = 14, FontWeight = FontWeights.SemiBold,
+            Foreground = classBrush, VerticalAlignment = VerticalAlignment.Center
+        });
+        charLine.Children.Add(new TextBlock
+        {
+            Text = $"  Niv. {character.Level} {character.Class}",
+            FontSize = 11, Foreground = new SolidColorBrush(Color.FromRgb(160, 155, 140)),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        root.Children.Add(charLine);
+
+        // Cooldown type
+        root.Children.Add(new TextBlock
+        {
+            Text = cooldown.Type.DisplayName(), FontSize = 12,
+            Foreground = new SolidColorBrush(Color.FromRgb(218, 165, 32)),
+            Margin = new Thickness(0, 2, 0, 0)
+        });
+
+        return root;
+    }
+
+    // ─── Resize from all edges/corners ───────────────────────
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ReleaseCapture();
+
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+    private static partial nint SendMessage(nint hWnd, uint msg, nint wParam, nint lParam);
+
+    private const uint WM_SYSCOMMAND = 0x112;
+
+    private static readonly Dictionary<string, nint> ResizeDirections = new()
+    {
+        ["Left"]        = 0xF001,
+        ["Right"]       = 0xF002,
+        ["Top"]         = 0xF003,
+        ["TopLeft"]     = 0xF004,
+        ["TopRight"]    = 0xF005,
+        ["Bottom"]      = 0xF006,
+        ["BottomLeft"]  = 0xF007,
+        ["BottomRight"] = 0xF008,
+    };
+
+    private void ResizeGrip_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is Rectangle { Tag: string dir } && ResizeDirections.TryGetValue(dir, out var direction))
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            ReleaseCapture();
+            SendMessage(hwnd, WM_SYSCOMMAND, direction, 0);
+        }
+    }
 
     private void Help_Click(object sender, RoutedEventArgs e)
     {

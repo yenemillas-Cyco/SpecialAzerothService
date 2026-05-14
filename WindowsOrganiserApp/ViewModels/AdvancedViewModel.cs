@@ -504,6 +504,8 @@ public partial class AdvancedViewModel : ObservableObject
     private int ApplyForMonitorSlots(IReadOnlyList<AdvancedSlot> slots)
     {
         var applied = 0;
+        var appliedHandles = new List<IntPtr>();
+
         foreach (var slot in slots)
         {
             var monitor = _mainVm.Monitors.FirstOrDefault(m => m.DeviceName == slot.MonitorDeviceName);
@@ -522,8 +524,17 @@ public partial class AdvancedViewModel : ObservableObject
             _logger.Information("Applying slot {Win} → ({X},{Y},{W},{H})",
                 slot.Window.DisplayName, rect.X, rect.Y, rect.Width, rect.Height);
             _windowService.MoveAndResize(slot.Window.Handle, rect);
+            appliedHandles.Add(slot.Window.Handle);
             applied++;
         }
+
+        // Bring all applied windows to foreground (non-leader first, leader last so it ends up on top)
+        var leader = slots.FirstOrDefault(s => s.Window.IsMainWindow)?.Window.Handle;
+        foreach (var h in appliedHandles.Where(h => h != leader))
+            _windowService.BringToFront(h);
+        if (leader.HasValue)
+            _windowService.BringToFront(leader.Value);
+
         return applied;
     }
 

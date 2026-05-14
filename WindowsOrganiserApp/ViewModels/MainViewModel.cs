@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
@@ -96,6 +97,52 @@ public partial class MainViewModel : ObservableObject
         IsSyncConnected = _syncService.IsConnected;
     }
 
+    // ─── Toast notifications ─────────────────────────────────
+
+    [ObservableProperty]
+    private object? _toastContent;
+
+    [ObservableProperty]
+    private bool _isToastVisible;
+
+    private readonly Queue<object> _toastQueue = new();
+    private DispatcherTimer? _toastTimer;
+
+    public void ShowToast(object content)
+    {
+        _toastQueue.Enqueue(content);
+        if (!IsToastVisible)
+            ShowNextToast();
+    }
+
+    private void ShowNextToast()
+    {
+        if (_toastQueue.Count == 0)
+        {
+            IsToastVisible = false;
+            return;
+        }
+
+        ToastContent = _toastQueue.Dequeue();
+        IsToastVisible = true;
+
+        _toastTimer?.Stop();
+        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _toastTimer.Tick += (_, _) =>
+        {
+            _toastTimer.Stop();
+            ShowNextToast();
+        };
+        _toastTimer.Start();
+    }
+
+    [RelayCommand]
+    private void DismissToast()
+    {
+        _toastTimer?.Stop();
+        ShowNextToast();
+    }
+
     public AdvancedViewModel? AdvancedVm { get; set; }
     public CartoViewModel? CartoVm { get; set; }
     public BountyViewModel? BountyVm { get; set; }
@@ -174,7 +221,8 @@ public partial class MainViewModel : ObservableObject
         Monitors.Clear();
         MonitorConfigs.Clear();
 
-        var monitors = _windowService.GetMonitors();
+        var monitors = _windowService.GetMonitors()
+            .OrderBy(m => m.WorkArea.X).ThenBy(m => m.WorkArea.Y).ToList();
         var secondaryIndex = 1;
         foreach (var m in monitors)
         {
@@ -306,8 +354,9 @@ public partial class MainViewModel : ObservableObject
                             adv.RefreshFromMain();
                         else if (e.PropertyName == nameof(WindowInfo.AssignedMonitor))
                             adv.MoveWindowToAssignedMonitor(w);
+                        else if (e.PropertyName == nameof(WindowInfo.IsMainWindow) && w.AssignedMonitor is { } mon)
+                            adv.AutoLayoutForMonitor(mon);
 
-                        // Any layout-relevant change invalidates the canvas
                         adv.InvalidateCanvas();
                     }
                 }

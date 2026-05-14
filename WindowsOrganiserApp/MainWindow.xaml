@@ -15,7 +15,7 @@
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
-        ResizeMode="CanResizeWithGrip"
+        ResizeMode="CanResize"
         Foreground="#E8D5A3"
         FontFamily="Segoe UI">
 
@@ -54,6 +54,10 @@
                                             HorizontalAlignment="Right">
                                     <Button Content="—" Style="{DynamicResource WinCtrlBtn}"
                                             Click="Minimize_Click"/>
+                                    <Button x:Name="MaximizeBtn" Style="{DynamicResource WinCtrlBtn}"
+                                            Click="Maximize_Click" Margin="2,0,0,0">
+                                        <TextBlock x:Name="MaximizeIcon" Text="☐" FontSize="13"/>
+                                    </Button>
                                     <Button Content="✕" Style="{DynamicResource WinCloseBtn}"
                                             Click="Close_Click" Margin="2,0,0,0"/>
                                 </StackPanel>
@@ -503,6 +507,63 @@
                     </Grid>
                 </Border>
             </Border>
+
+            <!-- Toast notification overlay (bottom-right) -->
+            <Border x:Name="ToastPanel" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Margin="0,0,20,20" MinWidth="280" MaxWidth="380" CornerRadius="8"
+                    BorderThickness="2" BorderBrush="{DynamicResource GoldBrush}"
+                    Background="{DynamicResource PanelBg}" Padding="0"
+                    Cursor="Hand" MouseLeftButtonDown="Toast_Click"
+                    Visibility="{Binding IsToastVisible, Converter={StaticResource BoolToVis}}"
+                    RenderTransformOrigin="1,1">
+                <Border.Effect>
+                    <DropShadowEffect Color="Black" BlurRadius="16" Opacity="0.6" ShadowDepth="4"/>
+                </Border.Effect>
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="ToastTranslate" X="0"/>
+                </Border.RenderTransform>
+                <Border.Triggers>
+                    <EventTrigger RoutedEvent="Border.Loaded">
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetName="ToastPanel" Storyboard.TargetProperty="Opacity"
+                                                 From="0" To="0.95" Duration="0:0:0.4"/>
+                                <DoubleAnimation Storyboard.TargetName="ToastTranslate" Storyboard.TargetProperty="X"
+                                                 From="100" To="0" Duration="0:0:0.4">
+                                    <DoubleAnimation.EasingFunction>
+                                        <CubicEase EasingMode="EaseOut"/>
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </EventTrigger>
+                </Border.Triggers>
+                <Grid>
+                    <Button Content="✕" HorizontalAlignment="Right" VerticalAlignment="Top"
+                            FontSize="10" Margin="0,4,6,0" Padding="4,1" Cursor="Hand"
+                            Foreground="{DynamicResource SubtextBrush}" Background="Transparent"
+                            BorderThickness="0" Click="ToastDismiss_Click"/>
+                    <ContentPresenter Content="{Binding ToastContent}" Margin="14,12,14,14"/>
+                </Grid>
+            </Border>
+
+            <!-- Resize grips (invisible hit areas on all edges/corners) -->
+            <Rectangle Fill="Transparent" Width="6" HorizontalAlignment="Left" Cursor="SizeWE"
+                       MouseLeftButtonDown="ResizeGrip_MouseDown" Tag="Left"/>
+            <Rectangle Fill="Transparent" Width="6" HorizontalAlignment="Right" Cursor="SizeWE"
+                       MouseLeftButtonDown="ResizeGrip_MouseDown" Tag="Right"/>
+            <Rectangle Fill="Transparent" Height="6" VerticalAlignment="Top" Cursor="SizeNS"
+                       MouseLeftButtonDown="ResizeGrip_MouseDown" Tag="Top"/>
+            <Rectangle Fill="Transparent" Height="6" VerticalAlignment="Bottom" Cursor="SizeNS"
+                       MouseLeftButtonDown="ResizeGrip_MouseDown" Tag="Bottom"/>
+            <Rectangle Fill="Transparent" Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="SizeNWSE"
+                       MouseLeftButtonDown="ResizeGrip_MouseDown" Tag="TopLeft"/>
+            <Rectangle Fill="Transparent" Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Top" Cursor="SizeNESW"
+                       MouseLeftButtonDown="ResizeGrip_MouseDown" Tag="TopRight"/>
+            <Rectangle Fill="Transparent" Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Bottom" Cursor="SizeNESW"
+                       MouseLeftButtonDown="ResizeGrip_MouseDown" Tag="BottomLeft"/>
+            <Rectangle Fill="Transparent" Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE"
+                       MouseLeftButtonDown="ResizeGrip_MouseDown" Tag="BottomRight"/>
     </Grid>
     </Border>
 </Window>
