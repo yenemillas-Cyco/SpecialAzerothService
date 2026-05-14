@@ -40,42 +40,42 @@
                     <!-- Separator -->
                     <Border Width="1" Height="18" Background="{DynamicResource BorderBrush}" Margin="4,0"/>
 
-                    <!-- Filters inline (all Height=24 for consistency) -->
-                    <TextBlock Text="Nom" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
+                    <!-- Filters inline -->
+                    <TextBlock Text="Nom" FontSize="12" Foreground="{DynamicResource SubtextBrush}"
                                VerticalAlignment="Center" Margin="2,0,3,0"/>
-                    <TextBox Width="70" Height="26" FontSize="10" Padding="3,0" Margin="0,0,4,0"
+                    <TextBox Width="75" Height="28" FontSize="12" Padding="3,0" Margin="0,0,5,0"
                              VerticalContentAlignment="Center"
                              Text="{Binding FilterName, UpdateSourceTrigger=PropertyChanged}"
                              Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                    <TextBlock Text="Classe" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
+                    <TextBlock Text="Classe" FontSize="12" Foreground="{DynamicResource SubtextBrush}"
                                VerticalAlignment="Center" Margin="0,0,3,0"/>
-                    <ComboBox Width="85" Height="26" FontSize="10" Margin="0,0,4,0"
+                    <ComboBox Width="90" Height="28" FontSize="12" Margin="0,0,5,0"
                               VerticalContentAlignment="Center"
                               ItemsSource="{Binding WowClasses}" SelectedItem="{Binding FilterClass}"/>
-                    <TextBlock Text="Lv." FontSize="10" Foreground="{DynamicResource SubtextBrush}"
+                    <TextBlock Text="Lv." FontSize="12" Foreground="{DynamicResource SubtextBrush}"
                                VerticalAlignment="Center" Margin="0,0,2,0"/>
-                    <TextBox Width="30" Height="26" FontSize="10" Padding="2,0" TextAlignment="Center"
+                    <TextBox Width="34" Height="28" FontSize="12" Padding="2,0" TextAlignment="Center"
                              VerticalContentAlignment="Center"
                              Text="{Binding FilterLevelMin, UpdateSourceTrigger=PropertyChanged}"
                              Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                    <TextBlock Text="-" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
-                               VerticalAlignment="Center" Margin="1,0"/>
-                    <TextBox Width="30" Height="26" FontSize="10" Padding="2,0" Margin="0,0,4,0" TextAlignment="Center"
+                    <TextBlock Text="-" FontSize="12" Foreground="{DynamicResource SubtextBrush}"
+                               VerticalAlignment="Center" Margin="2,0"/>
+                    <TextBox Width="34" Height="28" FontSize="12" Padding="2,0" Margin="0,0,5,0" TextAlignment="Center"
                              VerticalContentAlignment="Center"
                              Text="{Binding FilterLevelMax, UpdateSourceTrigger=PropertyChanged}"
                              Background="{DynamicResource SelectionBgBrush}" Foreground="{DynamicResource TextBrush}"
                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                    <TextBlock Text="Compte" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
+                    <TextBlock Text="Compte" FontSize="12" Foreground="{DynamicResource SubtextBrush}"
                                VerticalAlignment="Center" Margin="0,0,3,0"/>
-                    <ComboBox Width="85" Height="26" FontSize="10" Margin="0,0,4,0"
+                    <ComboBox Width="90" Height="28" FontSize="12" Margin="0,0,5,0"
                               VerticalContentAlignment="Center"
                               ItemsSource="{Binding Accounts}" DisplayMemberPath="Name"
                               SelectedValuePath="Id" SelectedValue="{Binding FilterAccountId}"/>
-                    <TextBlock Text="Status" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
+                    <TextBlock Text="Status" FontSize="12" Foreground="{DynamicResource SubtextBrush}"
                                VerticalAlignment="Center" Margin="0,0,3,0"/>
-                    <ComboBox Width="70" Height="26" FontSize="10" Margin="0,0,4,0"
+                    <ComboBox Width="80" Height="28" FontSize="12" Margin="0,0,5,0"
                               VerticalContentAlignment="Center"
                               ItemsSource="{Binding CharacterStatusValues}"
                               SelectedItem="{Binding FilterStatus}">
@@ -85,7 +85,7 @@
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>
-                    <Button Content="✕" Style="{DynamicResource StoneButton}" FontSize="10" Height="26" Padding="5,0" Margin="2,0"
+                    <Button Content="✕" Style="{DynamicResource StoneButton}" FontSize="12" Height="28" Padding="6,0" Margin="2,0"
                             Command="{Binding ClearFiltersCommand}" ToolTip="Effacer les filtres"/>
 
                     <!-- Separator -->
