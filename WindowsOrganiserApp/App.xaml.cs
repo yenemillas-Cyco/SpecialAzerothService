@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
+using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using WindowsOrganiserApp.Services;
@@ -22,6 +23,8 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        KillOtherInstances();
 
         var logPath = System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -146,9 +149,30 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        try
+        {
+            var sync = _serviceProvider?.GetService<SyncService>();
+            sync?.DisconnectAsync().Wait(TimeSpan.FromSeconds(3));
+        }
+        catch { /* don't block exit */ }
+
         Log.CloseAndFlush();
         _serviceProvider?.Dispose();
         base.OnExit(e);
+    }
+
+    private static void KillOtherInstances()
+    {
+        var currentPid = Environment.ProcessId;
+        var currentName = Process.GetCurrentProcess().ProcessName;
+        foreach (var proc in Process.GetProcessesByName(currentName))
+        {
+            if (proc.Id != currentPid)
+            {
+                try { proc.Kill(); } catch { }
+            }
+            proc.Dispose();
+        }
     }
 }
 

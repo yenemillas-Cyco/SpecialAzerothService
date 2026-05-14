@@ -12,7 +12,7 @@
     <AssemblyName>SpecialAzerothService</AssemblyName>
     <Product>Special Azeroth Service — Multibox Organiser</Product>
     <Description>WoW Multibox Window Organiser pour Polux</Description>
-    <Version>3.0.5</Version>
+    <Version>3.0.6</Version>
 
     <!-- Publication self-contained -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -21,6 +21,8 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>

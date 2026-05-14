@@ -63,6 +63,10 @@ public partial class MainWindow : Window
                     viewModel.ShowToast(BuildCooldownToast(character, cooldown));
                 });
             };
+            viewModel.CartoVm.TimerExpired += timer =>
+            {
+                Dispatcher.Invoke(() => viewModel.ShowToast(BuildTimerToast(timer)));
+            };
         }
 
         Closing += (_, _) => SaveAllSettings();
@@ -194,6 +198,45 @@ public partial class MainWindow : Window
             Text = cooldown.Type.DisplayName(), FontSize = 12,
             Foreground = new SolidColorBrush(Color.FromRgb(218, 165, 32)),
             Margin = new Thickness(0, 2, 0, 0)
+        });
+
+        return root;
+    }
+
+    private static UIElement BuildTimerToast(MapTimer timer)
+    {
+        var root = new StackPanel();
+
+        var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+        header.Children.Add(new TextBlock
+        {
+            Text = "⏰", FontSize = 22, VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0)
+        });
+        header.Children.Add(new TextBlock
+        {
+            Text = "Timer terminé !", FontSize = 15, FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(255, 165, 0)),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        root.Children.Add(header);
+
+        var label = string.IsNullOrWhiteSpace(timer.Label) ? "Sans nom" : timer.Label;
+        root.Children.Add(new TextBlock
+        {
+            Text = label, FontSize = 14, FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(218, 165, 32)),
+            Margin = new Thickness(0, 0, 0, 4)
+        });
+
+        var duration = TimeSpan.FromSeconds(timer.DurationSeconds);
+        var durationText = duration.TotalHours >= 1
+            ? $"Durée : {(int)duration.TotalHours}h {duration.Minutes:D2}m"
+            : $"Durée : {duration.Minutes}m {duration.Seconds:D2}s";
+        root.Children.Add(new TextBlock
+        {
+            Text = durationText, FontSize = 11,
+            Foreground = new SolidColorBrush(Color.FromRgb(160, 155, 140))
         });
 
         return root;
