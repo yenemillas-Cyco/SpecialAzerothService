@@ -15,19 +15,28 @@ public partial class MainViewModel : ObservableObject
     private readonly IThemeService _themeService;
     private readonly ILocalizationService _localizationService;
     private readonly ILogger _logger;
+    private readonly SyncService _syncService;
     private AppSettings? _loadedSettings;
 
     public MainViewModel(IWindowService windowService, ILayoutService layoutService,
                          ISettingsService settingsService, IThemeService themeService,
-                         ILocalizationService localizationService, ILogger logger)
+                         ILocalizationService localizationService, SyncService syncService,
+                         ILogger logger)
     {
         _windowService = windowService;
         _layoutService = layoutService;
         _settingsService = settingsService;
         _themeService = themeService;
         _localizationService = localizationService;
+        _syncService = syncService;
         _logger = logger;
         _loadedSettings = _settingsService.Load();
+
+        _syncService.ConnectionStateChanged += _ =>
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+            {
+                IsSyncConnected = _syncService.IsConnected;
+            });
 
         if (!string.IsNullOrEmpty(_loadedSettings.Theme))
             _themeService.ApplyTheme(_loadedSettings.Theme);
@@ -69,6 +78,22 @@ public partial class MainViewModel : ObservableObject
     partial void OnIsBountyModeChanged(bool value)
     {
         if (value) { IsOrganiserMode = false; IsCartoMode = false; }
+    }
+
+    // ─── WebSocket connection toggle ───────────────────────
+
+    [ObservableProperty]
+    private bool _isSyncConnected;
+
+    [RelayCommand]
+    private async Task ToggleSync()
+    {
+        if (_syncService.IsConnected)
+            await _syncService.DisconnectAsync();
+        else
+            await _syncService.ConnectAsync();
+
+        IsSyncConnected = _syncService.IsConnected;
     }
 
     public AdvancedViewModel? AdvancedVm { get; set; }

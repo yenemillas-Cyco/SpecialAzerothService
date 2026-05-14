@@ -275,32 +275,31 @@
         </Setter>
     </Style>
 
-    <Style x:Key="SelectionCheck" TargetType="CheckBox">
+    <!-- Toggle button style (stone look, glows when active) — for ToggleButton -->
+    <Style x:Key="StoneToggle" TargetType="ToggleButton">
+        <Setter Property="Foreground" Value="{StaticResource SubtextBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="14,8"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="2,0"/>
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="CheckBox">
-                    <StackPanel Orientation="Horizontal">
-                        <Border x:Name="Bd" Width="22" Height="22" CornerRadius="4"
-                                BorderThickness="2.5" BorderBrush="{StaticResource BorderBrush}"
-                                Background="{StaticResource SelectionBgBrush}">
-                            <TextBlock x:Name="Check" Text="✓" FontSize="14" FontWeight="Bold"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="Transparent"/>
-                        </Border>
-                        <ContentPresenter Margin="5,0,0,0" VerticalAlignment="Center"
-                                          RecognizesAccessKey="True"/>
-                    </StackPanel>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Bd" CornerRadius="4" Padding="{TemplateBinding Padding}"
+                            BorderThickness="1.5" BorderBrush="{StaticResource BorderBrush}"
+                            Background="{StaticResource StoneButtonBgBrush}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource SelectionActiveBgBrush}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource WowButtonBgBrush}"/>
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BrightGoldBrush}"/>
-                            <Setter TargetName="Bd" Property="BorderThickness" Value="3"/>
-                            <Setter TargetName="Check" Property="Foreground" Value="{StaticResource BrightGoldBrush}"/>
+                            <Setter TargetName="Bd" Property="BorderThickness" Value="2"/>
+                            <Setter Property="Foreground" Value="{StaticResource BrightGoldBrush}"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BrightGoldBrush}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -308,30 +307,31 @@
         </Setter>
     </Style>
 
-    <!-- Mode radio toggle (mutually exclusive layout mode selector) -->
-    <Style x:Key="ModeRadio" TargetType="RadioButton">
+    <!-- Same toggle look for RadioButton (exclusive mode selection) -->
+    <Style x:Key="StoneRadioToggle" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{StaticResource SubtextBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Padding" Value="14,8"/>
         <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-        <Setter Property="FontSize" Value="10"/>
         <Setter Property="Margin" Value="2,0"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
-                    <Border x:Name="Bd" CornerRadius="5" Padding="8,4"
-                            BorderThickness="2" BorderBrush="{StaticResource BorderBrush}"
-                            Background="{StaticResource SelectionBgBrush}">
+                    <Border x:Name="Bd" CornerRadius="4" Padding="{TemplateBinding Padding}"
+                            BorderThickness="1.5" BorderBrush="{StaticResource BorderBrush}"
+                            Background="{StaticResource StoneButtonBgBrush}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource SelectionActiveBgBrush}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource WowButtonBgBrush}"/>
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BrightGoldBrush}"/>
-                            <Setter TargetName="Bd" Property="BorderThickness" Value="2.5"/>
+                            <Setter TargetName="Bd" Property="BorderThickness" Value="2"/>
                             <Setter Property="Foreground" Value="{StaticResource BrightGoldBrush}"/>
                             <Setter Property="FontWeight" Value="Bold"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BrightGoldBrush}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

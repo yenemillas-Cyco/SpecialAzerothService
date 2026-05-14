@@ -92,11 +92,10 @@
                                     <TextBlock Text="{DynamicResource Header_Refresh}" FontSize="12" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
-                            <CheckBox IsChecked="{Binding WowOnly}" Margin="8,0,0,0"
-                                      Style="{DynamicResource SelectionCheck}" VerticalAlignment="Center"
-                                      ToolTip="Coché : uniquement WoW. Décoché : toutes les fenêtres"/>
-                            <TextBlock Text="{DynamicResource Header_WowOnly}" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
-                                       Foreground="{DynamicResource SubtextBrush}"/>
+                            <ToggleButton IsChecked="{Binding WowOnly}" Margin="8,0,0,0"
+                                         Style="{DynamicResource StoneToggle}" Padding="8,5" FontSize="10"
+                                         Content="{DynamicResource Header_WowOnly}"
+                                         ToolTip="Coché : uniquement WoW. Décoché : toutes les fenêtres"/>
                             <ComboBox Width="110" Height="28" Margin="6,0,0,0"
                                       ItemsSource="{Binding AvailableThemes}"
                                       SelectedItem="{Binding CurrentThemeLabel}"
@@ -105,6 +104,39 @@
                                       ItemsSource="{Binding AvailableLanguages}"
                                       SelectedItem="{Binding CurrentLanguage}"
                                       ToolTip="{DynamicResource Lang_Label}"/>
+                            <Button Style="{DynamicResource StoneButton}" FontSize="11" Padding="8,5" Margin="6,0,0,0"
+                                    Command="{Binding ToggleSyncCommand}"
+                                    ToolTip="Connecter / Déconnecter le WebSocket">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Ellipse Width="8" Height="8" Margin="0,0,5,0" VerticalAlignment="Center">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="#888"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSyncConnected}" Value="True">
+                                                        <Setter Property="Fill" Value="#44FF44"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsSyncConnected}" Value="False">
+                                                        <Setter Property="Fill" Value="#FF4444"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="Connexion"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSyncConnected}" Value="True">
+                                                        <Setter Property="Text" Value="Déconnexion"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Button>
                             <Button Content="{DynamicResource Header_Help}" Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
                                     Click="Help_Click" ToolTip="{DynamicResource Help_Title}" Margin="6,0,0,0"/>
                             <Button Content="?" Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
@@ -340,42 +372,52 @@
                                                                Foreground="{DynamicResource BrightGoldBrush}"
                                                                HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
-                                                    <!-- Layout mode (exclusive) -->
-                                                    <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,4">
+                                                    <!-- Layout mode (exclusive — one active at a time) -->
+                                                    <WrapPanel HorizontalAlignment="Center" Margin="0,2,0,6">
                                                         <RadioButton Content="▣ Principal" GroupName="{Binding Monitor.DeviceName}"
-                                                                     Style="{DynamicResource ModeRadio}"
+                                                                     Style="{DynamicResource StoneRadioToggle}"
                                                                      IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Main}"/>
                                                         <RadioButton Content="▥ Frac. V" GroupName="{Binding Monitor.DeviceName}"
-                                                                     Style="{DynamicResource ModeRadio}"
+                                                                     Style="{DynamicResource StoneRadioToggle}"
                                                                      IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=SplitV}"/>
                                                         <RadioButton Content="▤ Frac. H" GroupName="{Binding Monitor.DeviceName}"
-                                                                     Style="{DynamicResource ModeRadio}"
+                                                                     Style="{DynamicResource StoneRadioToggle}"
                                                                      IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=SplitH}"/>
                                                     </WrapPanel>
 
-                                                    <!-- Config options (visible only in Main mode) -->
-                                                    <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,3"
-                                                               Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}">
-                                                        <TextBlock Text="Taille:" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
-                                                                   VerticalAlignment="Center" Margin="0,0,3,0"/>
-                                                        <ComboBox FontSize="9" Width="60" Height="22"
-                                                                  SelectedItem="{Binding Size}"
-                                                                  ItemsSource="{Binding Source={x:Static models:MainSize.Grand}, Converter={x:Static conv:EnumValuesConverter.Instance}}"/>
-                                                        <TextBlock Text="Pos:" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
-                                                                   VerticalAlignment="Center" Margin="6,0,3,0"/>
-                                                        <ComboBox FontSize="9" Width="75" Height="22"
-                                                                  SelectedItem="{Binding Position}"
-                                                                  ItemsSource="{Binding Source={x:Static models:MainPosition.TopLeft}, Converter={x:Static conv:EnumValuesConverter.Instance}}"/>
-                                                    </WrapPanel>
-                                                    <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,4"
-                                                               Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}">
-                                                        <CheckBox Content="Latéral" IsChecked="{Binding HasLateral}"
-                                                                  Style="{DynamicResource SelectionCheck}"
-                                                                  Foreground="{DynamicResource TextBrush}" FontSize="10" Margin="0,0,8,0"/>
-                                                        <CheckBox Content="Bandeau" IsChecked="{Binding HasBandeau}"
-                                                                  Style="{DynamicResource SelectionCheck}"
-                                                                  Foreground="{DynamicResource TextBrush}" FontSize="10"/>
-                                                    </WrapPanel>
+                                                    <!-- Config options (keep space when hidden to avoid layout shift) -->
+                                                    <StackPanel>
+                                                        <StackPanel.Style>
+                                                            <Style TargetType="StackPanel">
+                                                                <Setter Property="Opacity" Value="1"/>
+                                                                <Setter Property="IsHitTestVisible" Value="True"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsMainMode}" Value="False">
+                                                                        <Setter Property="Opacity" Value="0"/>
+                                                                        <Setter Property="IsHitTestVisible" Value="False"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </StackPanel.Style>
+                                                        <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,4">
+                                                            <TextBlock Text="Taille:" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
+                                                                       VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                            <ComboBox FontSize="10" Width="65" Height="24"
+                                                                      SelectedItem="{Binding Size}"
+                                                                      ItemsSource="{Binding Source={x:Static models:MainSize.Grand}, Converter={x:Static conv:EnumValuesConverter.Instance}}"/>
+                                                            <TextBlock Text="Pos:" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
+                                                                       VerticalAlignment="Center" Margin="8,0,4,0"/>
+                                                            <ComboBox FontSize="10" Width="80" Height="24"
+                                                                      SelectedItem="{Binding Position}"
+                                                                      ItemsSource="{Binding Source={x:Static models:MainPosition.TopLeft}, Converter={x:Static conv:EnumValuesConverter.Instance}}"/>
+                                                        </WrapPanel>
+                                                        <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,6">
+                                                            <ToggleButton Content="Latéral" IsChecked="{Binding HasLateral}"
+                                                                          Style="{DynamicResource StoneToggle}"/>
+                                                            <ToggleButton Content="Bandeau" IsChecked="{Binding HasBandeau}"
+                                                                          Style="{DynamicResource StoneToggle}"/>
+                                                        </WrapPanel>
+                                                    </StackPanel>
                                                     <Button Style="{DynamicResource WowButton}" Padding="12,6"
                                                             Command="{Binding DataContext.AdvancedVm.ApplyMonitorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding Monitor}">
