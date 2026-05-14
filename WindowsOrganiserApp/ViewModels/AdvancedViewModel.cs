@@ -120,7 +120,6 @@ public partial class AdvancedViewModel : ObservableObject
             Math.Min(slot.CanvasWidth, monCw),
             Math.Min(slot.CanvasHeight, monCh),
             _globalScale, monCx, monCy, monCw, monCh);
-        _canvasModified = true;
         OnPropertyChanged(nameof(Slots));
     }
 
@@ -145,20 +144,12 @@ public partial class AdvancedViewModel : ObservableObject
     private double _globalScale;
     private int _globalOffsetX;
     private int _globalOffsetY;
-    private bool _canvasModified;
 
-    public void MarkCanvasModified() => _canvasModified = true;
-
-    /// <summary>Layout-relevant settings changed (lead, monitor assignment) — next Apply should recalculate.</summary>
-    public void MarkCanvasStale()
-    {
-        _canvasModified = false;
-        OnPropertyChanged(nameof(Slots));
-    }
+    /// <summary>Forces canvas redraw (e.g. after lead/monitor change).</summary>
+    public void InvalidateCanvas() => OnPropertyChanged(nameof(Slots));
 
     public void RefreshFromMain()
     {
-        _canvasModified = false;
         Slots.Clear();
         MonitorOutlines.Clear();
 
@@ -368,7 +359,6 @@ public partial class AdvancedViewModel : ObservableObject
         }
 
         SelectedSlot = Slots.FirstOrDefault();
-        _canvasModified = true;
         OnPropertyChanged(nameof(Slots));
         // No status message — silent preview update
     }
@@ -412,7 +402,6 @@ public partial class AdvancedViewModel : ObservableObject
         target.SetCanvasRect(srcX, srcY, srcX + srcW, srcY + srcH);
 
         IsSwapMode = false;
-        _canvasModified = true;
         OnPropertyChanged(nameof(Slots));
         StatusMessage = $"Positions inversées : {SelectedSlot.Window.DisplayName} ↔ {target.Window.DisplayName}";
     }
@@ -436,7 +425,6 @@ public partial class AdvancedViewModel : ObservableObject
             SelectedSlot.CanvasX, SelectedSlot.CanvasY,
             SelectedSlot.CanvasX + _copiedCanvasW,
             SelectedSlot.CanvasY + _copiedCanvasH);
-        _canvasModified = true;
         OnPropertyChanged(nameof(Slots));
         StatusMessage = $"Taille collée sur {SelectedSlot.Window.DisplayName}";
     }
@@ -453,7 +441,6 @@ public partial class AdvancedViewModel : ObservableObject
             slot.SetCanvasRect(slot.CanvasX, slot.CanvasY,
                 slot.CanvasX + srcW, slot.CanvasY + srcH);
         }
-        _canvasModified = true;
         OnPropertyChanged(nameof(Slots));
         StatusMessage = $"Taille appliquée à {Slots.Count - 1} fenêtre(s)";
     }
@@ -468,15 +455,7 @@ public partial class AdvancedViewModel : ObservableObject
             return;
         }
 
-        if (!_canvasModified)
-        {
-            _logger.Information("ApplyAdvanced: canvas not modified — running auto-layout first");
-            foreach (var monitor in _mainVm.Monitors.ToList())
-                AutoLayoutForSingleMonitor(monitor);
-            _canvasModified = true;
-        }
-
-        _logger.Information("ApplyAdvanced: applying {SlotCount} slots", Slots.Count);
+        _logger.Information("ApplyAdvanced: applying {SlotCount} slots as shown in preview", Slots.Count);
         var applied = ApplyForMonitorSlots(Slots);
         StatusMessage = applied > 0
             ? $"Layout appliqué à {applied} fenêtre(s)"
@@ -499,19 +478,26 @@ public partial class AdvancedViewModel : ObservableObject
     private void AutoLayoutForSingleMonitor(MonitorInfo monitor)
     {
         var cfg = _mainVm.MonitorConfigs.FirstOrDefault(c => c.Monitor.Handle == monitor.Handle);
-        if (cfg?.Mode == LayoutMode.Split)
+        var mode = cfg?.Mode ?? LayoutMode.Main;
+
+        switch (mode)
         {
-            ApplyAutoLayoutForMonitor(monitor, (windows, wa) =>
-                _layoutService.CalculateSplitLayout(windows, wa, cfg.SplitOrientation));
-        }
-        else
-        {
-            ApplyAutoLayoutForMonitor(monitor, (windows, wa) =>
-                _layoutService.CalculateMainLayout(windows, wa,
-                    cfg?.Size ?? MainSize.Grand,
-                    cfg?.Position ?? MainPosition.TopLeft,
-                    cfg?.HasLateral ?? true,
-                    cfg?.HasBandeau ?? false));
+            case LayoutMode.SplitV:
+                ApplyAutoLayoutForMonitor(monitor, (windows, wa) =>
+                    _layoutService.CalculateSplitLayout(windows, wa, SplitOrientation.Vertical));
+                break;
+            case LayoutMode.SplitH:
+                ApplyAutoLayoutForMonitor(monitor, (windows, wa) =>
+                    _layoutService.CalculateSplitLayout(windows, wa, SplitOrientation.Horizontal));
+                break;
+            default:
+                ApplyAutoLayoutForMonitor(monitor, (windows, wa) =>
+                    _layoutService.CalculateMainLayout(windows, wa,
+                        cfg?.Size ?? MainSize.Grand,
+                        cfg?.Position ?? MainPosition.TopLeft,
+                        cfg?.HasLateral ?? true,
+                        cfg?.HasBandeau ?? false));
+                break;
         }
     }
 
@@ -626,7 +612,6 @@ public partial class AdvancedViewModel : ObservableObject
             Slots.Add(slot);
         }
 
-        _canvasModified = true;
         SelectedSlot = Slots.FirstOrDefault();
         StatusMessage = $"Preset \"{SelectedPreset.Name}\" chargé";
     }

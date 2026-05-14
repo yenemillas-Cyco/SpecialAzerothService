@@ -736,7 +736,7 @@ public partial class MainWindow
             var advVm = vm.AdvancedVm;
             if (advVm is not null)
             {
-                advVm.MarkCanvasModified();
+                advVm.InvalidateCanvas();
                 if (_dragMode == DragMode.Move)
                     advVm.ResolveMonitorAfterDrop(_dragSlot);
             }

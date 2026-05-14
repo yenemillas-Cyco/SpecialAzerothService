@@ -21,8 +21,9 @@ public partial class MonitorLayoutConfig : ObservableObject
     [ObservableProperty]
     private bool _hasBandeau;
 
-    [ObservableProperty]
-    private SplitOrientation _splitOrientation = SplitOrientation.Horizontal;
+    public bool IsMainMode => Mode == LayoutMode.Main;
+
+    partial void OnModeChanged(LayoutMode value) => OnPropertyChanged(nameof(IsMainMode));
 
     partial void OnHasLateralChanged(bool value)
     {

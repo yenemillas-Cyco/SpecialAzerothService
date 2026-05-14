@@ -114,8 +114,7 @@ public partial class MainViewModel : ObservableObject
             Size = c.Size.ToString(),
             Position = c.Position.ToString(),
             HasLateral = c.HasLateral,
-            HasBandeau = c.HasBandeau,
-            SplitOrientation = c.SplitOrientation.ToString()
+            HasBandeau = c.HasBandeau
         }).ToList();
 
         settings.Windows = AvailableWindows.Select(w => new WindowSettings
@@ -168,7 +167,6 @@ public partial class MainViewModel : ObservableObject
                 if (Enum.TryParse<MainPosition>(saved.Position, out var pos)) config.Position = pos;
                 config.HasLateral = saved.HasLateral;
                 config.HasBandeau = saved.HasBandeau;
-                if (Enum.TryParse<SplitOrientation>(saved.SplitOrientation, out var ori)) config.SplitOrientation = ori;
             }
 
             config.PropertyChanged += (_, _) =>
@@ -200,7 +198,7 @@ public partial class MainViewModel : ObservableObject
         // 2. Save monitor configs keyed by DeviceName
         var savedMonCfg = MonitorConfigs.ToDictionary(
             c => c.Monitor.DeviceName,
-            c => (c.Mode, c.Size, c.Position, c.HasLateral, c.HasBandeau, c.SplitOrientation));
+            c => (c.Mode, c.Size, c.Position, c.HasLateral, c.HasBandeau));
 
         // 3. Refresh monitors
         RefreshMonitors();
@@ -215,7 +213,6 @@ public partial class MainViewModel : ObservableObject
                 cfg.Position = prev.Position;
                 cfg.HasLateral = prev.HasLateral;
                 cfg.HasBandeau = prev.HasBandeau;
-                cfg.SplitOrientation = prev.SplitOrientation;
             }
         }
 
@@ -286,7 +283,7 @@ public partial class MainViewModel : ObservableObject
                             adv.MoveWindowToAssignedMonitor(w);
 
                         // Any layout-relevant change invalidates the canvas
-                        adv.MarkCanvasStale();
+                        adv.InvalidateCanvas();
                     }
                 }
             };

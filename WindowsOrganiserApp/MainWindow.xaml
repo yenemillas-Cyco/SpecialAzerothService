@@ -21,6 +21,7 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:EnumToBoolConverter x:Key="EnumToBool"/>
     </Window.Resources>
 
     <!-- Background image + overlay -->
@@ -339,8 +340,22 @@
                                                                Foreground="{DynamicResource BrightGoldBrush}"
                                                                HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
-                                                    <!-- Config options -->
-                                                    <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,3">
+                                                    <!-- Layout mode (exclusive) -->
+                                                    <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,4">
+                                                        <RadioButton Content="▣ Principal" GroupName="{Binding Monitor.DeviceName}"
+                                                                     Style="{DynamicResource ModeRadio}"
+                                                                     IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Main}"/>
+                                                        <RadioButton Content="▥ Frac. V" GroupName="{Binding Monitor.DeviceName}"
+                                                                     Style="{DynamicResource ModeRadio}"
+                                                                     IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=SplitV}"/>
+                                                        <RadioButton Content="▤ Frac. H" GroupName="{Binding Monitor.DeviceName}"
+                                                                     Style="{DynamicResource ModeRadio}"
+                                                                     IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=SplitH}"/>
+                                                    </WrapPanel>
+
+                                                    <!-- Config options (visible only in Main mode) -->
+                                                    <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,3"
+                                                               Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}">
                                                         <TextBlock Text="Taille:" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
                                                                    VerticalAlignment="Center" Margin="0,0,3,0"/>
                                                         <ComboBox FontSize="9" Width="60" Height="22"
@@ -352,23 +367,14 @@
                                                                   SelectedItem="{Binding Position}"
                                                                   ItemsSource="{Binding Source={x:Static models:MainPosition.TopLeft}, Converter={x:Static conv:EnumValuesConverter.Instance}}"/>
                                                     </WrapPanel>
-                                                    <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,4">
+                                                    <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,4"
+                                                               Visibility="{Binding IsMainMode, Converter={StaticResource BoolToVis}}">
                                                         <CheckBox Content="Latéral" IsChecked="{Binding HasLateral}"
-                                                                  Foreground="{DynamicResource TextBrush}" FontSize="9" Margin="0,0,8,0"/>
+                                                                  Style="{DynamicResource SelectionCheck}"
+                                                                  Foreground="{DynamicResource TextBrush}" FontSize="10" Margin="0,0,8,0"/>
                                                         <CheckBox Content="Bandeau" IsChecked="{Binding HasBandeau}"
-                                                                  Foreground="{DynamicResource TextBrush}" FontSize="9"/>
-                                                    </WrapPanel>
-
-                                                    <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,4">
-                                                        <Button Content="▣ Principal" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="2,0"
-                                                                Command="{Binding DataContext.AdvancedVm.AutoLayoutMainCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                CommandParameter="{Binding Monitor}"/>
-                                                        <Button Content="▥ Frac. V" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="2,0"
-                                                                Command="{Binding DataContext.AdvancedVm.AutoLayoutSplitVCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                CommandParameter="{Binding Monitor}"/>
-                                                        <Button Content="▤ Frac. H" Style="{DynamicResource StoneButton}" FontSize="10" Padding="6,4" Margin="2,0"
-                                                                Command="{Binding DataContext.AdvancedVm.AutoLayoutSplitHCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                CommandParameter="{Binding Monitor}"/>
+                                                                  Style="{DynamicResource SelectionCheck}"
+                                                                  Foreground="{DynamicResource TextBrush}" FontSize="10"/>
                                                     </WrapPanel>
                                                     <Button Style="{DynamicResource WowButton}" Padding="12,6"
                                                             Command="{Binding DataContext.AdvancedVm.ApplyMonitorCommand, RelativeSource={RelativeSource AncestorType=Window}}"

@@ -281,18 +281,54 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="CheckBox">
-                    <Border x:Name="Bd" Width="18" Height="18" CornerRadius="3"
-                            BorderThickness="1.5" BorderBrush="{StaticResource BorderBrush}"
+                    <StackPanel Orientation="Horizontal">
+                        <Border x:Name="Bd" Width="22" Height="22" CornerRadius="4"
+                                BorderThickness="2.5" BorderBrush="{StaticResource BorderBrush}"
+                                Background="{StaticResource SelectionBgBrush}">
+                            <TextBlock x:Name="Check" Text="✓" FontSize="14" FontWeight="Bold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="Transparent"/>
+                        </Border>
+                        <ContentPresenter Margin="5,0,0,0" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True"/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource SelectionActiveBgBrush}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BrightGoldBrush}"/>
+                            <Setter TargetName="Bd" Property="BorderThickness" Value="3"/>
+                            <Setter TargetName="Check" Property="Foreground" Value="White"/>
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Mode radio toggle (mutually exclusive layout mode selector) -->
+    <Style x:Key="ModeRadio" TargetType="RadioButton">
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="Margin" Value="2,0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Bd" CornerRadius="5" Padding="8,4"
+                            BorderThickness="2" BorderBrush="{StaticResource BorderBrush}"
                             Background="{StaticResource SelectionBgBrush}">
-                        <TextBlock x:Name="Check" Text="✓" FontSize="12" FontWeight="Bold"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="Transparent"/>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource SelectionActiveBgBrush}"/>
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>
-                            <Setter TargetName="Check" Property="Foreground" Value="White"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource BrightGoldBrush}"/>
+                            <Setter TargetName="Bd" Property="BorderThickness" Value="2.5"/>
+                            <Setter Property="Foreground" Value="{StaticResource BrightGoldBrush}"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource GoldBrush}"/>

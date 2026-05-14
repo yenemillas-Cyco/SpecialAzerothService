@@ -30,7 +30,6 @@ public sealed class MonitorConfigSettings
     public string Position { get; set; } = nameof(MainPosition.TopRight);
     public bool HasLateral { get; set; } = true;
     public bool HasBandeau { get; set; }
-    public string SplitOrientation { get; set; } = nameof(Models.SplitOrientation.Horizontal);
 }
 
 public sealed class WindowSettings
