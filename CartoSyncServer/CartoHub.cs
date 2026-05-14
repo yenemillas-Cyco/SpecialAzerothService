@@ -26,6 +26,10 @@ public class CartoHub : Hub
             var data = _store.GetCachedData(friendGuid);
             if (data != null)
                 await Clients.Caller.SendAsync("ReceiveUpdate", friendGuid, data);
+
+            var bountyData = _store.GetCachedBountyData(friendGuid);
+            if (bountyData != null)
+                await Clients.Caller.SendAsync("ReceiveBountyUpdate", friendGuid, bountyData);
         }
     }
 
@@ -38,10 +42,13 @@ public class CartoHub : Hub
 
         var data = _store.GetCachedData(friendGuid);
         if (data != null)
-        {
             await Clients.Caller.SendAsync("ReceiveUpdate", friendGuid, data);
-        }
-        else if (_store.IsOnline(friendGuid))
+
+        var bountyData = _store.GetCachedBountyData(friendGuid);
+        if (bountyData != null)
+            await Clients.Caller.SendAsync("ReceiveBountyUpdate", friendGuid, bountyData);
+
+        if (data == null && _store.IsOnline(friendGuid))
         {
             // Friend is online but no cached data — ask them to push
             await Clients.Group(friendGuid).SendAsync("RequestPush");
@@ -66,6 +73,14 @@ public class CartoHub : Hub
 
         await Clients.OthersInGroup(userGuid).SendAsync("ReceiveUpdate", userGuid, jsonData);
         _log.LogInformation("PushUpdate: {Guid}, {Size} bytes", userGuid[..8], jsonData.Length);
+    }
+
+    public async Task PushBountyUpdate(string userGuid, string jsonData)
+    {
+        _store.CacheBountyData(userGuid, jsonData);
+
+        await Clients.OthersInGroup(userGuid).SendAsync("ReceiveBountyUpdate", userGuid, jsonData);
+        _log.LogInformation("PushBountyUpdate: {Guid}, {Size} bytes", userGuid[..8], jsonData.Length);
     }
 
     public List<string> GetOnlineFriends(List<string> friendGuids)

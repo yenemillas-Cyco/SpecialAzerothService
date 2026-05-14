@@ -201,9 +201,22 @@
                        HorizontalAlignment="Right" Margin="0,2,8,4"
                        ToolTip="Nombre de caractères du message Discord (limite 2000)"/>
 
-            <!-- ═══ BOUNTY DATAGRID ═══ -->
+            <!-- ═══ BOUNTY CONTENT (TreeView structure) ═══ -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+            <!-- MY BOUNTIES -->
             <Border Background="{DynamicResource PanelBg}" CornerRadius="6"
-                    Padding="4" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
+                    Padding="4" Margin="0,0,0,8" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
+                <Expander IsExpanded="True">
+                    <Expander.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="💀 Mes Primes" FontSize="14" FontWeight="Bold"
+                                       Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Bounties.Count, StringFormat=' ({0})'}" FontSize="12"
+                                       Foreground="{DynamicResource SubtextBrush}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Expander.Header>
                 <DataGrid x:Name="BountyGrid"
                           ItemsSource="{Binding Bounties}"
                           AutoGenerateColumns="False"
@@ -365,7 +378,123 @@
                         </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
+                </Expander>
             </Border>
+
+            <!-- FRIEND BOUNTIES -->
+            <ItemsControl ItemsSource="{Binding FriendBounties}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="{DynamicResource PanelBg}" CornerRadius="6"
+                                Padding="4" Margin="0,0,0,6" BorderThickness="1"
+                                BorderBrush="{DynamicResource InnerBorderBrush}">
+                            <Expander IsExpanded="False">
+                                <Expander.Header>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🤝" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBlock Text="{Binding FriendName}" FontSize="14" FontWeight="Bold"
+                                                   Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Bounties.Count, StringFormat=' ({0})'}" FontSize="12"
+                                                   Foreground="{DynamicResource SubtextBrush}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Expander.Header>
+                                <DataGrid ItemsSource="{Binding Bounties}"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False" CanUserDeleteRows="False"
+                                          CanUserResizeColumns="True"
+                                          CanUserSortColumns="True"
+                                          CanUserReorderColumns="True"
+                                          CanUserResizeRows="False"
+                                          SelectionMode="Single"
+                                          IsReadOnly="True"
+                                          HeadersVisibility="Column"
+                                          GridLinesVisibility="None"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          RowBackground="Transparent"
+                                          AlternatingRowBackground="Transparent"
+                                          HorizontalGridLinesBrush="Transparent"
+                                          VerticalGridLinesBrush="Transparent"
+                                          RowStyle="{StaticResource BountyRowStyle}"
+                                          CellStyle="{StaticResource BountyCellStyle}"
+                                          ColumnHeaderStyle="{StaticResource BountyHeaderStyle}">
+                                    <DataGrid.Columns>
+                                        <DataGridTemplateColumn Header="CIBLE" Width="140" MinWidth="80"
+                                                                SortMemberPath="TargetName" CanUserSort="True">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="💀" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                        <TextBlock Text="{Binding TargetName}" FontSize="13" FontWeight="SemiBold"
+                                                                   Foreground="{Binding TargetClass, Converter={StaticResource ClassColorConv}}"
+                                                                   VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTemplateColumn Header="PRIME" Width="80" MinWidth="60"
+                                                                SortMemberPath="TotalGold" CanUserSort="True">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding DisplayTotal}" FontSize="13"
+                                                               FontWeight="Bold" Foreground="{DynamicResource BrightGoldBrush}"
+                                                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTemplateColumn Header="CLASSE" Width="90" MinWidth="60"
+                                                                SortMemberPath="TargetClass" CanUserSort="True">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding TargetClass}" FontSize="11"
+                                                               Foreground="{Binding TargetClass, Converter={StaticResource ClassColorConv}}"
+                                                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTemplateColumn Header="RACE" Width="90" MinWidth="60"
+                                                                SortMemberPath="TargetRace" CanUserSort="True">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding TargetRace}" FontSize="11"
+                                                               FontStyle="Italic"
+                                                               Foreground="{DynamicResource SubtextBrush}"
+                                                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTemplateColumn Header="MOTIF" Width="*" MinWidth="100"
+                                                                SortMemberPath="Reason" CanUserSort="True">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Reason}" FontSize="12"
+                                                               FontStyle="Italic" Foreground="{DynamicResource SubtextBrush}"
+                                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding Reason}"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTemplateColumn Header="COMMANDITAIRES" Width="140" MinWidth="80"
+                                                                SortMemberPath="ContributorNames" CanUserSort="True">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding ContributorNames}" FontSize="11"
+                                                               Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding ContributorNames}"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Expander>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            </StackPanel>
+            </ScrollViewer>
 
         </DockPanel>
 

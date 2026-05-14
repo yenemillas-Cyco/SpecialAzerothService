@@ -6,17 +6,20 @@ public class SubscriptionStore
 {
     private readonly ConcurrentDictionary<string, HashSet<string>> _subscriptions = new();
     private readonly ConcurrentDictionary<string, string> _dataCache = new();
+    private readonly ConcurrentDictionary<string, string> _bountyCache = new();
     private readonly ConcurrentDictionary<string, HashSet<string>> _connections = new();
     private readonly string _dataDir;
+    private readonly string _bountyDir;
     private readonly ILogger<SubscriptionStore> _log;
 
     public SubscriptionStore(ILogger<SubscriptionStore> log)
     {
         _log = log;
-        _dataDir = Path.Combine(
-            Environment.GetEnvironmentVariable("DATA_DIR") ?? "/data",
-            "carto-cache");
+        var baseDir = Environment.GetEnvironmentVariable("DATA_DIR") ?? "/data";
+        _dataDir = Path.Combine(baseDir, "carto-cache");
+        _bountyDir = Path.Combine(baseDir, "bounty-cache");
         Directory.CreateDirectory(_dataDir);
+        Directory.CreateDirectory(_bountyDir);
         LoadAllFromDisk();
     }
 
@@ -39,14 +42,17 @@ public class SubscriptionStore
         return [];
     }
 
-    public void CacheData(string userGuid, string json)
-    {
-        _dataCache[userGuid] = json;
-        SaveToDisk(userGuid, json);
-    }
-
     public string? GetCachedData(string userGuid)
         => _dataCache.TryGetValue(userGuid, out var d) ? d : null;
+
+    public void CacheBountyData(string userGuid, string json)
+    {
+        _bountyCache[userGuid] = json;
+        SaveToDisk(userGuid, json, _bountyDir);
+    }
+
+    public string? GetCachedBountyData(string userGuid)
+        => _bountyCache.TryGetValue(userGuid, out var d) ? d : null;
 
     public void AddConnection(string userGuid, string connectionId)
     {
@@ -82,11 +88,17 @@ public class SubscriptionStore
         lock (kv.Value) { return kv.Value.Count > 0; }
     });
 
-    private void SaveToDisk(string userGuid, string json)
+    public void CacheData(string userGuid, string json)
+    {
+        _dataCache[userGuid] = json;
+        SaveToDisk(userGuid, json, _dataDir);
+    }
+
+    private void SaveToDisk(string userGuid, string json, string dir)
     {
         try
         {
-            var path = Path.Combine(_dataDir, $"{userGuid}.json");
+            var path = Path.Combine(dir, $"{userGuid}.json");
             File.WriteAllText(path, json);
         }
         catch (Exception ex)
@@ -102,10 +114,15 @@ public class SubscriptionStore
             foreach (var file in Directory.GetFiles(_dataDir, "*.json"))
             {
                 var guid = Path.GetFileNameWithoutExtension(file);
-                var json = File.ReadAllText(file);
-                _dataCache[guid] = json;
+                _dataCache[guid] = File.ReadAllText(file);
             }
-            _log.LogInformation("Loaded {Count} cached entries from disk", _dataCache.Count);
+            foreach (var file in Directory.GetFiles(_bountyDir, "*.json"))
+            {
+                var guid = Path.GetFileNameWithoutExtension(file);
+                _bountyCache[guid] = File.ReadAllText(file);
+            }
+            _log.LogInformation("Loaded {Carto} carto + {Bounty} bounty cached entries",
+                _dataCache.Count, _bountyCache.Count);
         }
         catch (Exception ex)
         {

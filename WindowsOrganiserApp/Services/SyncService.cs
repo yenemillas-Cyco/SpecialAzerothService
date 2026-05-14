@@ -20,6 +20,7 @@ public class SyncService : IDisposable
     };
 
     public event Action<string, SyncPayload>? FriendDataReceived;
+    public event Action<string, BountySyncPayload>? FriendBountyReceived;
     public event Action<string>? ConnectionStateChanged;
     public event Action<string, bool>? FriendOnlineChanged;
     public event Action? PushRequested;
@@ -79,6 +80,7 @@ public class SyncService : IDisposable
                 .Build();
 
             _hub.On<string, string>("ReceiveUpdate", OnReceiveUpdate);
+            _hub.On<string, string>("ReceiveBountyUpdate", OnReceiveBountyUpdate);
             _hub.On<string>("FriendOnline", guid => FriendOnlineChanged?.Invoke(guid, true));
             _hub.On<string>("FriendOffline", guid => FriendOnlineChanged?.Invoke(guid, false));
             _hub.On("RequestPush", () => PushRequested?.Invoke());
@@ -172,6 +174,35 @@ public class SyncService : IDisposable
         catch (Exception ex)
         {
             _log.Warning(ex, "Sync: push failed");
+        }
+    }
+
+    public async Task PushBountyUpdateAsync(BountySyncPayload payload)
+    {
+        if (_hub?.State != HubConnectionState.Connected) return;
+
+        try
+        {
+            var json = JsonSerializer.Serialize(payload, JsonOpts);
+            await _hub.InvokeAsync("PushBountyUpdate", _settings.UserGuid, json);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "Sync: bounty push failed");
+        }
+    }
+
+    private void OnReceiveBountyUpdate(string friendGuid, string json)
+    {
+        try
+        {
+            var payload = JsonSerializer.Deserialize<BountySyncPayload>(json, JsonOpts);
+            if (payload != null)
+                FriendBountyReceived?.Invoke(friendGuid, payload);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "Sync: failed to deserialize bounty from {Guid}", friendGuid[..8]);
         }
     }
 
