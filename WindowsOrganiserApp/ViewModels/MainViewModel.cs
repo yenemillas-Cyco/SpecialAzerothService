@@ -171,6 +171,14 @@ public partial class MainViewModel : ObservableObject
                 if (Enum.TryParse<SplitOrientation>(saved.SplitOrientation, out var ori)) config.SplitOrientation = ori;
             }
 
+            config.PropertyChanged += (_, _) =>
+            {
+                if (IsOrganiserMode && AdvancedVm is { } adv)
+                {
+                    adv.AutoLayoutForMonitor(indexed);
+                }
+            };
+
             MonitorConfigs.Add(config);
         }
 
@@ -218,7 +226,20 @@ public partial class MainViewModel : ObservableObject
         foreach (var w in windows)
         {
             w.IsSelected = true;
-            w.AssignedMonitor = defaultMonitor;
+
+            // Detect which monitor the window is actually on (by OS position)
+            var actualRect = _windowService.GetWindowRect(w.Handle);
+            var bestMon = defaultMonitor;
+            var bestOverlap = 0L;
+            foreach (var mon in Monitors)
+            {
+                var wa = mon.WorkArea;
+                var ox = Math.Max(0, Math.Min(actualRect.X + actualRect.Width, wa.X + wa.Width) - Math.Max(actualRect.X, wa.X));
+                var oy = Math.Max(0, Math.Min(actualRect.Y + actualRect.Height, wa.Y + wa.Height) - Math.Max(actualRect.Y, wa.Y));
+                var overlap = (long)ox * oy;
+                if (overlap > bestOverlap) { bestOverlap = overlap; bestMon = mon; }
+            }
+            w.AssignedMonitor = bestMon;
 
             if (savedState.TryGetValue(w.LaunchOrder, out var prev))
             {
@@ -227,7 +248,7 @@ public partial class MainViewModel : ObservableObject
                 if (prev.MonitorDevice is not null)
                 {
                     var mon = Monitors.FirstOrDefault(m => m.DeviceName == prev.MonitorDevice);
-                    w.AssignedMonitor = mon ?? defaultMonitor;
+                    w.AssignedMonitor = mon ?? bestMon;
                 }
                 w.IsMainWindow = prev.IsMainWindow;
                 w.IsSelected = prev.IsSelected;

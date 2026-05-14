@@ -40,6 +40,7 @@ public partial class AdvancedViewModel : ObservableObject
         if (slot is null || window.AssignedMonitor is null) return;
         if (slot.MonitorDeviceName == window.AssignedMonitor.DeviceName) return;
         MoveSlotToMonitor(slot, window.AssignedMonitor);
+        EnforceUniqueLeadOnMonitor(window, window.AssignedMonitor.DeviceName);
     }
 
     /// <summary>After a drag-drop, detect which monitor the slot center is over and re-assign.</summary>
@@ -75,11 +76,24 @@ public partial class AdvancedViewModel : ObservableObject
                     var monCw = wa.Width * _globalScale;
                     var monCh = wa.Height * _globalScale;
                     slot.UpdateMonitorBounds(monCx, monCy, monCw, monCh);
+                    EnforceUniqueLeadOnMonitor(slot.Window, targetMon.DeviceName);
                     OnPropertyChanged(nameof(Slots));
                 }
                 return;
             }
         }
+    }
+
+    /// <summary>If the window arriving on a monitor is lead but that monitor already has one, remove lead from the arriving window.</summary>
+    private void EnforceUniqueLeadOnMonitor(WindowInfo arriving, string targetDeviceName)
+    {
+        if (!arriving.IsMainWindow) return;
+        var existingLead = Slots.Any(s =>
+            s.MonitorDeviceName == targetDeviceName &&
+            s.Window != arriving &&
+            s.Window.IsMainWindow);
+        if (existingLead)
+            arriving.IsMainWindow = false;
     }
 
     private void MoveSlotToMonitor(AdvancedSlot slot, MonitorInfo newMon)
@@ -356,7 +370,7 @@ public partial class AdvancedViewModel : ObservableObject
         SelectedSlot = Slots.FirstOrDefault();
         _canvasModified = true;
         OnPropertyChanged(nameof(Slots));
-        StatusMessage = $"Layout auto appliqué sur {monitor.DisplayLabel}";
+        // No status message — silent preview update
     }
 
     private double _copiedCanvasW;
@@ -479,6 +493,8 @@ public partial class AdvancedViewModel : ObservableObject
             ? $"Layout appliqué à {applied} fenêtre(s) sur {monitor.DisplayLabel}"
             : $"⚠ Aucune fenêtre assignée à {monitor.DisplayLabel}";
     }
+
+    public void AutoLayoutForMonitor(MonitorInfo monitor) => AutoLayoutForSingleMonitor(monitor);
 
     private void AutoLayoutForSingleMonitor(MonitorInfo monitor)
     {
