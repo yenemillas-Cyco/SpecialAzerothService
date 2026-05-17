@@ -1,0 +1,313 @@
+<UserControl x:Class="WindowsOrganiserApp.Views.WowSyncView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:WindowsOrganiserApp.Views"
+             mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="1000">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:CountToVisibilityConverter x:Key="CountToVis"/>
+
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Georgia"/>
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#FFD700"/>
+            <Setter Property="Margin" Value="0,8,0,6"/>
+        </Style>
+
+        <Style x:Key="InfoLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Georgia"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#A09070"/>
+            <Setter Property="Margin" Value="0,3"/>
+        </Style>
+
+        <Style x:Key="InfoValue" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Georgia"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#E8D5A3"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,3"/>
+        </Style>
+
+        <Style x:Key="ActionBtn" TargetType="Button">
+            <Setter Property="FontFamily" Value="Georgia"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#FFD700"/>
+            <Setter Property="Background" Value="#30D4A017"/>
+            <Setter Property="BorderBrush" Value="#60806030"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,4"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Background="#1A0F0A" CornerRadius="6" Padding="16">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Config bar -->
+            <Border Grid.Row="0" Background="#201510" CornerRadius="6" Padding="12,10" Margin="0,0,0,10"
+                    BorderThickness="1" BorderBrush="#40806030">
+                <StackPanel>
+                    <TextBlock Text="⚙ Configuration WoW" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                    <DockPanel Margin="0,0,0,6">
+                        <Button DockPanel.Dock="Right" Content="📁" Style="{StaticResource ActionBtn}"
+                                Padding="10,6" Margin="6,0,0,0" FontSize="14"
+                                Command="{Binding BrowseWowPathCommand}" ToolTip="Sélectionner le dossier WoW"/>
+                        <TextBlock DockPanel.Dock="Left" Text="Chemin WoW :" Style="{StaticResource InfoLabel}"
+                                   VerticalAlignment="Center" Width="90"/>
+                        <TextBox Text="{Binding WowPath, UpdateSourceTrigger=PropertyChanged}"
+                                 FontFamily="Consolas" FontSize="12" Padding="6,4"
+                                 Background="#150D08" Foreground="#E8D5A3"
+                                 BorderBrush="#40806030" BorderThickness="1"/>
+                    </DockPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="🚀 Déployer l'addon" Style="{StaticResource ActionBtn}"
+                                Command="{Binding DeployAddonCommand}" Margin="0,0,10,0"/>
+                        <Button Content="🔄 Refresh" Style="{StaticResource ActionBtn}"
+                                Command="{Binding RefreshCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Status -->
+            <TextBlock Grid.Row="1" Text="{Binding StatusText}" FontFamily="Georgia" FontSize="12"
+                       Foreground="#88CC88" Margin="4,0,0,8"/>
+
+            <!-- Accounts / Characters -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="320"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: Account tree -->
+                <Border Grid.Column="0" Background="#201510" CornerRadius="6" Padding="10"
+                        BorderThickness="1" BorderBrush="#40806030">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="📋 Personnages" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                        <TreeView Background="Transparent" BorderThickness="0" Foreground="#E8D5A3"
+                                  ItemsSource="{Binding Accounts}">
+                            <TreeView.Resources>
+                                <Style TargetType="TreeViewItem">
+                                    <Setter Property="Foreground" Value="#E8D5A3"/>
+                                    <Setter Property="FontFamily" Value="Georgia"/>
+                                    <Setter Property="FontSize" Value="13"/>
+                                    <Setter Property="IsExpanded" Value="True"/>
+                                    <Setter Property="Margin" Value="0,2"/>
+                                </Style>
+                            </TreeView.Resources>
+                            <TreeView.ItemTemplate>
+                                <HierarchicalDataTemplate ItemsSource="{Binding Characters}">
+                                    <TextBlock FontWeight="Bold" Foreground="#FFD700">
+                                        <Run Text="🔑 "/><Run Text="{Binding AccountName, Mode=OneWay}"/>
+                                    </TextBlock>
+                                    <HierarchicalDataTemplate.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#18FFFFFF" CornerRadius="4" Padding="8,5" Margin="0,2"
+                                                    Cursor="Hand" MouseLeftButtonDown="Character_Click">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Name}" Foreground="#E8D5A3" FontWeight="SemiBold"
+                                                               FontSize="14" VerticalAlignment="Center"/>
+                                                    <TextBlock Foreground="#A09070" FontSize="12" Margin="8,0,0,0"
+                                                               VerticalAlignment="Center">
+                                                        <Run Text="Nv."/><Run Text="{Binding Level, Mode=OneWay}"/>
+                                                        <Run Text=" "/><Run Text="{Binding Class, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </HierarchicalDataTemplate.ItemTemplate>
+                                </HierarchicalDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                    </DockPanel>
+                </Border>
+
+                <!-- Right: Character details -->
+                <Border Grid.Column="2" Background="#201510" CornerRadius="6" Padding="14"
+                        BorderThickness="1" BorderBrush="#40806030">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <StackPanel DataContext="{Binding SelectedCharacter}">
+
+                                <!-- Character header -->
+                                <Border Background="#15FFFFFF" CornerRadius="6" Padding="14,10" Margin="0,0,0,12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock FontFamily="Georgia" FontSize="20" FontWeight="Bold" Foreground="#FFD700">
+                                                <Run Text="{Binding Name, Mode=OneWay}"/>
+                                            </TextBlock>
+                                            <TextBlock Style="{StaticResource InfoValue}" FontSize="14">
+                                                <Run Text="Niveau"/><Run Text=" "/><Run Text="{Binding Level, Mode=OneWay}"/>
+                                                <Run Text=" — "/><Run Text="{Binding Race, Mode=OneWay}"/>
+                                                <Run Text=" "/><Run Text="{Binding Class, Mode=OneWay}"/>
+                                            </TextBlock>
+                                            <TextBlock Style="{StaticResource InfoLabel}">
+                                                <Run Text="📍 "/><Run Text="{Binding Zone, Mode=OneWay}"/>
+                                                <Run Text=" — "/><Run Text="{Binding SubZone, Mode=OneWay}"/>
+                                                <Run Text=" ("/><Run Text="{Binding PositionDisplay, Mode=OneWay}"/><Run Text=")"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <TextBlock FontFamily="Georgia" FontSize="16" FontWeight="Bold" Foreground="#FFD700"
+                                                       HorizontalAlignment="Right">
+                                                <Run Text="💰 "/><Run Text="{Binding GoldDisplay, Mode=OneWay}"/>
+                                            </TextBlock>
+                                            <TextBlock Style="{StaticResource InfoLabel}" HorizontalAlignment="Right" FontSize="10">
+                                                <Run Text="Màj: "/><Run Text="{Binding LastUpdate, Mode=OneWay}"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Professions -->
+                                <TextBlock Text="🔨 Métiers" Style="{StaticResource SectionTitle}" FontSize="15"/>
+                                <ItemsControl ItemsSource="{Binding Professions}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="0,2">
+                                                <TextBlock DockPanel.Dock="Right" Style="{StaticResource InfoLabel}" FontSize="11">
+                                                    <Run Text="{Binding Rank, Mode=OneWay}"/><Run Text="/"/><Run Text="{Binding MaxRank, Mode=OneWay}"/>
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource InfoValue}" FontSize="13"/>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Inventory -->
+                                <TextBlock Style="{StaticResource SectionTitle}" FontSize="15" Margin="0,12,0,6">
+                                    <Run Text="🎒 Inventaire ("/>
+                                    <Run Text="{Binding Inventory.Count, Mode=OneWay}"/>
+                                    <Run Text=" objets)"/>
+                                </TextBlock>
+                                <Border Background="#10FFFFFF" CornerRadius="4" Padding="8" MaxHeight="280">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding Inventory}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{Binding QualityBorder}" BorderBrush="{Binding QualityColor}"
+                                                            BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="3">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding Name}" FontFamily="Georgia" FontSize="13"
+                                                                       Foreground="{Binding QualityColor}" FontWeight="SemiBold"/>
+                                                            <TextBlock FontFamily="Georgia" FontSize="12" Foreground="#A09070"
+                                                                       Margin="6,0,0,0" VerticalAlignment="Center"
+                                                                       Visibility="{Binding Count, Converter={StaticResource CountToVis}}">
+                                                                <Run Text="x"/><Run Text="{Binding Count, Mode=OneWay}"/>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Border>
+
+                                <!-- Bank -->
+                                <TextBlock Style="{StaticResource SectionTitle}" FontSize="15" Margin="0,12,0,6">
+                                    <Run Text="🏦 Banque ("/>
+                                    <Run Text="{Binding Bank.Count, Mode=OneWay}"/>
+                                    <Run Text=" objets)"/>
+                                </TextBlock>
+                                <Border Background="#10FFFFFF" CornerRadius="4" Padding="8" MaxHeight="280">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding Bank}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{Binding QualityBorder}" BorderBrush="{Binding QualityColor}"
+                                                            BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="3">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding Name}" FontFamily="Georgia" FontSize="13"
+                                                                       Foreground="{Binding QualityColor}" FontWeight="SemiBold"/>
+                                                            <TextBlock FontFamily="Georgia" FontSize="12" Foreground="#A09070"
+                                                                       Margin="6,0,0,0" VerticalAlignment="Center"
+                                                                       Visibility="{Binding Count, Converter={StaticResource CountToVis}}">
+                                                                <Run Text="x"/><Run Text="{Binding Count, Mode=OneWay}"/>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Border>
+
+                                <!-- Mail -->
+                                <TextBlock Style="{StaticResource SectionTitle}" FontSize="15" Margin="0,12,0,6">
+                                    <Run Text="📬 Courrier ("/>
+                                    <Run Text="{Binding Mail.Count, Mode=OneWay}"/>
+                                    <Run Text=")"/>
+                                </TextBlock>
+                                <ItemsControl ItemsSource="{Binding Mail}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#10FFFFFF" CornerRadius="4" Padding="10" Margin="0,3">
+                                                <StackPanel>
+                                                    <DockPanel>
+                                                        <TextBlock DockPanel.Dock="Right" Style="{StaticResource InfoLabel}" FontSize="11">
+                                                            <Run Text="⏳ "/><Run Text="{Binding DaysLeft, Mode=OneWay, StringFormat=N1}"/><Run Text="j"/>
+                                                        </TextBlock>
+                                                        <TextBlock Style="{StaticResource InfoValue}" FontSize="13">
+                                                            <Run Text="{Binding Sender, Mode=OneWay}"/><Run Text=" — "/><Run Text="{Binding Subject, Mode=OneWay}"/>
+                                                        </TextBlock>
+                                                    </DockPanel>
+                                                    <ItemsControl ItemsSource="{Binding Items}" Margin="0,4,0,0">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Background="#18FFD700" CornerRadius="3" Padding="6,3" Margin="2">
+                                                                    <TextBlock Text="{Binding Display}" FontFamily="Georgia" FontSize="12"
+                                                                               Foreground="#E8D5A3"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+            <!-- Bottom status -->
+            <TextBlock Grid.Row="3" Text="Déployez l'addon, connectez-vous en jeu, puis utilisez Refresh pour lire les données."
+                       FontFamily="Georgia" FontSize="11" Foreground="#706050" Margin="4,8,0,0"/>
+        </Grid>
+    </Border>
+</UserControl>

@@ -44,6 +44,7 @@ public partial class App : Application
         services.AddSingleton<ILocalizationService, LocalizationService>();
         services.AddSingleton<ICartoService, CartoService>();
         services.AddSingleton<IBountyService, BountyService>();
+        services.AddSingleton<IWowSyncService, WowSyncService>();
         services.AddSingleton(sp =>
         {
             var settings = sp.GetRequiredService<ISettingsService>().Load();
@@ -54,6 +55,7 @@ public partial class App : Application
         services.AddSingleton<CartoViewModel>();
         services.AddSingleton<BountyViewModel>();
         services.AddSingleton<ConsoViewModel>();
+        services.AddSingleton<WowSyncViewModel>();
         services.AddTransient<MainWindow>();
 
         _serviceProvider = services.BuildServiceProvider();
@@ -67,6 +69,7 @@ public partial class App : Application
         mainVm.CartoVm = cartoVm;
         mainVm.BountyVm = bountyVm;
         mainVm.ConsoVm = consoVm;
+        mainVm.WowSyncVm = _serviceProvider.GetRequiredService<WowSyncViewModel>();
 
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
         mainWindow.Show();

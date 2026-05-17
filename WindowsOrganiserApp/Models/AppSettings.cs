@@ -13,6 +13,7 @@ public sealed class AppSettings
 
     public string UserGuid { get; set; } = Guid.NewGuid().ToString();
     public string SyncServerUrl { get; set; } = "https://carto-sync-server.fly.dev/carto";
+    public string WowPath { get; set; } = "";
     public List<FriendEntry> Friends { get; set; } = [];
 
     /// <summary>Ancien format, conserve pour migration vers Friends.</summary>

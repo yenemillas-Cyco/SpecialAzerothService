@@ -162,7 +162,9 @@
                         <RadioButton Content="💰 Primes" Style="{DynamicResource WowPill}" FontSize="13" Height="34" Padding="14,4"
                                      IsChecked="{Binding IsBountyMode}" Margin="0,0,6,0"/>
                         <RadioButton Content="🧪 Conso" Style="{DynamicResource WowPill}" FontSize="13" Height="34" Padding="14,4"
-                                     IsChecked="{Binding IsConsoMode}"/>
+                                     IsChecked="{Binding IsConsoMode}" Margin="0,0,6,0"/>
+                        <RadioButton Content="🔗 Wow Sync" Style="{DynamicResource WowPill}" FontSize="13" Height="34" Padding="14,4"
+                                     IsChecked="{Binding IsWowSyncMode}"/>
                     </StackPanel>
 
                     <!-- Unified Organiser content -->
@@ -484,6 +486,10 @@
                     <!-- Conso content -->
                     <views:ConsoView Grid.Row="3" DataContext="{Binding ConsoVm}"
                                      Visibility="{Binding DataContext.IsConsoMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
+
+                    <!-- WowSync content -->
+                    <views:WowSyncView Grid.Row="3" DataContext="{Binding WowSyncVm}"
+                                       Visibility="{Binding DataContext.IsWowSyncMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
 
                             <!-- Status bar -->
                             <Border Grid.Row="4" Background="{DynamicResource PanelBg}" CornerRadius="4"

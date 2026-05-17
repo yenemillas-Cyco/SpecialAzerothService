@@ -64,6 +64,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isConsoMode;
 
+    [ObservableProperty]
+    private bool _isWowSyncMode;
+
     partial void OnIsOrganiserModeChanged(bool value)
     {
         if (value)
@@ -71,23 +74,29 @@ public partial class MainViewModel : ObservableObject
             IsCartoMode = false;
             IsBountyMode = false;
             IsConsoMode = false;
+            IsWowSyncMode = false;
             AdvancedVm?.RefreshFromMain();
         }
     }
 
     partial void OnIsCartoModeChanged(bool value)
     {
-        if (value) { IsOrganiserMode = false; IsBountyMode = false; IsConsoMode = false; }
+        if (value) { IsOrganiserMode = false; IsBountyMode = false; IsConsoMode = false; IsWowSyncMode = false; }
     }
 
     partial void OnIsBountyModeChanged(bool value)
     {
-        if (value) { IsOrganiserMode = false; IsCartoMode = false; IsConsoMode = false; }
+        if (value) { IsOrganiserMode = false; IsCartoMode = false; IsConsoMode = false; IsWowSyncMode = false; }
     }
 
     partial void OnIsConsoModeChanged(bool value)
     {
-        if (value) { IsOrganiserMode = false; IsCartoMode = false; IsBountyMode = false; }
+        if (value) { IsOrganiserMode = false; IsCartoMode = false; IsBountyMode = false; IsWowSyncMode = false; }
+    }
+
+    partial void OnIsWowSyncModeChanged(bool value)
+    {
+        if (value) { IsOrganiserMode = false; IsCartoMode = false; IsBountyMode = false; IsConsoMode = false; }
     }
 
     // ─── WebSocket connection toggle ───────────────────────
@@ -156,6 +165,7 @@ public partial class MainViewModel : ObservableObject
     public CartoViewModel? CartoVm { get; set; }
     public BountyViewModel? BountyVm { get; set; }
     public ConsoViewModel? ConsoVm { get; set; }
+    public WowSyncViewModel? WowSyncVm { get; set; }
 
     [ObservableProperty]
     private string _currentThemeLabel;
