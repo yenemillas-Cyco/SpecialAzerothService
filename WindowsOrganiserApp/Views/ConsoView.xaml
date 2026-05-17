@@ -23,6 +23,22 @@
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
 
+        <Style x:Key="SpinBtn" TargetType="Button">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="FontFamily" Value="Georgia"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#FFD700"/>
+            <Setter Property="Background" Value="#30D4A017"/>
+            <Setter Property="BorderBrush" Value="#40806030"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
         <Style x:Key="GridHeader" TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="#30D4A017"/>
             <Setter Property="Foreground" Value="#FFD700"/>
@@ -66,7 +82,7 @@
             Background="{DynamicResource PanelBackground}">
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="260"/>
+                <ColumnDefinition Width="400"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
@@ -93,9 +109,41 @@
                         <ItemsControl ItemsSource="{Binding Bosses}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <CheckBox IsChecked="{Binding IsSelected}"
-                                              Content="{Binding Label}"
-                                              Style="{StaticResource BossCheck}"/>
+                                    <DockPanel Margin="0,3,0,3">
+                                        <CheckBox DockPanel.Dock="Left"
+                                                  IsChecked="{Binding IsSelected}"
+                                                  Content="{Binding Label}"
+                                                  Style="{StaticResource BossCheck}"
+                                                  MinWidth="100"/>
+                                        <ItemsControl DockPanel.Dock="Left" ItemsSource="{Binding EditableConsumables}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <StackPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Code}"
+                                                                   FontFamily="Georgia" FontSize="12"
+                                                                   Foreground="#A09070"
+                                                                   VerticalAlignment="Center" Margin="0,0,3,0"/>
+                                                        <Button Content="−" Style="{StaticResource SpinBtn}"
+                                                                Click="Minus_Click" Tag="{Binding}"/>
+                                                        <TextBox Width="28"
+                                                                 Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}"
+                                                                 HorizontalContentAlignment="Center"
+                                                                 VerticalContentAlignment="Center"
+                                                                 FontFamily="Georgia" FontSize="12"
+                                                                 Foreground="#FFD700"
+                                                                 Background="#20FFFFFF" BorderBrush="#40806030"/>
+                                                        <Button Content="+" Style="{StaticResource SpinBtn}"
+                                                                Click="Plus_Click" Tag="{Binding}"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </DockPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -113,9 +161,24 @@
                                         <ItemsControl ItemsSource="{Binding Items}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <CheckBox IsChecked="{Binding IsSelected}"
-                                                              Content="{Binding FullName}"
-                                                              Style="{StaticResource BossCheck}"/>
+                                                    <DockPanel Margin="0,2,0,2">
+                                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                            <Button Content="−" Style="{StaticResource SpinBtn}"
+                                                                    Click="MinusConso_Click" Tag="{Binding}"/>
+                                                            <TextBox Width="32"
+                                                                     Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}"
+                                                                     HorizontalContentAlignment="Center"
+                                                                     VerticalContentAlignment="Center"
+                                                                     FontFamily="Georgia" FontSize="13"
+                                                                     Foreground="#FFD700"
+                                                                     Background="#20FFFFFF" BorderBrush="#40806030"/>
+                                                            <Button Content="+" Style="{StaticResource SpinBtn}"
+                                                                    Click="PlusConso_Click" Tag="{Binding}"/>
+                                                        </StackPanel>
+                                                        <CheckBox IsChecked="{Binding IsSelected}"
+                                                                  Content="{Binding FullName}"
+                                                                  Style="{StaticResource BossCheck}"/>
+                                                    </DockPanel>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
@@ -149,12 +212,38 @@
                               SelectionMode="Single"
                               HorizontalScrollBarVisibility="Disabled">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="CODE" Binding="{Binding Code}" Width="70"/>
+                            <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsOwned, UpdateSourceTrigger=PropertyChanged}" Width="35">
+                                <DataGridCheckBoxColumn.ElementStyle>
+                                    <Style TargetType="CheckBox">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                    </Style>
+                                </DataGridCheckBoxColumn.ElementStyle>
+                            </DataGridCheckBoxColumn>
+                            <DataGridTextColumn Header="CODE" Binding="{Binding Code}" Width="70">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#D4C4A0"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsOwned}" Value="True">
+                                                <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                <Setter Property="Foreground" Value="#60D4C4A0"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="CONSOMMABLE" Binding="{Binding FullName}" Width="*">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="TextWrapping" Value="Wrap"/>
                                         <Setter Property="Foreground" Value="#D4C4A0"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsOwned}" Value="True">
+                                                <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                <Setter Property="Foreground" Value="#60D4C4A0"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -164,6 +253,12 @@
                                         <Setter Property="FontWeight" Value="Bold"/>
                                         <Setter Property="Foreground" Value="#FFD700"/>
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsOwned}" Value="True">
+                                                <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                <Setter Property="Foreground" Value="#60FFD700"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -194,11 +289,25 @@
                               SelectionMode="Single"
                               HorizontalScrollBarVisibility="Disabled">
                         <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsOwned, UpdateSourceTrigger=PropertyChanged}" Width="35">
+                                <DataGridCheckBoxColumn.ElementStyle>
+                                    <Style TargetType="CheckBox">
+                                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                    </Style>
+                                </DataGridCheckBoxColumn.ElementStyle>
+                            </DataGridCheckBoxColumn>
                             <DataGridTextColumn Header="MATÉRIAU" Binding="{Binding Name}" Width="*">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="TextWrapping" Value="Wrap"/>
                                         <Setter Property="Foreground" Value="#D4C4A0"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsOwned}" Value="True">
+                                                <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                <Setter Property="Foreground" Value="#60D4C4A0"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
@@ -208,6 +317,12 @@
                                         <Setter Property="FontWeight" Value="Bold"/>
                                         <Setter Property="Foreground" Value="#FFD700"/>
                                         <Setter Property="HorizontalAlignment" Value="Center"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsOwned}" Value="True">
+                                                <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                <Setter Property="Foreground" Value="#60FFD700"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
                                     </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>

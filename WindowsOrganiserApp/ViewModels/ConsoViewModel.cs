@@ -19,11 +19,47 @@ public sealed class SelectableBoss : ObservableObject
         }
     }
 
-    public string Label => $"{Boss.Name}  ({string.Join(" + ", Boss.Consumables.Select(c => $"{c.ConsumableCode}x{c.Quantity}"))})";
+    public string Label => Boss.Name;
+    public ObservableCollection<EditableBossConsumable> EditableConsumables { get; } = [];
 
     public event Action? SelectionChanged;
 
-    public SelectableBoss(BossInfo boss) => Boss = boss;
+    public SelectableBoss(BossInfo boss, Action onChanged)
+    {
+        Boss = boss;
+        SelectionChanged = onChanged;
+        foreach (var bc in boss.Consumables)
+        {
+            var ebc = new EditableBossConsumable(bc.ConsumableCode, bc.Quantity);
+            ebc.QuantityChanged += onChanged;
+            EditableConsumables.Add(ebc);
+        }
+    }
+}
+
+public sealed class EditableBossConsumable : ObservableObject
+{
+    public string Code { get; }
+    private int _quantity;
+
+    public int Quantity
+    {
+        get => _quantity;
+        set
+        {
+            if (value < 0) value = 0;
+            if (SetProperty(ref _quantity, value))
+                QuantityChanged?.Invoke();
+        }
+    }
+
+    public event Action? QuantityChanged;
+
+    public EditableBossConsumable(string code, int defaultQty)
+    {
+        Code = code;
+        _quantity = defaultQty;
+    }
 }
 
 public sealed class UiConsoCategory : ObservableObject
@@ -92,12 +128,29 @@ public sealed class ConsoLine : ObservableObject
     public string Code { get; init; } = "";
     public string FullName { get; init; } = "";
     public int Quantity { get; init; }
+    private bool _isOwned;
+    public bool IsOwned
+    {
+        get => _isOwned;
+        set
+        {
+            if (SetProperty(ref _isOwned, value))
+                IsOwnedChanged?.Invoke();
+        }
+    }
+    public event Action? IsOwnedChanged;
 }
 
 public sealed class MaterialSummary : ObservableObject
 {
     public string Name { get; init; } = "";
     public int Total { get; init; }
+    private bool _isOwned;
+    public bool IsOwned
+    {
+        get => _isOwned;
+        set => SetProperty(ref _isOwned, value);
+    }
 }
 
 public sealed partial class ConsoViewModel : ObservableObject
@@ -107,6 +160,9 @@ public sealed partial class ConsoViewModel : ObservableObject
     public ObservableCollection<ConsoLine> Consumables { get; } = [];
     public ObservableCollection<MaterialSummary> Materials { get; } = [];
 
+    private readonly HashSet<string> _ownedConsos = [];
+    private readonly HashSet<string> _ownedMats = [];
+
     [ObservableProperty]
     private bool _selectAll;
 
@@ -114,8 +170,7 @@ public sealed partial class ConsoViewModel : ObservableObject
     {
         foreach (var boss in NaxxData.Bosses)
         {
-            var sb = new SelectableBoss(boss);
-            sb.SelectionChanged += Recalculate;
+            var sb = new SelectableBoss(boss, Recalculate);
             Bosses.Add(sb);
         }
 
@@ -137,12 +192,12 @@ public sealed partial class ConsoViewModel : ObservableObject
 
         foreach (var sb in Bosses.Where(b => b.IsSelected))
         {
-            foreach (var bc in sb.Boss.Consumables)
+            foreach (var ebc in sb.EditableConsumables)
             {
-                if (consoTotals.ContainsKey(bc.ConsumableCode))
-                    consoTotals[bc.ConsumableCode] += bc.Quantity;
+                if (consoTotals.ContainsKey(ebc.Code))
+                    consoTotals[ebc.Code] += ebc.Quantity;
                 else
-                    consoTotals[bc.ConsumableCode] = bc.Quantity;
+                    consoTotals[ebc.Code] = ebc.Quantity;
             }
         }
 
@@ -161,32 +216,57 @@ public sealed partial class ConsoViewModel : ObservableObject
         foreach (var (code, qty) in consoTotals.OrderBy(kv => kv.Key))
         {
             var recipe = NaxxData.Recipes.FirstOrDefault(r => r.Code == code);
-            Consumables.Add(new ConsoLine
+            var line = new ConsoLine
             {
                 Code = code,
                 FullName = recipe?.FullName ?? code,
-                Quantity = qty
-            });
+                Quantity = qty,
+                IsOwned = _ownedConsos.Contains(code)
+            };
+            line.IsOwnedChanged += () =>
+            {
+                if (line.IsOwned) _ownedConsos.Add(line.Code);
+                else _ownedConsos.Remove(line.Code);
+                RecalculateMaterials();
+            };
+            Consumables.Add(line);
         }
 
+        RecalculateMaterials();
+    }
+
+    private void RecalculateMaterials()
+    {
         var matTotals = new Dictionary<string, int>();
-        foreach (var (code, qty) in consoTotals)
+
+        foreach (var conso in Consumables.Where(c => !c.IsOwned))
         {
-            var recipe = NaxxData.Recipes.FirstOrDefault(r => r.Code == code);
+            var recipe = NaxxData.Recipes.FirstOrDefault(r => r.Code == conso.Code);
             if (recipe == null) continue;
             foreach (var ing in recipe.Ingredients)
             {
                 if (matTotals.ContainsKey(ing.Name))
-                    matTotals[ing.Name] += ing.Quantity * qty;
+                    matTotals[ing.Name] += ing.Quantity * conso.Quantity;
                 else
-                    matTotals[ing.Name] = ing.Quantity * qty;
+                    matTotals[ing.Name] = ing.Quantity * conso.Quantity;
             }
         }
 
         Materials.Clear();
         foreach (var (name, total) in matTotals.OrderBy(kv => kv.Key))
         {
-            Materials.Add(new MaterialSummary { Name = name, Total = total });
+            var mat = new MaterialSummary
+            {
+                Name = name, Total = total,
+                IsOwned = _ownedMats.Contains(name)
+            };
+            mat.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName != nameof(MaterialSummary.IsOwned)) return;
+                if (mat.IsOwned) _ownedMats.Add(mat.Name);
+                else _ownedMats.Remove(mat.Name);
+            };
+            Materials.Add(mat);
         }
     }
 }

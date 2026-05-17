@@ -34,7 +34,6 @@ public static class NaxxData
     [
         new("RO", "Resist Ombre (Protection contre l'ombre)",
         [
-            new("Huile des ténèbres", 1),
             new("Palerette", 4),
             new("Tombeline", 4),
             new("Fiole plombée", 1),
@@ -99,7 +98,7 @@ public static class NaxxData
         new("FlaconTitans", "Flacon des Titans",
         [
             new("Gromsblood", 30),
-            new("Huile de Rocastone", 10),
+            new("Anguille de Rocastone", 10),
             new("Lotus Noir", 1),
             new("Fiole de cristal", 1)
         ]),
@@ -126,6 +125,13 @@ public static class NaxxData
             new("Feuillèrve", 3),
             new("Sauge-argent des montagnes", 1),
             new("Fiole de cristal", 1)
+        ]),
+        new("Sapeur", "Charge de sapeur gobelin",
+        [
+            new("Barre de mithril", 1),
+            new("Etoffe de tisse-mage", 2),
+            new("Pierre solide", 4),
+            new("Poudre noire solide", 4)
         ])
     ];
 
@@ -170,28 +176,24 @@ public static class NaxxData
 
     public static readonly List<ConsoCategory> ExtraCategories =
     [
-        new("DPS Physique",
+        new("Consommables",
         [
             new(new ConsoItem("Mangouste", "Elixir de la Mangouste", 1)),
             new(new ConsoItem("Geants", "Elixir puissance des Géants", 1)),
-            new(new ConsoItem("FlaconTitans", "Flacon des Titans", 1))
-        ]),
-        new("DPS Caster",
-        [
+            new(new ConsoItem("FlaconTitans", "Flacon des Titans", 1)),
             new(new ConsoItem("ArcaneElixir", "Elixir des arcanes supérieur", 1)),
             new(new ConsoItem("ShadowPower", "Elixir puissance de l'ombre", 1)),
-            new(new ConsoItem("FlaconSupreme", "Flacon de pouvoir suprême", 1))
-        ]),
-        new("Support / Heal",
-        [
+            new(new ConsoItem("FlaconSupreme", "Flacon de pouvoir suprême", 1)),
             new(new ConsoItem("Magesang", "Magesang", 1)),
             new(new ConsoItem("Sagesse", "Sagesse distillée", 1)),
-            new(new ConsoItem("HuileMana", "Huile de mana", 1))
-        ]),
-        new("Tank",
-        [
+            new(new ConsoItem("HuileMana", "Huile de mana", 1)),
             new(new ConsoItem("Robustesse", "Elixir de robustesse", 1)),
-            new(new ConsoItem("FlaconTitans", "Flacon des Titans", 1))
+            new(new ConsoItem("Sapeur", "Charge de sapeur gobelin", 1)),
+            new(new ConsoItem("RO", "Resist Ombre", 1)),
+            new(new ConsoItem("RG", "Resist Givre", 1)),
+            new(new ConsoItem("RN", "Resist Nature", 1)),
+            new(new ConsoItem("RA", "Resist Arcane", 1)),
+            new(new ConsoItem("RF", "Resist Feu", 1))
         ])
     ];
 }
