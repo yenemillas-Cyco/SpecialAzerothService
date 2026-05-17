@@ -14,7 +14,7 @@
         <conv:BoolToExportBrushConverter x:Key="ExportBrushConv"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
-        <!-- Row style: transparent background + class-colored left border -->
+        <!-- Row style -->
         <Style x:Key="BountyRowStyle" TargetType="DataGridRow">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -30,7 +30,7 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Cell style: remove focus highlight -->
+        <!-- Cell style -->
         <Style x:Key="BountyCellStyle" TargetType="DataGridCell">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -60,13 +60,13 @@
         <!-- Column header style -->
         <Style x:Key="BountyHeaderStyle" TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource SubtextBrush}"/>
+            <Setter Property="Foreground" Value="#D4C4A0"/>
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Padding" Value="6,6"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
-            <Setter Property="BorderBrush" Value="#15FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25806030"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -78,7 +78,7 @@
                                     Padding="{TemplateBinding Padding}">
                                 <DockPanel>
                                     <Path x:Name="SortArrow" DockPanel.Dock="Right"
-                                          Fill="{DynamicResource SubtextBrush}"
+                                          Fill="#D4C4A0"
                                           Margin="4,0,0,0" VerticalAlignment="Center"
                                           Visibility="Collapsed"/>
                                     <ContentPresenter VerticalAlignment="Center"
@@ -86,8 +86,7 @@
                                 </DockPanel>
                             </Border>
                             <Thumb x:Name="PART_RightHeaderGripper" HorizontalAlignment="Right"
-                                   Width="4" Cursor="SizeWE"
-                                   Style="{x:Null}">
+                                   Width="4" Cursor="SizeWE" Style="{x:Null}">
                                 <Thumb.Template>
                                     <ControlTemplate TargetType="Thumb">
                                         <Border Background="Transparent" Width="4"/>
@@ -105,7 +104,7 @@
                                 <Setter TargetName="SortArrow" Property="Data" Value="M 0,0 L 4,5 L 8,0 Z"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#10FFFFFF"/>
+                                <Setter Property="Background" Value="#10D4A017"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -116,16 +115,20 @@
 
     <Grid x:Name="RootGrid">
         <DockPanel>
-            <!-- ═══ TOOLBAR ═══ -->
-            <Border DockPanel.Dock="Top" Background="{DynamicResource PanelBg}" CornerRadius="6"
-                    Padding="12,8" Margin="0,0,0,8" BorderThickness="1"
-                    BorderBrush="{DynamicResource InnerBorderBrush}">
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- HEADER — Western style tavern banner                           -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <Border DockPanel.Dock="Top" CornerRadius="6" Padding="16,10" Margin="0,0,0,6"
+                    BorderThickness="1" BorderBrush="#60806030">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#2A1E0E" Offset="0"/>
+                        <GradientStop Color="#1E1408" Offset="0.5"/>
+                        <GradientStop Color="#2A1E0E" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
                 <DockPanel>
-                    <TextBlock Text="🏴‍☠️ Chasseur de Primes" FontSize="16" FontWeight="Bold"
-                               Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"
-                               Margin="0,0,16,0"/>
-                    <Border Width="1" Height="20" Background="{DynamicResource BorderBrush}"
-                            Margin="0,0,12,0" VerticalAlignment="Center"/>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Content="📥 Import" Style="{DynamicResource WowButton}"
                                 FontSize="10" Padding="10,5" Margin="0,0,4,0"
@@ -137,40 +140,84 @@
                                 ToolTip="Exporter les primes vers un fichier"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Content="➕ Nouvelle prime" Style="{DynamicResource WowButton}"
+                        <TextBlock Text="— " FontSize="18" Foreground="#806030" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <TextBlock Text="CHASSEUR DE PRIMES" FontSize="20" FontWeight="Bold"
+                                   FontFamily="Georgia" Foreground="#D4A017" VerticalAlignment="Center"/>
+                        <TextBlock Text=" —" FontSize="18" Foreground="#806030" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <Border Width="1" Height="22" Background="#40806030" Margin="14,0"/>
+                        <Button Content="+ Nouvelle prime" Style="{DynamicResource WowButton}"
                                 FontSize="10" Padding="12,5" Margin="0,0,6,0"
                                 Command="{Binding NewBountyCommand}"/>
-                        <Button Content="📜 Règlement" Style="{DynamicResource WowButton}"
-                                FontSize="10" Padding="12,5" Margin="0,0,6,0"
-                                Click="ToggleRules_Click"/>
-                        <Button Content="📋 Copier règlement" Style="{DynamicResource WowButton}"
+                        <Button Content="Copier reglement" Style="{DynamicResource WowButton}"
                                 FontSize="10" Padding="10,5" Margin="0,0,4,0"
                                 Command="{Binding CopyDiscordRulesCommand}"
-                                ToolTip="Copier le règlement pour Discord"/>
-                        <Button Content="📋 Copier primes" Style="{DynamicResource WowButton}"
+                                ToolTip="Copier le reglement pour Discord"/>
+                        <Button Content="Copier primes" Style="{DynamicResource WowButton}"
                                 FontSize="10" Padding="10,5"
                                 Command="{Binding CopyDiscordBountiesCommand}"
                                 ToolTip="Copier la liste des primes pour Discord"/>
+                        <Button Content="📜 Screenshot Avis" Style="{DynamicResource WowButton}"
+                                FontSize="10" Padding="10,5" Margin="6,0,0,0"
+                                ToolTip="Generer une image Avis de Recherche de la prime selectionnee"
+                                Click="ScreenshotSelected_Click"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
 
-            <!-- ═══ CONTRIBUTOR SUMMARY ═══ -->
-            <Border DockPanel.Dock="Bottom" Background="{DynamicResource PanelBg}" CornerRadius="6"
-                    Padding="10,8" Margin="0,6,0,0" BorderThickness="1"
-                    BorderBrush="{DynamicResource InnerBorderBrush}">
-                <DockPanel>
-                    <Border DockPanel.Dock="Right" CornerRadius="4" Padding="10,4"
-                            Background="#30FFD700" BorderThickness="1" BorderBrush="#50FFD700">
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- RULES PANEL — Parchment style, collapsible                     -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <Border DockPanel.Dock="Top" CornerRadius="6" Margin="0,0,0,6"
+                    BorderThickness="1" BorderBrush="#50806030">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#28201008" Offset="0"/>
+                        <GradientStop Color="#20100800" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Expander IsExpanded="False" Padding="4">
+                    <Expander.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="💰 TOTAL " FontSize="11" FontWeight="Bold"
-                                       Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding GrandTotal, StringFormat='{}{0} po'}" FontSize="13" FontWeight="Bold"
-                                       Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="REGLEMENT" FontSize="13" FontWeight="Bold"
+                                       FontFamily="Georgia" Foreground="#C4A040" VerticalAlignment="Center"/>
+                            <Button Content="Editer" FontSize="9" Padding="8,2" Margin="12,0,0,0"
+                                    Background="Transparent" BorderThickness="1" BorderBrush="#40806030"
+                                    Foreground="#D4C4A0" Cursor="Hand" VerticalAlignment="Center"
+                                    Click="ToggleRules_Click"/>
+                        </StackPanel>
+                    </Expander.Header>
+                    <Border Padding="16,8,16,10">
+                        <TextBlock Text="{Binding Rules}" TextWrapping="Wrap" FontSize="11"
+                                   FontStyle="Italic" FontFamily="Georgia"
+                                   Foreground="#D4C4A0" LineHeight="20"/>
+                    </Border>
+                </Expander>
+            </Border>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- BOTTOM BAR — Contributor summary + total gold                  -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <Border DockPanel.Dock="Bottom" CornerRadius="6" Padding="10,8" Margin="0,6,0,0"
+                    BorderThickness="1" BorderBrush="#50806030">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#2A1E0E" Offset="0"/>
+                        <GradientStop Color="#1E1408" Offset="0.5"/>
+                        <GradientStop Color="#2A1E0E" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <DockPanel>
+                    <Border DockPanel.Dock="Right" CornerRadius="4" Padding="12,5"
+                            Background="#30D4A017" BorderThickness="1" BorderBrush="#50D4A017">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="TOTAL " FontSize="12" FontWeight="Bold"
+                                       FontFamily="Georgia" Foreground="#D4A017" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding GrandTotal, StringFormat='{}{0} po'}" FontSize="15" FontWeight="Bold"
+                                       FontFamily="Georgia" Foreground="#FFD700" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
-                    <TextBlock Text="💸 Dettes :" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
-                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="Dettes :" FontSize="11" Foreground="#D4C4A0" FontFamily="Georgia"
+                               VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
                     <ItemsControl ItemsSource="{Binding ContributorTotals}" VerticalAlignment="Center">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -180,12 +227,12 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Border CornerRadius="3" Padding="8,3" Margin="0,0,6,0"
-                                        Background="#18FFFFFF" BorderThickness="1" BorderBrush="#25FFFFFF">
+                                        Background="#18D4A017" BorderThickness="1" BorderBrush="#30806030">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextBrush}" Margin="0,0,4,0"/>
+                                                   Foreground="#D4C4A0" Margin="0,0,4,0"/>
                                         <TextBlock Text="{Binding Gold, StringFormat='{}{0} po'}" FontSize="11"
-                                                   Foreground="{DynamicResource BrightGoldBrush}" FontWeight="Bold"/>
+                                                   Foreground="#FFD700" FontWeight="Bold"/>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
@@ -194,27 +241,34 @@
                 </DockPanel>
             </Border>
 
-            <!-- ═══ DISCORD CHAR COUNT ═══ -->
+            <!-- Discord char count -->
             <TextBlock DockPanel.Dock="Top"
-                       Text="{Binding DiscordCharCount}" FontSize="13" FontWeight="SemiBold"
+                       Text="{Binding DiscordCharCount}" FontSize="11" FontWeight="SemiBold"
                        Foreground="{Binding DiscordCharBrush}"
-                       HorizontalAlignment="Right" Margin="0,2,8,4"
-                       ToolTip="Nombre de caractères du message Discord (limite 2000)"/>
+                       HorizontalAlignment="Right" Margin="0,2,8,4"/>
 
-            <!-- ═══ BOUNTY CONTENT (TreeView structure) ═══ -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- BOUNTY CONTENT — TreeView structure                            -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
             <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel>
 
             <!-- MY BOUNTIES -->
-            <Border Background="{DynamicResource PanelBg}" CornerRadius="6"
-                    Padding="4" Margin="0,0,0,8" BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}">
+            <Border CornerRadius="6" Padding="4" Margin="0,0,0,8"
+                    BorderThickness="1" BorderBrush="#40806030">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#18201008" Offset="0"/>
+                        <GradientStop Color="#10100800" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
                 <Expander IsExpanded="True">
                     <Expander.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="💀 Mes Primes" FontSize="14" FontWeight="Bold"
-                                       Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
+                            <TextBlock Text="MES PRIMES" FontSize="14" FontWeight="Bold"
+                                       FontFamily="Georgia" Foreground="#D4A017" VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding Bounties.Count, StringFormat=' ({0})'}" FontSize="12"
-                                       Foreground="{DynamicResource SubtextBrush}" VerticalAlignment="Center"/>
+                                       Foreground="#D4C4A0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Expander.Header>
                 <DataGrid x:Name="BountyGrid"
@@ -249,7 +303,7 @@
                                           Style="{DynamicResource SelectionCheck}"
                                           IsChecked="True"
                                           HorizontalAlignment="Center"
-                                          ToolTip="Tout cocher / décocher"
+                                          ToolTip="Tout cocher / decocher"
                                           Click="ToggleAllExport_Click"/>
                             </DataGridTemplateColumn.Header>
                             <DataGridTemplateColumn.CellTemplate>
@@ -269,8 +323,8 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="💀" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                        <TextBlock Text="{Binding TargetName}" FontSize="13" FontWeight="SemiBold"
+                                        <TextBlock Text="{Binding TargetName}" FontSize="13" FontWeight="Bold"
+                                                   FontFamily="Georgia"
                                                    Foreground="{Binding TargetClass, Converter={StaticResource ClassColorConv}}"
                                                    VerticalAlignment="Center"/>
                                     </StackPanel>
@@ -284,7 +338,7 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding DisplayTotal}" FontSize="13"
-                                               FontWeight="Bold" Foreground="{DynamicResource BrightGoldBrush}"
+                                               FontWeight="Bold" FontFamily="Georgia" Foreground="#FFD700"
                                                VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -308,8 +362,7 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding TargetRace}" FontSize="11"
-                                               FontStyle="Italic"
-                                               Foreground="{DynamicResource SubtextBrush}"
+                                               FontStyle="Italic" Foreground="#D4C4A0"
                                                VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
@@ -321,34 +374,34 @@
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Reason}" FontSize="12"
-                                               FontStyle="Italic" Foreground="{DynamicResource SubtextBrush}"
+                                               FontStyle="Italic" Foreground="#A09070"
                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                ToolTip="{Binding Reason}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <!-- COMMANDITAIRES -->
-                        <DataGridTemplateColumn Header="COMMANDITAIRES" Width="140" MinWidth="80"
+                        <!-- COMMANDITAIRES (enriched with gold amounts) -->
+                        <DataGridTemplateColumn Header="COMMANDITAIRES" Width="180" MinWidth="100"
                                                 SortMemberPath="ContributorNames" CanUserSort="True">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding ContributorNames}" FontSize="11"
-                                               Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"
+                                    <TextBlock Text="{Binding ContributorDetails}" FontSize="11"
+                                               Foreground="#D4C4A0" VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis"
-                                               ToolTip="{Binding ContributorNames}"/>
+                                               ToolTip="{Binding ContributorDetails}"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
                         <!-- ACTIONS -->
-                        <DataGridTemplateColumn Header="ACTIONS" Width="130" MinWidth="100"
+                        <DataGridTemplateColumn Header="ACTIONS" Width="160" MinWidth="130"
                                                 CanUserSort="False" CanUserResize="False">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal"
                                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <Button Content="Édit" FontSize="9" Padding="5,2" Margin="1,0"
+                                        <Button Content="Edit" FontSize="9" Padding="5,2" Margin="1,0"
                                                 Background="Transparent" BorderThickness="0"
                                                 Foreground="LightSkyBlue" Cursor="Hand"
                                                 ToolTip="Modifier la prime"
@@ -360,13 +413,12 @@
                                                 ToolTip="Copier la ligne Discord de cette prime"
                                                 Command="{Binding DataContext.CopyIndividualDiscordCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"/>
-                                        <Button Content="Img" FontSize="9" Padding="5,2" Margin="1,0"
-                                                Background="Transparent" BorderThickness="0"
-                                                Foreground="{DynamicResource BrightGoldBrush}" Cursor="Hand"
-                                                ToolTip="Copier le prompt ChatGPT pour l'affiche"
-                                                Command="{Binding DataContext.CopyImagePromptCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}"/>
-                                        <Button Content="✕" FontSize="10" Padding="5,2" Margin="1,0"
+                                        <Button Content="📜 Avis" FontSize="9" Padding="6,3" Margin="2,0"
+                                                Background="#30D4A017" BorderThickness="1" BorderBrush="#50D4A017"
+                                                Foreground="#FFD700" Cursor="Hand" FontWeight="Bold"
+                                                ToolTip="Generer une image Avis de Recherche et la copier dans le presse-papier"
+                                                Click="ScreenshotBounty_Click"/>
+                                        <Button Content="X" FontSize="10" Padding="5,2" Margin="1,0"
                                                 Background="Transparent" BorderThickness="0"
                                                 Foreground="#FF6B6B" Cursor="Hand"
                                                 ToolTip="Supprimer"
@@ -385,17 +437,21 @@
             <ItemsControl ItemsSource="{Binding FriendBounties}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Background="{DynamicResource PanelBg}" CornerRadius="6"
-                                Padding="4" Margin="0,0,0,6" BorderThickness="1"
-                                BorderBrush="{DynamicResource InnerBorderBrush}">
+                        <Border CornerRadius="6" Padding="4" Margin="0,0,0,6"
+                                BorderThickness="1" BorderBrush="#40806030">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#12201008" Offset="0"/>
+                                    <GradientStop Color="#0A100800" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
                             <Expander IsExpanded="False">
                                 <Expander.Header>
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="🤝" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                         <TextBlock Text="{Binding FriendName}" FontSize="14" FontWeight="Bold"
-                                                   Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                                   FontFamily="Georgia" Foreground="#D4C4A0" VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding Bounties.Count, StringFormat=' ({0})'}" FontSize="12"
-                                                   Foreground="{DynamicResource SubtextBrush}" VerticalAlignment="Center"/>
+                                                   Foreground="#A09070" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Expander.Header>
                                 <DataGrid ItemsSource="{Binding Bounties}"
@@ -423,12 +479,10 @@
                                                                 SortMemberPath="TargetName" CanUserSort="True">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <TextBlock Text="💀" FontSize="12" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                                        <TextBlock Text="{Binding TargetName}" FontSize="13" FontWeight="SemiBold"
-                                                                   Foreground="{Binding TargetClass, Converter={StaticResource ClassColorConv}}"
-                                                                   VerticalAlignment="Center"/>
-                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding TargetName}" FontSize="13" FontWeight="Bold"
+                                                               FontFamily="Georgia"
+                                                               Foreground="{Binding TargetClass, Converter={StaticResource ClassColorConv}}"
+                                                               VerticalAlignment="Center"/>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
@@ -437,7 +491,7 @@
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding DisplayTotal}" FontSize="13"
-                                                               FontWeight="Bold" Foreground="{DynamicResource BrightGoldBrush}"
+                                                               FontWeight="Bold" FontFamily="Georgia" Foreground="#FFD700"
                                                                VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
@@ -457,8 +511,7 @@
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding TargetRace}" FontSize="11"
-                                                               FontStyle="Italic"
-                                                               Foreground="{DynamicResource SubtextBrush}"
+                                                               FontStyle="Italic" Foreground="#D4C4A0"
                                                                VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
@@ -468,20 +521,20 @@
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock Text="{Binding Reason}" FontSize="12"
-                                                               FontStyle="Italic" Foreground="{DynamicResource SubtextBrush}"
+                                                               FontStyle="Italic" Foreground="#A09070"
                                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                                ToolTip="{Binding Reason}"/>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTemplateColumn Header="COMMANDITAIRES" Width="140" MinWidth="80"
+                                        <DataGridTemplateColumn Header="COMMANDITAIRES" Width="180" MinWidth="100"
                                                                 SortMemberPath="ContributorNames" CanUserSort="True">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <TextBlock Text="{Binding ContributorNames}" FontSize="11"
-                                                               Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"
+                                                    <TextBlock Text="{Binding ContributorDetails}" FontSize="11"
+                                                               Foreground="#D4C4A0" VerticalAlignment="Center"
                                                                TextTrimming="CharacterEllipsis"
-                                                               ToolTip="{Binding ContributorNames}"/>
+                                                               ToolTip="{Binding ContributorDetails}"/>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
@@ -503,49 +556,54 @@
                StaysOpen="True" AllowsTransparency="True"
                IsOpen="{Binding IsPopupOpen}">
             <Border CornerRadius="8" Padding="24" Width="500"
-                    Background="{DynamicResource PanelBg}"
-                    BorderThickness="2" BorderBrush="{DynamicResource BrightGoldBrush}">
+                    BorderThickness="2" BorderBrush="#D4A017">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#2A1E0E" Offset="0"/>
+                        <GradientStop Color="#1A120A" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
                 <Border.Effect>
-                    <DropShadowEffect BlurRadius="25" ShadowDepth="5" Opacity="0.6"/>
+                    <DropShadowEffect BlurRadius="25" ShadowDepth="5" Opacity="0.6" Color="#000000"/>
                 </Border.Effect>
                 <StackPanel>
                     <DockPanel Margin="0,0,0,14">
-                        <Button DockPanel.Dock="Right" Content="✕" FontSize="13"
+                        <Button DockPanel.Dock="Right" Content="X" FontSize="13"
                                 Background="Transparent" BorderThickness="0"
                                 Foreground="#FF6B6B" Cursor="Hand" Padding="4,0"
                                 Command="{Binding CancelEditCommand}"/>
-                        <TextBlock Text="🎯 AVIS DE RECHERCHE" FontSize="15" FontWeight="Bold"
-                                   Foreground="{DynamicResource BrightGoldBrush}"/>
+                        <TextBlock Text="AVIS DE RECHERCHE" FontSize="16" FontWeight="Bold"
+                                   FontFamily="Georgia" Foreground="#D4A017"/>
                     </DockPanel>
 
                     <DockPanel Margin="0,0,0,8">
                         <TextBlock Text="Nom :" FontSize="11" Width="90" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource SubtextBrush}"/>
+                                   Foreground="#D4C4A0"/>
                         <TextBox Text="{Binding EditingBounty.TargetName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 FontSize="13" FontWeight="Bold"
-                                 Background="Transparent" Foreground="{DynamicResource TextBrush}"
-                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+                                 FontSize="13" FontWeight="Bold" FontFamily="Georgia"
+                                 Background="Transparent" Foreground="#FFD700"
+                                 BorderBrush="#40806030" BorderThickness="0,0,0,1"
                                  Padding="4,3"/>
                     </DockPanel>
 
                     <DockPanel Margin="0,0,0,8">
                         <TextBlock Text="Alt :" FontSize="11" Width="90" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource SubtextBrush}"/>
+                                   Foreground="#D4C4A0"/>
                         <TextBox Text="{Binding EditingBounty.AltName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  FontSize="11" Background="Transparent"
-                                 Foreground="{DynamicResource TextBrush}"
-                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+                                 Foreground="#D4C4A0"
+                                 BorderBrush="#40806030" BorderThickness="0,0,0,1"
                                  Padding="4,3"/>
                     </DockPanel>
 
                     <DockPanel Margin="0,0,0,8">
                         <TextBlock Text="Classe :" FontSize="11" Width="90" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource SubtextBrush}"/>
+                                   Foreground="#D4C4A0"/>
                         <ComboBox ItemsSource="{Binding WowClasses}"
                                   SelectedItem="{Binding EditingBounty.TargetClass}"
                                   FontSize="11" Width="130" HorizontalAlignment="Left"/>
                         <TextBlock Text="Race :" FontSize="11" Width="50" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource SubtextBrush}" Margin="12,0,0,0"/>
+                                   Foreground="#D4C4A0" Margin="12,0,0,0"/>
                         <ComboBox ItemsSource="{Binding WowRaces}"
                                   SelectedItem="{Binding EditingBounty.TargetRace}"
                                   FontSize="11" Width="130" HorizontalAlignment="Left"/>
@@ -553,37 +611,37 @@
 
                     <DockPanel Margin="0,0,0,12">
                         <TextBlock Text="Motif :" FontSize="11" Width="90" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource SubtextBrush}"/>
+                                   Foreground="#D4C4A0"/>
                         <TextBox Text="{Binding EditingBounty.Reason, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  FontSize="11" FontStyle="Italic" Background="Transparent"
-                                 Foreground="{DynamicResource TextBrush}"
-                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+                                 Foreground="#D4C4A0"
+                                 BorderBrush="#40806030" BorderThickness="0,0,0,1"
                                  Padding="4,3"/>
                     </DockPanel>
 
-                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,12"/>
+                    <Border Height="1" Background="#40806030" Margin="0,0,0,12"/>
 
-                    <TextBlock Text="💰 COMMANDITAIRES" FontSize="11" FontWeight="Bold"
-                               Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,6"/>
+                    <TextBlock Text="COMMANDITAIRES" FontSize="11" FontWeight="Bold"
+                               FontFamily="Georgia" Foreground="#D4A017" Margin="0,0,0,6"/>
 
                     <ItemsControl ItemsSource="{Binding EditingContributors}" Margin="0,0,0,8">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Border CornerRadius="3" Padding="8,4" Margin="0,0,0,3"
-                                        Background="#10FFFFFF" BorderThickness="1" BorderBrush="#15FFFFFF">
+                                        Background="#10D4A017" BorderThickness="1" BorderBrush="#20806030">
                                     <DockPanel>
-                                        <Button DockPanel.Dock="Right" Content="✕" FontSize="9"
+                                        <Button DockPanel.Dock="Right" Content="X" FontSize="9"
                                                 Background="Transparent" BorderThickness="0"
                                                 Foreground="#FF6B6B" Cursor="Hand" Padding="4,0"
                                                 VerticalAlignment="Center"
                                                 Command="{Binding DataContext.RemoveContributorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"/>
                                         <TextBlock FontSize="11" VerticalAlignment="Center"
-                                                   Foreground="{DynamicResource TextBrush}">
+                                                   Foreground="#D4C4A0">
                                             <Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold"/>
-                                            <Run Text=" — " Foreground="{DynamicResource SubtextBrush}"/>
+                                            <Run Text=" — " Foreground="#806030"/>
                                             <Run Text="{Binding GoldAmount, Mode=OneWay, StringFormat='{}{0}po'}"
-                                                 Foreground="{DynamicResource BrightGoldBrush}"/>
+                                                 Foreground="#FFD700"/>
                                         </TextBlock>
                                     </DockPanel>
                                 </Border>
@@ -591,8 +649,8 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <Border CornerRadius="4" Padding="10,8" Background="#08AADDFF"
-                            BorderThickness="1" BorderBrush="#18AADDFF" Margin="0,0,0,14">
+                    <Border CornerRadius="4" Padding="10,8" Background="#08D4A017"
+                            BorderThickness="1" BorderBrush="#18806030" Margin="0,0,0,14">
                         <DockPanel>
                             <Button DockPanel.Dock="Right" Content="Ajouter" Style="{DynamicResource WowButton}"
                                     FontSize="10" Padding="12,4" Margin="8,0,0,0"
@@ -600,19 +658,19 @@
                                     Command="{Binding AddContributorCommand}"/>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <StackPanel Margin="0,0,10,0">
-                                    <TextBlock Text="Commanditaire" FontSize="9" Foreground="{DynamicResource SubtextBrush}"/>
+                                    <TextBlock Text="Commanditaire" FontSize="9" Foreground="#A09070"/>
                                     <TextBox Text="{Binding NewContribName, UpdateSourceTrigger=PropertyChanged}"
                                              Width="150" Height="24" FontSize="10" Padding="4,2"
-                                             Background="Transparent" Foreground="{DynamicResource TextBrush}"
-                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+                                             Background="Transparent" Foreground="#D4C4A0"
+                                             BorderBrush="#40806030" BorderThickness="0,0,0,1"
                                              VerticalContentAlignment="Center"/>
                                 </StackPanel>
                                 <StackPanel>
-                                    <TextBlock Text="Or (po)" FontSize="9" Foreground="{DynamicResource SubtextBrush}"/>
+                                    <TextBlock Text="Or (po)" FontSize="9" Foreground="#A09070"/>
                                     <TextBox Text="{Binding NewContribGold, UpdateSourceTrigger=PropertyChanged}"
                                              Width="70" Height="24" FontSize="10" Padding="4,2"
-                                             Background="Transparent" Foreground="{DynamicResource TextBrush}"
-                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1"
+                                             Background="Transparent" Foreground="#FFD700"
+                                             BorderBrush="#40806030" BorderThickness="0,0,0,1"
                                              VerticalContentAlignment="Center" TextAlignment="Center"/>
                                 </StackPanel>
                             </StackPanel>
@@ -620,7 +678,7 @@
                     </Border>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Button Content="💾 Sauvegarder" Style="{DynamicResource WowButton}"
+                        <Button Content="Sauvegarder" Style="{DynamicResource WowButton}"
                                 FontSize="11" Padding="20,7" Margin="0,0,8,0"
                                 Command="{Binding SaveBountyCommand}"/>
                         <Button Content="Annuler" Style="{DynamicResource WowButton}"
@@ -631,29 +689,34 @@
             </Border>
         </Popup>
 
-        <!-- ═══ RULES POPUP ═══ -->
+        <!-- ═══ RULES POPUP (for editing) ═══ -->
         <Popup x:Name="PopupRules" Placement="Center" PlacementTarget="{Binding ElementName=RootGrid}"
                StaysOpen="True" AllowsTransparency="True">
             <Border CornerRadius="8" Padding="20" Width="500"
-                    Background="{DynamicResource PanelBg}"
-                    BorderThickness="2" BorderBrush="{DynamicResource BrightGoldBrush}">
+                    BorderThickness="2" BorderBrush="#D4A017">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#2A1E0E" Offset="0"/>
+                        <GradientStop Color="#1A120A" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="20" ShadowDepth="5" Opacity="0.5"/>
                 </Border.Effect>
                 <StackPanel>
                     <DockPanel Margin="0,0,0,10">
-                        <Button DockPanel.Dock="Right" Content="✕" FontSize="12"
+                        <Button DockPanel.Dock="Right" Content="X" FontSize="12"
                                 Background="Transparent" BorderThickness="0"
                                 Foreground="#FF6B6B" Cursor="Hand" Padding="4,0"
                                 Click="CloseRules_Click"/>
-                        <TextBlock Text="📜 Règlement" FontSize="14" FontWeight="Bold"
-                                   Foreground="{DynamicResource BrightGoldBrush}"/>
+                        <TextBlock Text="REGLEMENT" FontSize="14" FontWeight="Bold"
+                                   FontFamily="Georgia" Foreground="#D4A017"/>
                     </DockPanel>
                     <TextBox Text="{Binding Rules, UpdateSourceTrigger=PropertyChanged}"
                              TextWrapping="Wrap" AcceptsReturn="True"
                              MinHeight="200" MaxHeight="400" FontSize="11"
-                             Background="Transparent" Foreground="{DynamicResource TextBrush}"
-                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                             Background="Transparent" Foreground="#D4C4A0"
+                             BorderBrush="#40806030" BorderThickness="1"
                              Padding="8" VerticalScrollBarVisibility="Auto"/>
                     <Button Content="Enregistrer" Style="{DynamicResource WowButton}"
                             FontSize="11" Padding="20,6" Margin="0,10,0,0"

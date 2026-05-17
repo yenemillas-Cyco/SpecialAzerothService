@@ -21,4 +21,6 @@ public sealed class BountyEntry
     public string DisplayTotal => $"{TotalGold}po";
 
     public string ContributorNames => string.Join(", ", Contributors.Select(c => c.Name).Distinct());
+
+    public string ContributorDetails => string.Join(", ", Contributors.Select(c => $"{c.Name} ({c.GoldAmount}po)"));
 }
