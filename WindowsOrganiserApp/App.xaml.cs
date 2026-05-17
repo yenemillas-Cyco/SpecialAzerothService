@@ -53,6 +53,7 @@ public partial class App : Application
         services.AddSingleton<AdvancedViewModel>();
         services.AddSingleton<CartoViewModel>();
         services.AddSingleton<BountyViewModel>();
+        services.AddSingleton<ConsoViewModel>();
         services.AddTransient<MainWindow>();
 
         _serviceProvider = services.BuildServiceProvider();
@@ -61,9 +62,11 @@ public partial class App : Application
         var advVm = _serviceProvider.GetRequiredService<AdvancedViewModel>();
         var cartoVm = _serviceProvider.GetRequiredService<CartoViewModel>();
         var bountyVm = _serviceProvider.GetRequiredService<BountyViewModel>();
+        var consoVm = _serviceProvider.GetRequiredService<ConsoViewModel>();
         mainVm.AdvancedVm = advVm;
         mainVm.CartoVm = cartoVm;
         mainVm.BountyVm = bountyVm;
+        mainVm.ConsoVm = consoVm;
 
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
         mainWindow.Show();
