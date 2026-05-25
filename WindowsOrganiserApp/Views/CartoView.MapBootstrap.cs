@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using WindowsOrganiserApp;
 using WindowsOrganiserApp.Services;
 using WindowsOrganiserApp.ViewModels;
 
@@ -30,6 +31,7 @@ public partial class CartoView
             HideMapLoadingOverlay();
             EnsureMapImageOnUi();
             TryApplyInitialMapFit();
+            RefreshMapCharactersWhenReady();
             return;
         }
 
@@ -203,10 +205,7 @@ public partial class CartoView
         TryApplyInitialMapFit();
 
         if (Vm.CharactersLoaded && Vm.Characters.Count > 0)
-        {
-            Vm.EnsureCharactersVisibleOnMap();
-            RedrawMarkers();
-        }
+            RefreshMapCharactersWhenReady();
         RedrawTimerMarkers();
         PreloadCharacterRoster();
         ApplyRightPanelLayout();
@@ -235,6 +234,19 @@ public partial class CartoView
 
         RebuildCharacterRoster();
         if (_cartoInit.IsComplete)
-            RedrawMarkers();
+            RequestMapMarkersRefresh();
+    }
+
+    /// <summary>Carte prête (splash ou retour onglet) : placement WowSync (une fois) + marqueurs.</summary>
+    private void RefreshMapCharactersWhenReady()
+    {
+        if (Vm == null || !Vm.CharactersLoaded)
+            return;
+
+        if (!Vm.MapPositionsReady)
+            Vm.EnsureCharactersVisibleOnMap();
+        else
+            Vm.RefreshMapDisplayPlacement();
+        RequestMapMarkersRefresh();
     }
 }

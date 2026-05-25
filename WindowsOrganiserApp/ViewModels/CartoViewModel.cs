@@ -21,8 +21,14 @@ public partial class CartoViewModel : ObservableObject
     private CartoData _data;
     private List<WowAccountData>? _wowSyncCache;
     private Dictionary<string, WowCharacterData> _syncByKey = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, WowCharacterData> _syncByNormalizedKey = new(StringComparer.Ordinal);
     private Dictionary<string, CartoAccountConfig>? _accountSettingsEditSnapshot;
     private Task? _characterDataLoadTask;
+    private bool _zoneCalibrationLoaded;
+    private int _mapPlacementStamp;
+    private int _appliedMapPlacementStamp;
+    private bool _mapPositionsReady;
+    private IReadOnlyList<CartoMapPositionPrecompute.CharacterPlacement>? _precomputedPlacements;
 
     /// <summary>Chaque seconde — mise à jour des compteurs sans redessiner la carte.</summary>
     public event EventHandler? SecondTick;
@@ -45,6 +51,7 @@ public partial class CartoViewModel : ObservableObject
         MigrateLegacyCharacterData();
         MigrateCharacterProfiles();
         MigratePlacedOnMapFlags();
+        MigrateStripNonAddonMapPositions();
         ApplyConfiguredAccountSettings();
 
         Accounts = new ObservableCollection<WowAccount>();
@@ -66,6 +73,7 @@ public partial class CartoViewModel : ObservableObject
         RefreshFriends();
         RefreshFriendCartoUsers();
         ApplyFilters();
+        CharacterSyncGoldConverter.Vm = this;
     }
 
     public const string CharactersLoadedPropertyName = nameof(CharactersLoaded);
@@ -85,15 +93,22 @@ public partial class CartoViewModel : ObservableObject
     {
         try
         {
+            List<WowAccountData> syncAccounts = [];
+            IReadOnlyList<CartoMapPositionPrecompute.CharacterPlacement> placements = [];
+
             await Task.Run(() =>
             {
-                _wowSyncCache = TryReadWowSyncAccounts();
-                RebuildSyncIndex();
+                syncAccounts = TryReadWowSyncAccounts();
+                placements = CartoMapPositionPrecompute.ComputeForAccounts(syncAccounts);
             }).ConfigureAwait(false);
 
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(
-                ApplyDeferredCharacterData,
-                DispatcherPriority.Background);
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                _wowSyncCache = syncAccounts;
+                _precomputedPlacements = placements;
+                RebuildSyncIndex();
+                ApplyDeferredCharacterData();
+            }, DispatcherPriority.Background);
 
             _ = Task.Run(CartoMapQuestIcon.PreloadQuestStubIcons);
         }
@@ -118,24 +133,125 @@ public partial class CartoViewModel : ObservableObject
         foreach (var account in Accounts)
             account.IsHidden = false;
         AccountIdToNameConverter.Accounts = [.. Accounts];
-        EnsureCharactersVisibleOnMap();
+        CharacterSyncGoldConverter.Vm = this;
+        ApplyPrecomputedMapPositions();
+        FinishMapPlacementForDisplay();
         CharactersLoaded = true;
         OnPropertyChanged(CharactersLoadedPropertyName);
     }
 
-    /// <summary>Tous les persos locaux visibles sur WowMap.png (WowSync puis pile pour le reste).</summary>
-    public void EnsureCharactersVisibleOnMap()
+    /// <summary>Applique les coords absolues calculées au warmup (cache map-positions-cache.json).</summary>
+    private void ApplyPrecomputedMapPositions()
     {
-        ReloadZoneCalibration();
+        if (_precomputedPlacements == null || _precomputedPlacements.Count == 0)
+            return;
+
+        var byKey = _precomputedPlacements.ToDictionary(
+            p => p.SyncKey,
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var ch in Characters.Where(c => !c.IsExternal && !string.IsNullOrEmpty(c.SyncKey)))
+        {
+            if (!byKey.TryGetValue(ch.SyncKey, out var placement) || !placement.Placed)
+                continue;
+
+            ApplySyncPosition(ch, placement.MapX, placement.MapY);
+        }
+
+        _mapPositionsReady = true;
+        _zoneCalibrationLoaded = true;
+    }
+
+    public bool MapPositionsReady => _mapPositionsReady;
+
+    /// <summary>Marqueurs carte : IsPlacedOnMap + pile pour le reste (sans recalcul zone).</summary>
+    public void RefreshMapDisplayPlacement() => FinishMapPlacementForDisplay();
+
+    private void FinishMapPlacementForDisplay()
+    {
+        foreach (var ch in Characters.Where(IsEligibleForStartupMapPlacement))
+            ch.IsPlacedOnMap = true;
+
+        ReorganizePlacedOnMapStacks();
+        _appliedMapPlacementStamp = _mapPlacementStamp;
+
+        RefreshUnplacedCharacters();
+        if (ApplyFiltersChanged())
+            OnPropertyChanged(nameof(FilteredCharacters));
+        OnPropertyChanged(nameof(OverlayChanged));
+    }
+
+    /// <summary>Tous les persos locaux visibles sur WowMap.png (WowSync puis pile pour le reste).</summary>
+    public void EnsureCharactersVisibleOnMap(bool force = false)
+    {
+        if (!force && _appliedMapPlacementStamp == _mapPlacementStamp)
+            return;
+
+        if (!force && _mapPositionsReady)
+        {
+            FinishMapPlacementForDisplay();
+            return;
+        }
+
+        EnsureZoneCalibrationLoaded();
 
         foreach (var ch in Characters.Where(IsEligibleForStartupMapPlacement))
             ch.IsPlacedOnMap = true;
 
         ApplyZonePositionsFromWowSync();
         ReorganizePlacedOnMapStacks();
-        ApplyFilters();
-        OnPropertyChanged(nameof(FilteredCharacters));
+        _appliedMapPlacementStamp = _mapPlacementStamp;
+        _mapPositionsReady = true;
+
+        RefreshUnplacedCharacters();
+        if (ApplyFiltersChanged())
+            OnPropertyChanged(nameof(FilteredCharacters));
         OnPropertyChanged(nameof(OverlayChanged));
+    }
+
+    private void RebuildPrecomputedMapPositions()
+    {
+        var accounts = GetCachedWowSyncAccounts();
+        _precomputedPlacements = CartoMapPositionPrecompute.ComputeForAccounts(accounts);
+        ApplyPrecomputedMapPositions();
+    }
+
+    private void BumpMapPlacementStamp() => _mapPlacementStamp++;
+
+    private bool ApplyFiltersChanged()
+    {
+        var hiddenFriends = _userProfile.Friends
+            .Where(f => !f.IsVisible).Select(f => f.Guid).ToHashSet();
+
+        var filtered = Characters.AsEnumerable()
+            .Where(c => !c.IsHidden)
+            .Where(IsCharacterInVisibleRosterSubtree)
+            .Where(c => !c.IsExternal || (c.ExternalSource != null && !hiddenFriends.Contains(c.ExternalSource)));
+
+        if (FilterClass.HasValue)
+            filtered = filtered.Where(c => c.Class == FilterClass.Value);
+
+        if (FilterLevelMin.HasValue)
+            filtered = filtered.Where(c => c.Level >= FilterLevelMin.Value);
+
+        if (FilterLevelMax.HasValue)
+            filtered = filtered.Where(c => c.Level <= FilterLevelMax.Value);
+
+        if (!string.IsNullOrEmpty(FilterAccountId))
+            filtered = filtered.Where(c => c.AccountId == FilterAccountId);
+
+        if (!string.IsNullOrEmpty(FilterName))
+            filtered = filtered.Where(c => c.Name.Contains(FilterName, StringComparison.OrdinalIgnoreCase));
+
+        if (FilterStatus.HasValue)
+            filtered = filtered.Where(c => c.Status == FilterStatus.Value);
+
+        var list = filtered.ToList();
+        if (FilteredListsEqual(FilteredCharacters, list))
+            return false;
+
+        FilteredCharacters = new ObservableCollection<WowCharacter>(list);
+        return true;
     }
 
     /// <summary>Préchargement au splash : persos, carte, placement.</summary>
@@ -154,13 +270,19 @@ public partial class CartoViewModel : ObservableObject
         var (mapW, mapH) = CartoMapPreloader.PixelSize;
 
         Report(72, "Placement des personnages sur la carte…");
+        if (!CharactersLoaded)
+            await EnsureCharacterDataLoadedAsync().ConfigureAwait(false);
+
         var uiDispatcher = System.Windows.Application.Current?.Dispatcher
                            ?? throw new InvalidOperationException("Application WPF non initialisée.");
         await uiDispatcher.InvokeAsync(() =>
         {
             if (NeedsMigration && mapW > 0 && mapH > 0)
                 MigrateCoordinates(mapW, mapH);
-            EnsureCharactersVisibleOnMap();
+            if (!_mapPositionsReady)
+                EnsureCharactersVisibleOnMap(force: true);
+            else
+                FinishMapPlacementForDisplay();
         }, DispatcherPriority.Background);
 
         Report(90, "Préparation de l'interface Carto…");
@@ -458,37 +580,8 @@ public partial class CartoViewModel : ObservableObject
 
     private void ApplyFilters()
     {
-        var hiddenFriends = _userProfile.Friends
-            .Where(f => !f.IsVisible).Select(f => f.Guid).ToHashSet();
-
-        var filtered = Characters.AsEnumerable()
-            .Where(c => !c.IsHidden)
-            .Where(IsCharacterInVisibleRosterSubtree)
-            .Where(c => !c.IsExternal || (c.ExternalSource != null && !hiddenFriends.Contains(c.ExternalSource)));
-
-        if (FilterClass.HasValue)
-            filtered = filtered.Where(c => c.Class == FilterClass.Value);
-
-        if (FilterLevelMin.HasValue)
-            filtered = filtered.Where(c => c.Level >= FilterLevelMin.Value);
-
-        if (FilterLevelMax.HasValue)
-            filtered = filtered.Where(c => c.Level <= FilterLevelMax.Value);
-
-        if (!string.IsNullOrEmpty(FilterAccountId))
-            filtered = filtered.Where(c => c.AccountId == FilterAccountId);
-
-        if (!string.IsNullOrEmpty(FilterName))
-            filtered = filtered.Where(c => c.Name.Contains(FilterName, StringComparison.OrdinalIgnoreCase));
-
-        if (FilterStatus.HasValue)
-            filtered = filtered.Where(c => c.Status == FilterStatus.Value);
-
-        var list = filtered.ToList();
-        if (FilteredListsEqual(FilteredCharacters, list))
-            return;
-
-        FilteredCharacters = new ObservableCollection<WowCharacter>(list);
+        if (ApplyFiltersChanged())
+            OnPropertyChanged(nameof(FilteredCharacters));
     }
 
     private static bool FilteredListsEqual(
@@ -668,8 +761,6 @@ public partial class CartoViewModel : ObservableObject
                      .OrderBy(c => Accounts.FirstOrDefault(a => a.Id == c.AccountId)?.Name ?? "")
                      .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
         {
-            if (ch.HasCustomMapPosition)
-                continue;
             if (HasWowSyncMapPosition(ch))
                 continue;
 
@@ -679,13 +770,147 @@ public partial class CartoViewModel : ObservableObject
         }
     }
 
-    private bool HasWowSyncMapPosition(WowCharacter ch)
+    private bool HasWowSyncMapPosition(WowCharacter ch) => HasEffectiveWorldMapPlacement(ch);
+
+    public bool HasEffectiveWorldMapPlacement(WowCharacter ch)
     {
+        if (ch.IsExternal || !ch.IsPlacedOnMap)
+            return false;
+
         var sync = FindWowSyncCharacter(ch);
         if (sync == null || (sync.X <= 0 && sync.Y <= 0))
             return false;
 
-        return ClassicEraMapProjection.TryConvert(sync, out _, out _);
+        return ClassicEraMapProjection.TryConvert(sync, out _, out _)
+               || CartoDungeonMarkerResolver.TryResolve(sync.Zone, sync.SubZone, out _, out _);
+    }
+
+    public ObservableCollection<CartoUnplacedCharacterItem> UnplacedCharacters { get; } = [];
+
+    public void RefreshUnplacedCharacters()
+    {
+        if (!IsZonesPanelOpen)
+            return;
+
+        var list = new List<CartoUnplacedCharacterItem>();
+        foreach (var ch in Characters.Where(IsEligibleForStartupMapPlacement))
+        {
+            var sync = FindWowSyncCharacter(ch);
+            if (sync != null && (sync.X > 0 || sync.Y > 0)
+                && (ClassicEraMapProjection.TryConvert(sync, out _, out _)
+                    || CartoDungeonMarkerResolver.TryResolve(sync.Zone, sync.SubZone, out _, out _)))
+                continue;
+
+            if (sync == null && !ch.IsPlacedOnMap)
+                continue;
+            var account = Accounts.FirstOrDefault(a => a.Id == ch.AccountId);
+            var reason = ClassifyUnplacedReason(ch, sync);
+            var coords = sync == null
+                ? "—"
+                : sync.X > 0 || sync.Y > 0
+                    ? $"{sync.X * 100:F1}, {sync.Y * 100:F1}"
+                    : "0, 0";
+
+            list.Add(new CartoUnplacedCharacterItem
+            {
+                SyncKey = ch.SyncKey,
+                Name = ch.Name,
+                AccountName = account?.Name ?? "",
+                Zone = sync?.Zone ?? "",
+                SubZone = sync?.SubZone ?? "",
+                MapId = sync?.MapId ?? 0,
+                CoordsDisplay = coords,
+                Reason = reason,
+                IsOnStack = CartoMapLayout.IsStackPosition(ch.MapX, ch.MapY)
+            });
+        }
+
+        var ordered = list
+            .OrderBy(i => i.AccountName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (UnplacedListsEqual(UnplacedCharacters, ordered))
+            return;
+
+        UnplacedCharacters.Clear();
+        foreach (var item in ordered)
+            UnplacedCharacters.Add(item);
+
+        if (SelectedZoneRect == null && SelectedDungeonMarker == null)
+        {
+            var n = UnplacedCharacters.Count;
+            ZonePanelStatusMessage = n == 0
+                ? "Tous les personnages visibles sont placés sur la carte."
+                : $"{n} personnage(s) non placés (zone / instance / coords) — voir liste ci-dessous.";
+        }
+
+    }
+
+    private static bool UnplacedListsEqual(
+        IReadOnlyList<CartoUnplacedCharacterItem> current,
+        List<CartoUnplacedCharacterItem> next)
+    {
+        if (current.Count != next.Count)
+            return false;
+
+        for (var i = 0; i < current.Count; i++)
+        {
+            var a = current[i];
+            var b = next[i];
+            if (!a.SyncKey.Equals(b.SyncKey, StringComparison.OrdinalIgnoreCase)
+                || a.Reason != b.Reason
+                || a.MapId != b.MapId)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static CartoUnplacedReason ClassifyUnplacedReason(WowCharacter ch, WowCharacterData? sync)
+    {
+        if (sync == null)
+            return CartoUnplacedReason.NoSync;
+        if (sync.X <= 0 && sync.Y <= 0)
+            return CartoUnplacedReason.CoordsZero;
+        if (LooksLikeInstanceZone(sync))
+            return CartoUnplacedReason.InInstance;
+        return CartoUnplacedReason.ZoneNotCalibrated;
+    }
+
+    private static bool LooksLikeInstanceZone(WowCharacterData sync)
+    {
+        if (CartoDungeonMarkerResolver.TryResolve(sync.Zone, sync.SubZone, out _, out _))
+            return false;
+
+        var blob = $"{sync.Zone} {sync.SubZone}".ToLowerInvariant();
+        foreach (var entry in CartoDungeonCatalog.All)
+        {
+            if (blob.Contains(entry.NameFr.ToLowerInvariant(), StringComparison.Ordinal))
+                return true;
+        }
+
+        return sync.MapId > 0
+               && !ClassicEraMapProjection.IsCapitalMap(sync.MapId)
+               && !IsKnownOpenWorldMapId(sync.MapId);
+    }
+
+    private static bool IsKnownOpenWorldMapId(int mapId) =>
+        ClassicEraMapProjection.TryGetCatalogEntry(mapId, out _);
+
+    [RelayCommand]
+    private void SelectUnplacedCharacter(CartoUnplacedCharacterItem? item)
+    {
+        if (item == null)
+            return;
+
+        var ch = Characters.FirstOrDefault(c =>
+            c.SyncKey.Equals(item.SyncKey, StringComparison.OrdinalIgnoreCase));
+        if (ch == null)
+            return;
+
+        SelectedCharacter = ch;
+        ZonePanelStatusMessage = $"{ch.Name} : {item.ZoneDisplay} — {item.ReasonDisplay}";
     }
 
     /// <summary>Change la catégorie et replace le perso (cadre gauche ou pile carte).</summary>
@@ -723,15 +948,19 @@ public partial class CartoViewModel : ObservableObject
     /// <summary>Place un perso sur la carte à une position précise (drag depuis un cadre).</summary>
     public void PlaceCharacterOnMapAt(WowCharacter character, double mapX, double mapY)
     {
-        if (character.IsExternal) return;
+        if (character.IsExternal)
+        {
+            character.IsPlacedOnMap = true;
+            character.MapX = Math.Clamp(mapX, 0, 1);
+            character.MapY = Math.Clamp(mapY, 0, 1);
+            ApplyFilters();
+            Save();
+            return;
+        }
 
         character.IsPlacedOnMap = true;
-        character.MapX = Math.Clamp(mapX, 0, 1);
-        character.MapY = Math.Clamp(mapY, 0, 1);
-        if (!string.IsNullOrEmpty(character.SyncKey))
-            character.HasCustomMapPosition = true;
-
-        ReorganizePlacedOnMapStacks();
+        if (!TryApplyWowSyncMapPosition(character))
+            ReorganizePlacedOnMapStacks();
         ApplyFilters();
         Save();
     }
@@ -770,33 +999,38 @@ public partial class CartoViewModel : ObservableObject
 
     public void ApplyMapPosition(WowCharacter ch, double x, double y)
     {
-        ch.MapX = x;
-        ch.MapY = y;
-        if (!string.IsNullOrEmpty(ch.SyncKey))
-            ch.HasCustomMapPosition = true;
+        if (ch.IsExternal)
+        {
+            ch.MapX = Math.Clamp(x, 0, 1);
+            ch.MapY = Math.Clamp(y, 0, 1);
+            return;
+        }
+
+        TryApplyWowSyncMapPosition(ch);
     }
 
     public void ApplySyncPosition(WowCharacter cartoChar, double mapX, double mapY)
     {
         cartoChar.MapX = mapX;
         cartoChar.MapY = mapY;
+        cartoChar.HasCustomMapPosition = false;
     }
 
     /// <summary>Recharge la liste depuis WowSync. Ne réorganise la carte que si <paramref name="reapplyMapLayout"/>.</summary>
-    public int RefreshCharactersFromWowSync(bool saveAfter = true, bool reapplyMapLayout = false)
+    public int RefreshCharactersFromWowSync(bool saveAfter = false, bool reapplyMapLayout = false)
     {
         _wowSyncCache = null;
         _syncByKey.Clear();
+        _syncByNormalizedKey.Clear();
         var syncAccounts = GetCachedWowSyncAccounts();
         RebuildSyncIndex();
-        var extrasByKey = _data.CharacterExtras
-            .ToDictionary(e => e.SyncKey, StringComparer.OrdinalIgnoreCase);
+        var extrasByKey = BuildExtrasByKey();
         var profilesByKey = _data.CharacterProfiles
             .ToDictionary(p => p.SyncKey, StringComparer.OrdinalIgnoreCase);
 
         var external = Characters.Where(c => c.IsExternal).ToList();
-        var preservedAccounts = Accounts
-            .Concat(_data.Accounts)
+        var preservedAccounts = _data.Accounts
+            .Concat(Accounts)
             .Where(a => !string.IsNullOrWhiteSpace(a.SourceFolder))
             .GroupBy(a => a.SourceFolder, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
@@ -842,17 +1076,19 @@ public partial class CartoViewModel : ObservableObject
                 _data.AccountSettings[sourceFolder] = new CartoAccountConfig
                 {
                     DisplayName = displayName,
-                    UserId = GetDefaultUserId()
+                    UserId = CartoUserMigration.ResolveDefaultUserIdForFolder(sourceFolder, _data)
+                        ?? GetDefaultUserId()
                 };
             }
 
             foreach (var syncChar in syncAccount.Characters.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
             {
-                extrasByKey.TryGetValue(syncChar.Key, out var extras);
-                profilesByKey.TryGetValue(syncChar.Key, out var profile);
+                var extras = ResolveCharacterExtras(extrasByKey, syncChar);
+                CartoCharacterProfile? profile = null;
+                if (!profilesByKey.TryGetValue(syncChar.Key, out profile)
+                    && !string.IsNullOrEmpty(syncChar.StorageKey))
+                    profilesByKey.TryGetValue(syncChar.StorageKey, out profile);
                 var cartoChar = CartoSyncMapper.ToCartoCharacter(syncChar, account.Id, extras, profile, stackIndex);
-                if (cartoChar.IsPlacedOnMap && !cartoChar.HasCustomMapPosition)
-                    stackIndex++;
                 CartoSyncMapper.ApplyCooldownsFromSync(syncChar, cartoChar);
                 CartoCharacterEnricher.ApplyFromSync(syncChar, cartoChar);
                 Characters.Add(cartoChar);
@@ -873,9 +1109,12 @@ public partial class CartoViewModel : ObservableObject
 
         CleanupAccountsFromWowSync();
 
-        EnsureCharactersVisibleOnMap();
+        BumpMapPlacementStamp();
+        RebuildPrecomputedMapPositions();
+        FinishMapPlacementForDisplay();
 
         AccountIdToNameConverter.Accounts = [.. Accounts];
+        CharacterSyncGoldConverter.Vm = this;
         ApplyFilters();
         OnPropertyChanged(nameof(OverlayChanged));
 
@@ -912,24 +1151,51 @@ public partial class CartoViewModel : ObservableObject
         if (sync.X <= 0 && sync.Y <= 0)
             return "Coords à 0 — reconnectez-vous en jeu, /reload, puis actualisez WowSync.";
 
-        ReloadZoneCalibration();
+        EnsureZoneCalibrationLoaded();
 
-        if (!ClassicEraMapProjection.TryConvert(sync, out var mapX, out var mapY))
+        if (!ClassicEraMapProjection.TryConvert(sync, out var mapX, out var mapY)
+            && !CartoDungeonMarkerResolver.TryResolve(sync.Zone, sync.SubZone, out mapX, out mapY))
         {
-            var zoneLabel = WowZoneLocalization.FormatDisplay(sync.Zone, sync.SubZone);
-            return $"Zone non calibrée ou inconnue : « {zoneLabel} » (map {sync.MapId}).\n"
-                   + "Ajoutez/ajustez le rectangle dans Carto → Zones.";
+            var zoneLabel = string.IsNullOrWhiteSpace(sync.Zone) ? "?" : sync.Zone;
+            if (!string.IsNullOrWhiteSpace(sync.SubZone))
+                zoneLabel += $" — {sync.SubZone}";
+            return $"Zone non calibrée : « {zoneLabel} » (map {sync.MapId}).\n"
+                   + "Calibrez le rectangle (volet Zones) ou placez un repère donjon, puis réessayez.";
         }
 
+        ApplySyncPosition(character, mapX, mapY);
         character.IsPlacedOnMap = true;
-        character.MapX = mapX;
-        character.MapY = mapY;
-        character.HasCustomMapPosition = false;
 
         Save();
         ApplyFilters();
+        RefreshUnplacedCharacters();
         OnPropertyChanged(nameof(OverlayChanged));
+
+        if (ClassicEraMapProjection.IsCapitalMap(sync.MapId) && CartoRuntimeOptions.ShowCapitalMaps)
+        {
+            return "Placé sur la mini-carte de capitale (ex. Orgrimmar). "
+                   + "Les marqueurs monde sont masqués tant que les capitales sont affichées à droite.";
+        }
+
         return null;
+    }
+
+    private void EnsureZoneCalibrationLoaded()
+    {
+        if (_zoneCalibrationLoaded)
+            return;
+
+        var calibrated = ZoneMapCalibration.LoadAll();
+        if (calibrated.Count > 0)
+            ClassicEraMapProjection.ApplyUserRects(calibrated);
+        _zoneCalibrationLoaded = true;
+    }
+
+    public void InvalidateZoneCalibration()
+    {
+        _zoneCalibrationLoaded = false;
+        _mapPositionsReady = false;
+        BumpMapPlacementStamp();
     }
 
     private static void ReloadZoneCalibration()
@@ -939,30 +1205,31 @@ public partial class CartoViewModel : ObservableObject
             ClassicEraMapProjection.ApplyUserRects(calibrated);
     }
 
-    /// <summary>Recalcule MapX/MapY depuis WowSync — chaque perso avec ses propres coords (clé Nom-Royaume).</summary>
-    private void ApplyZonePositionsFromWowSync(bool clearManualPositions = false)
+    /// <summary>Recalcule MapX/MapY uniquement depuis WowSync (addon).</summary>
+    private void ApplyZonePositionsFromWowSync()
     {
-        ReloadZoneCalibration();
+        EnsureZoneCalibrationLoaded();
 
         foreach (var ch in Characters.Where(c =>
                      !c.IsExternal && !c.IsHidden && !c.ExcludeFromSync))
-        {
-            if (!clearManualPositions && ch.HasCustomMapPosition)
-                continue;
+            TryApplyWowSyncMapPosition(ch);
+    }
 
-            var sync = FindWowSyncCharacter(ch);
-            if (sync == null || (sync.X <= 0 && sync.Y <= 0))
-                continue;
+    /// <summary>Position carte depuis l'addon ; false si pas de coords / zone non calibrée.</summary>
+    private bool TryApplyWowSyncMapPosition(WowCharacter ch)
+    {
+        ch.HasCustomMapPosition = false;
 
-            if (!ClassicEraMapProjection.TryConvert(sync, out var mapX, out var mapY))
-                continue;
+        var sync = FindWowSyncCharacter(ch);
+        if (sync == null || (sync.X <= 0 && sync.Y <= 0))
+            return false;
 
-            ch.IsPlacedOnMap = true;
-            ch.MapX = mapX;
-            ch.MapY = mapY;
-            if (clearManualPositions)
-                ch.HasCustomMapPosition = false;
-        }
+        if (!ClassicEraMapProjection.TryConvert(sync, out var mapX, out var mapY)
+            && !CartoDungeonMarkerResolver.TryResolve(sync.Zone, sync.SubZone, out mapX, out mapY))
+            return false;
+
+        ApplySyncPosition(ch, mapX, mapY);
+        return true;
     }
 
     private bool IsEligibleForStartupMapPlacement(WowCharacter ch) =>
@@ -993,7 +1260,7 @@ public partial class CartoViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void RefreshWowSync()
+    private async Task RefreshWowSync()
     {
         try
         {
@@ -1008,8 +1275,16 @@ public partial class CartoViewModel : ObservableObject
             }
 
             _wowSyncCache = null;
-            RefreshCharactersFromWowSync(reapplyMapLayout: false);
-            ApplyZonePositionsFromWowSync();
+            BumpMapPlacementStamp();
+            RefreshCharactersFromWowSync(saveAfter: false, reapplyMapLayout: false);
+
+            var placements = await Task.Run(() =>
+                CartoMapPositionPrecompute.ComputeForAccounts(TryReadWowSyncAccounts())).ConfigureAwait(true);
+
+            _precomputedPlacements = placements;
+            ApplyPrecomputedMapPositions();
+            FinishMapPlacementForDisplay();
+
             ApplySyncEnrichmentForAll();
             UpdateItemSearch();
             ApplyFilters();
@@ -1045,27 +1320,141 @@ public partial class CartoViewModel : ObservableObject
 
     public WowCharacterData? FindWowSyncCharacter(WowCharacter ch)
     {
-        if (ch.IsExternal || string.IsNullOrEmpty(ch.SyncKey))
+        if (ch.IsExternal)
             return null;
 
-        if (_syncByKey.TryGetValue(ch.SyncKey, out var found))
+        EnsureSyncIndex();
+        if (TryGetSyncCharacter(ch.SyncKey, out var found))
             return found;
 
+        if (!string.IsNullOrEmpty(ch.Name)
+            && TryGetSyncByNameRealm(ch.Name, ch.SyncKey, out found))
+            return found;
+
+        return null;
+    }
+
+    private void EnsureSyncIndex()
+    {
+        if (_syncByKey.Count > 0)
+            return;
         RebuildSyncIndex();
-        return _syncByKey.TryGetValue(ch.SyncKey, out found) ? found : null;
+    }
+
+    private bool TryGetSyncCharacter(string? key, out WowCharacterData found)
+    {
+        found = null!;
+        if (string.IsNullOrWhiteSpace(key))
+            return false;
+
+        if (_syncByKey.TryGetValue(key, out found!))
+            return true;
+
+        if (_syncByNormalizedKey.TryGetValue(CartoCharacterSyncKey.Normalize(key), out found!))
+            return true;
+
+        return false;
+    }
+
+    private bool TryGetSyncByNameRealm(string name, string? syncKey, out WowCharacterData found)
+    {
+        found = null!;
+        var realm = ExtractRealmFromSyncKey(syncKey);
+        foreach (var account in GetCachedWowSyncAccounts())
+        {
+            foreach (var c in account.Characters)
+            {
+                if (!name.Equals(c.Name, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (realm != null && !realm.Equals(c.Realm, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                found = c;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string? ExtractRealmFromSyncKey(string? syncKey)
+    {
+        if (string.IsNullOrWhiteSpace(syncKey))
+            return null;
+        var dash = syncKey.IndexOf('-');
+        return dash < 0 ? null : syncKey[(dash + 1)..].Trim();
     }
 
     private void RebuildSyncIndex()
     {
         _syncByKey.Clear();
+        _syncByNormalizedKey.Clear();
         foreach (var account in GetCachedWowSyncAccounts())
         {
             foreach (var c in account.Characters)
             {
-                if (!string.IsNullOrEmpty(c.Key))
-                    _syncByKey[c.Key] = c;
+                RegisterSyncCharacter(c.Key, c);
+                if (!string.IsNullOrEmpty(c.StorageKey))
+                    RegisterSyncCharacter(c.StorageKey, c);
             }
         }
+    }
+
+    private void RegisterSyncCharacter(string key, WowCharacterData c)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return;
+
+        _syncByKey[key] = c;
+        _syncByNormalizedKey[CartoCharacterSyncKey.Normalize(key)] = c;
+    }
+
+    private Dictionary<string, CartoCharacterExtras> BuildExtrasByKey()
+    {
+        var result = new Dictionary<string, CartoCharacterExtras>(StringComparer.OrdinalIgnoreCase);
+        foreach (var extra in _data.CharacterExtras)
+        {
+            if (string.IsNullOrWhiteSpace(extra.SyncKey))
+                continue;
+
+            result[extra.SyncKey] = extra;
+            var norm = CartoCharacterSyncKey.Normalize(extra.SyncKey);
+            if (!result.ContainsKey(norm))
+                result[norm] = extra;
+        }
+
+        return result;
+    }
+
+    private static CartoCharacterExtras? ResolveCharacterExtras(
+        Dictionary<string, CartoCharacterExtras> extrasByKey,
+        WowCharacterData sync)
+    {
+        if (extrasByKey.TryGetValue(sync.Key, out var extras)
+            || (!string.IsNullOrEmpty(sync.StorageKey) && extrasByKey.TryGetValue(sync.StorageKey, out extras)))
+        {
+            if (!CartoCharacterSyncKey.Equals(extras.SyncKey, sync.Key))
+                extras.SyncKey = sync.Key;
+            return extras;
+        }
+
+        var norm = CartoCharacterSyncKey.Normalize(sync.Key);
+        if (extrasByKey.TryGetValue(norm, out extras))
+        {
+            extras.SyncKey = sync.Key;
+            return extras;
+        }
+
+        if (!string.IsNullOrEmpty(sync.StorageKey))
+        {
+            norm = CartoCharacterSyncKey.Normalize(sync.StorageKey);
+            if (extrasByKey.TryGetValue(norm, out extras))
+            {
+                extras.SyncKey = sync.Key;
+                return extras;
+            }
+        }
+
+        return null;
     }
 
     private List<WowAccountData> GetCachedWowSyncAccounts()
@@ -1156,6 +1545,25 @@ public partial class CartoViewModel : ObservableObject
         }
     }
 
+    /// <summary>Supprime les positions carte sauvegardées hors addon (pile / drag manuel).</summary>
+    private void MigrateStripNonAddonMapPositions()
+    {
+        var changed = false;
+        foreach (var extra in _data.CharacterExtras)
+        {
+            if (!extra.HasCustomMapPosition && extra.MapX == 0 && extra.MapY == 0)
+                continue;
+
+            extra.HasCustomMapPosition = false;
+            extra.MapX = 0;
+            extra.MapY = 0;
+            changed = true;
+        }
+
+        if (changed)
+            _cartoService.Save(_data);
+    }
+
     private void ApplyConfiguredAccountSettings()
     {
         foreach (var account in _data.Accounts)
@@ -1224,6 +1632,37 @@ public partial class CartoViewModel : ObservableObject
         foreach (var ch in scopeChars ?? Characters)
         {
             if (GetUserIdForCharacter(ch) != userId)
+                continue;
+
+            var sync = FindWowSyncCharacter(ch);
+            if (sync != null)
+                total += sync.Gold;
+        }
+
+        return total;
+    }
+
+    public IReadOnlyList<WowCharacter> GetLocalCharactersForUserCategory(string userId, CharacterStatus category)
+    {
+        var statuses = StatusesForRosterCategory(category).ToHashSet();
+        return Characters
+            .Where(c => !c.IsExternal
+                        && GetUserIdForCharacter(c) == userId
+                        && statuses.Contains(c.Status))
+            .ToList();
+    }
+
+    public long GetAccountGoldCopper(string sourceFolder)
+    {
+        if (string.IsNullOrWhiteSpace(sourceFolder))
+            return 0;
+
+        long total = 0;
+        foreach (var ch in Characters.Where(c => !c.IsExternal))
+        {
+            var account = Accounts.FirstOrDefault(a => a.Id == ch.AccountId);
+            if (account == null
+                || !sourceFolder.Equals(account.SourceFolder, StringComparison.OrdinalIgnoreCase))
                 continue;
 
             var sync = FindWowSyncCharacter(ch);
@@ -1592,13 +2031,29 @@ public partial class CartoViewModel : ObservableObject
     /// <summary>Scanne les dossiers WTF WowSync et fusionne avec la config sauvegardée.</summary>
     public void RefreshAccountSettingRows()
     {
+        var pendingEdits = AccountSettingRows.ToDictionary(
+            r => r.SourceFolder,
+            r => (r.DisplayName, r.UserId),
+            StringComparer.OrdinalIgnoreCase);
+
         var syncAccounts = TryReadWowSyncAccounts();
         var rows = new List<AccountSettingRow>();
 
         foreach (var sync in syncAccounts.OrderBy(a => a.SourceAccountName, StringComparer.OrdinalIgnoreCase))
         {
             _data.AccountSettings.TryGetValue(sync.SourceAccountName, out var cfg);
-            rows.Add(AccountSettingRow.From(sync.SourceAccountName, cfg, sync.Characters.Count));
+            var row = AccountSettingRow.From(
+                sync.SourceAccountName,
+                cfg,
+                sync.Characters.Count,
+                GetAccountGoldCopper(sync.SourceAccountName));
+            if (pendingEdits.TryGetValue(sync.SourceAccountName, out var edit))
+            {
+                row.DisplayName = edit.DisplayName;
+                row.UserId = edit.UserId;
+            }
+
+            rows.Add(row);
         }
 
         foreach (var (folder, cfg) in _data.AccountSettings)
@@ -1609,7 +2064,14 @@ public partial class CartoViewModel : ObservableObject
             if (CartoUserMigration.GhostAccountFolders.Contains(folder))
                 continue;
 
-            rows.Add(AccountSettingRow.From(folder, cfg, 0));
+            var orphan = AccountSettingRow.From(folder, cfg, 0, GetAccountGoldCopper(folder));
+            if (pendingEdits.TryGetValue(folder, out var edit))
+            {
+                orphan.DisplayName = edit.DisplayName;
+                orphan.UserId = edit.UserId;
+            }
+
+            rows.Add(orphan);
         }
 
         AccountSettingRows = new ObservableCollection<AccountSettingRow>(rows);
@@ -1628,9 +2090,21 @@ public partial class CartoViewModel : ObservableObject
 
     public void SaveAccountSettingsFromRows()
     {
-        _data.AccountSettings = AccountSettingRows
-            .ToDictionary(r => r.SourceFolder, r => r.ToConfig(), StringComparer.OrdinalIgnoreCase);
+        var merged = new Dictionary<string, CartoAccountConfig>(StringComparer.OrdinalIgnoreCase);
 
+        foreach (var row in AccountSettingRows)
+        {
+            _data.AccountSettings.TryGetValue(row.SourceFolder, out var previous);
+            merged[row.SourceFolder] = row.ToConfig(previous);
+        }
+
+        foreach (var (folder, cfg) in _data.AccountSettings)
+        {
+            if (!merged.ContainsKey(folder))
+                merged[folder] = cfg;
+        }
+
+        _data.AccountSettings = merged;
         _data.AccountDisplayNames = _data.AccountSettings.ToDictionary(
             kv => kv.Key,
             kv => kv.Value.DisplayName,
@@ -1646,6 +2120,7 @@ public partial class CartoViewModel : ObservableObject
     {
         ApplyConfiguredAccountSettings();
         AccountIdToNameConverter.Accounts = [.. Accounts];
+        CharacterSyncGoldConverter.Vm = this;
         OnPropertyChanged(nameof(CartoUsers));
     }
 
@@ -1838,6 +2313,7 @@ public partial class CartoViewModel : ObservableObject
     {
         PersistDataForSync();
         AccountIdToNameConverter.Accounts = [.. Accounts];
+        CharacterSyncGoldConverter.Vm = this;
         _cartoService.Save(BuildDiskSnapshot());
     }
 
@@ -1959,8 +2435,23 @@ public partial class CartoViewModel : ObservableObject
 
     public ObservableCollection<CartoZoneRectItem> ZoneRects { get; } = [];
 
+    /// <summary>Zones monde calibrées (hors capitales), pour la liste du volet Zones.</summary>
+    public ObservableCollection<CartoZoneRectItem> WorldZoneRects { get; } = [];
+
+    public ObservableCollection<CartoDungeonMarker> DungeonMarkers { get; } = [];
+
     public IReadOnlyList<ClassicEraMapProjection.ZoneCatalogEntry> ZoneCatalog
         => ClassicEraMapProjection.GetZoneCatalog();
+
+    public IReadOnlyList<CartoDungeonCatalog.DungeonEntry> DungeonCatalog
+        => CartoDungeonCatalog.All;
+
+    public ObservableCollection<ZoneCatalogListItem> ZoneCatalogItems { get; } = [];
+
+    public ObservableCollection<DungeonCatalogListItem> DungeonCatalogItems { get; } = [];
+
+    [ObservableProperty]
+    private bool _isZonesPanelOpen;
 
     [ObservableProperty]
     private bool _isZoneEditMode;
@@ -1969,7 +2460,43 @@ public partial class CartoViewModel : ObservableObject
     private CartoZoneRectItem? _selectedZoneRect;
 
     [ObservableProperty]
+    private CartoDungeonMarker? _selectedDungeonMarker;
+
+    [ObservableProperty]
     private int? _zoneToAddMapId;
+
+    [ObservableProperty]
+    private string? _dungeonToPlaceKey;
+
+    [ObservableProperty]
+    private bool _isPlacingDungeonMarker;
+
+    [ObservableProperty]
+    private string? _zonePanelStatusMessage;
+
+    partial void OnIsZonesPanelOpenChanged(bool value)
+    {
+        IsZoneEditMode = value;
+        if (value)
+        {
+            IsPlacingCharacter = false;
+            IsPlacingTimer = false;
+            LoadZoneRects();
+            LoadDungeonMarkers();
+            RefreshZoneCatalogItems();
+            SyncSelectedZoneFromCombo();
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                RefreshUnplacedCharacters,
+                System.Windows.Threading.DispatcherPriority.Background);
+        }
+        else
+        {
+            IsPlacingDungeonMarker = false;
+            ZonePanelStatusMessage = null;
+        }
+
+        OnPropertyChanged(nameof(OverlayChanged));
+    }
 
     partial void OnIsZoneEditModeChanged(bool value)
     {
@@ -1987,7 +2514,52 @@ public partial class CartoViewModel : ObservableObject
     partial void OnSelectedZoneRectChanged(CartoZoneRectItem? value)
     {
         if (value != null)
+        {
             ZoneToAddMapId = value.MapId;
+            SelectedDungeonMarker = null;
+            ZonePanelStatusMessage = $"Zone : {value.DisplayName} — les autres sont masquées";
+        }
+        else if (IsZonesPanelOpen)
+            ZonePanelStatusMessage = "Toutes les zones visibles sur la carte";
+
+        OnPropertyChanged(nameof(OverlayChanged));
+    }
+
+    partial void OnSelectedDungeonMarkerChanged(CartoDungeonMarker? value)
+    {
+        if (value != null)
+        {
+            SelectedZoneRect = null;
+            ZonePanelStatusMessage = $"Donjon : {value.DisplayName} — les autres repères sont masqués";
+        }
+        else if (IsZonesPanelOpen && SelectedZoneRect == null)
+            ZonePanelStatusMessage = "Tous les repères donjons visibles";
+
+        OnPropertyChanged(nameof(OverlayChanged));
+    }
+
+    [RelayCommand]
+    private void ClearZoneMapFocus()
+    {
+        SelectedZoneRect = null;
+    }
+
+    [RelayCommand]
+    private void ClearDungeonMapFocus()
+    {
+        SelectedDungeonMarker = null;
+        IsPlacingDungeonMarker = false;
+    }
+
+    partial void OnIsPlacingDungeonMarkerChanged(bool value)
+    {
+        if (value)
+        {
+            IsPlacingCharacter = false;
+            IsPlacingTimer = false;
+            ZonePanelStatusMessage = "Clic sur la carte = placer le repère donjon";
+        }
+
         OnPropertyChanged(nameof(OverlayChanged));
     }
 
@@ -2034,11 +2606,151 @@ public partial class CartoViewModel : ObservableObject
 
         EnsureCapitalZoneRects();
 
-        var firstWorld = ZoneRects.FirstOrDefault(z => !ClassicEraMapProjection.IsCapitalMap(z.MapId))
-                         ?? ZoneRects.FirstOrDefault();
-        SelectedZoneRect = firstWorld;
-        if (firstWorld != null)
-            ZoneToAddMapId = firstWorld.MapId;
+        RefreshWorldZoneRects();
+
+        if (SelectedZoneRect == null || WorldZoneRects.All(z => !ReferenceEquals(z, SelectedZoneRect)))
+        {
+            var firstWorld = WorldZoneRects.FirstOrDefault();
+            SelectedZoneRect = firstWorld;
+            if (firstWorld != null)
+                ZoneToAddMapId = firstWorld.MapId;
+        }
+    }
+
+    private void RefreshWorldZoneRects()
+    {
+        WorldZoneRects.Clear();
+        foreach (var z in ZoneRects
+                     .Where(z => !ClassicEraMapProjection.IsCapitalMap(z.MapId))
+                     .OrderBy(z => z.DisplayName, StringComparer.OrdinalIgnoreCase))
+            WorldZoneRects.Add(z);
+    }
+
+    private void RefreshZoneCatalogItems()
+    {
+        ZoneCatalogItems.Clear();
+        foreach (var z in ZoneCatalog
+                     .Where(z => !ClassicEraMapProjection.IsContinentMap(z.MapId))
+                     .OrderBy(z => z.DisplayName, StringComparer.OrdinalIgnoreCase))
+        {
+            ZoneCatalogItems.Add(new ZoneCatalogListItem
+            {
+                MapId = z.MapId,
+                DisplayName = z.DisplayName
+            });
+        }
+
+        DungeonCatalogItems.Clear();
+        foreach (var d in DungeonCatalog)
+        {
+            DungeonCatalogItems.Add(new DungeonCatalogListItem
+            {
+                Key = d.Key,
+                NameFr = d.NameFr,
+                ParentZoneFr = d.ParentZoneFr
+            });
+        }
+    }
+
+    private void LoadDungeonMarkers()
+    {
+        DungeonMarkers.Clear();
+        foreach (var m in DungeonMarkerStore.LoadAll()
+                     .OrderBy(m => m.DisplayName, StringComparer.OrdinalIgnoreCase))
+            DungeonMarkers.Add(m);
+    }
+
+    private CartoDungeonMarker? GetOrCreateDungeonMarker(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return null;
+
+        key = CartoDungeonMarkerResolver.NormalizeMarkerKey(key);
+        var existing = DungeonMarkers.FirstOrDefault(m => m.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+            return existing;
+
+        if (!CartoDungeonCatalog.TryGet(key, out var entry))
+            return null;
+
+        return new CartoDungeonMarker
+        {
+            Key = entry.Key,
+            NameFr = entry.NameFr
+        };
+    }
+
+    [RelayCommand]
+    private void AddWorldZoneFromPanel()
+    {
+        if (!TryAddZoneAt(0.42, 0.42))
+        {
+            ZonePanelStatusMessage = "Choisissez une zone dans la liste, ou cliquez sur la carte.";
+            return;
+        }
+
+        RefreshWorldZoneRects();
+        ZonePanelStatusMessage = "Rectangle ajouté — ajustez sur la carte.";
+    }
+
+    [RelayCommand]
+    private void StartPlaceDungeonMarker()
+    {
+        if (string.IsNullOrWhiteSpace(DungeonToPlaceKey))
+        {
+            ZonePanelStatusMessage = "Choisissez un donjon dans la liste, puis cliquez ＋.";
+            return;
+        }
+
+        DungeonToPlaceKey = CartoDungeonMarkerResolver.NormalizeMarkerKey(DungeonToPlaceKey);
+        SelectedDungeonMarker = GetOrCreateDungeonMarker(DungeonToPlaceKey);
+        IsPlacingDungeonMarker = true;
+    }
+
+    public bool TryPlaceDungeonMarkerAt(double mapX, double mapY)
+    {
+        if (string.IsNullOrWhiteSpace(DungeonToPlaceKey))
+            return false;
+
+        var marker = GetOrCreateDungeonMarker(DungeonToPlaceKey);
+        if (marker == null)
+            return false;
+
+        marker.MapX = Math.Clamp(mapX, 0, 1);
+        marker.MapY = Math.Clamp(mapY, 0, 1);
+
+        if (!DungeonMarkers.Contains(marker))
+            DungeonMarkers.Add(marker);
+
+        SortDungeonMarkers();
+        SelectedDungeonMarker = marker;
+        IsPlacingDungeonMarker = false;
+        PersistDungeonMarkers();
+        ZonePanelStatusMessage = $"Repère placé : {marker.DisplayName}";
+        OnPropertyChanged(nameof(OverlayChanged));
+        return true;
+    }
+
+    public void PersistDungeonMarkers() =>
+        DungeonMarkerStore.SaveAll(DungeonMarkers.Where(m => m.MapX > 0 || m.MapY > 0));
+
+    private void SortDungeonMarkers()
+    {
+        var sorted = DungeonMarkers.OrderBy(m => m.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+        DungeonMarkers.Clear();
+        foreach (var m in sorted)
+            DungeonMarkers.Add(m);
+    }
+
+    public void MoveSelectedDungeonMarker(double mapX, double mapY)
+    {
+        if (SelectedDungeonMarker == null)
+            return;
+
+        SelectedDungeonMarker.MapX = Math.Clamp(mapX, 0, 1);
+        SelectedDungeonMarker.MapY = Math.Clamp(mapY, 0, 1);
+        PersistDungeonMarkers();
+        OnPropertyChanged(nameof(OverlayChanged));
     }
 
     /// <summary>Ajoute un rectangle par défaut sur chaque mini-carte de capitale non encore calibrée.</summary>
@@ -2124,20 +2836,47 @@ public partial class CartoViewModel : ObservableObject
         SelectedZoneRect = item;
         ZoneToAddMapId = null;
         PersistZoneRects();
+        RefreshWorldZoneRects();
         OnPropertyChanged(nameof(OverlayChanged));
         return true;
     }
 
     [RelayCommand]
-    private void DeleteZone()
+    private void DeleteZone(CartoZoneRectItem? zone)
     {
-        if (SelectedZoneRect == null) return;
-        var idx = ZoneRects.IndexOf(SelectedZoneRect);
-        ZoneRects.Remove(SelectedZoneRect);
-        SelectedZoneRect = ZoneRects.Count == 0
-            ? null
-            : ZoneRects[Math.Min(idx, ZoneRects.Count - 1)];
+        var target = zone ?? SelectedZoneRect;
+        if (target == null)
+            return;
+
+        var idx = ZoneRects.IndexOf(target);
+        if (idx < 0)
+            return;
+
+        ZoneRects.RemoveAt(idx);
+        if (ReferenceEquals(SelectedZoneRect, target))
+        {
+            SelectedZoneRect = ZoneRects.FirstOrDefault(z => !ClassicEraMapProjection.IsCapitalMap(z.MapId));
+        }
+
         PersistZoneRects();
+        RefreshWorldZoneRects();
+        OnPropertyChanged(nameof(OverlayChanged));
+    }
+
+    [RelayCommand]
+    private void ClearDungeonMarker(CartoDungeonMarker? marker)
+    {
+        var target = marker ?? SelectedDungeonMarker;
+        if (target == null)
+            return;
+
+        var name = target.DisplayName;
+        DungeonMarkers.Remove(target);
+        if (ReferenceEquals(SelectedDungeonMarker, target))
+            SelectedDungeonMarker = null;
+
+        PersistDungeonMarkers();
+        ZonePanelStatusMessage = $"{name} : repère supprimé de la liste.";
         OnPropertyChanged(nameof(OverlayChanged));
     }
 
@@ -2150,6 +2889,11 @@ public partial class CartoViewModel : ObservableObject
 
         ZoneMapCalibration.SaveAll(dict);
         ClassicEraMapProjection.ApplyUserRects(dict);
+        InvalidateZoneCalibration();
+        _zoneCalibrationLoaded = true;
+        BumpMapPlacementStamp();
+        RebuildPrecomputedMapPositions();
+        FinishMapPlacementForDisplay();
         OnPropertyChanged(nameof(OverlayChanged));
     }
 }

@@ -50,6 +50,26 @@ public class NullableEnumConverter : IValueConverter
         => value;
 }
 
+public class CharacterSyncGoldConverter : IValueConverter
+{
+    public static ViewModels.CartoViewModel? Vm { get; set; }
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is Models.Carto.WowCharacter ch && Vm != null)
+        {
+            var sync = Vm.FindWowSyncCharacter(ch);
+            if (sync is { Gold: > 0 })
+                return sync.GoldDisplay;
+        }
+
+        return "—";
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
 public class AccountIdToNameConverter : IValueConverter
 {
     public static List<WowAccount>? Accounts { get; set; }

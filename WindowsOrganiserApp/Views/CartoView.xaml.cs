@@ -153,7 +153,7 @@ public partial class CartoView : UserControl
         _tooltipCharacter = null;
         if (Vm != null)
             Vm.SelectedCharacter = null;
-        RedrawMarkers();
+        RequestMapMarkersRefresh();
     }
 
     private void RequestMapMarkersRefresh()
@@ -161,7 +161,7 @@ public partial class CartoView : UserControl
         if (!_cartoUiLive)
             return;
 
-        _mapMarkersDebounce ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
+        _mapMarkersDebounce ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
         _mapMarkersDebounce.Stop();
         _mapMarkersDebounce.Tick -= MapMarkersDebounce_Tick;
         _mapMarkersDebounce.Tick += MapMarkersDebounce_Tick;
@@ -204,6 +204,8 @@ public partial class CartoView : UserControl
     private const string ZoneEditTag = "zone-edit";
     private CartoZoneRectItem? _zoneDragItem;
     private bool _zoneResizeDrag;
+    private CartoDungeonMarker? _dungeonDragMarker;
+    private Point _dungeonDragStartMap;
     private Point _zoneDragStartMap;
     private double _zoneDragStartLeft, _zoneDragStartTop, _zoneDragStartW, _zoneDragStartH;
 
@@ -221,15 +223,19 @@ public partial class CartoView : UserControl
             return;
 
         if (e.PropertyName is nameof(CartoViewModel.IsZoneEditMode)
+            or nameof(CartoViewModel.IsZonesPanelOpen)
             or nameof(CartoViewModel.OverlayChanged)
             or nameof(CartoViewModel.SelectedZoneRect)
+            or nameof(CartoViewModel.SelectedDungeonMarker)
+            or nameof(CartoViewModel.IsPlacingDungeonMarker)
             or nameof(CartoViewModel.ZoneToAddMapId))
         {
             if (e.PropertyName is nameof(CartoViewModel.OverlayChanged)
                 && (vm.ShowAllianceFlightPaths || vm.ShowHordeFlightPaths))
                 RedrawOverlays();
             ScheduleZoneEditorRedraw();
-            if (e.PropertyName is not nameof(CartoViewModel.SelectedZoneRect))
+            if (e.PropertyName is not nameof(CartoViewModel.SelectedZoneRect)
+                && e.PropertyName is not nameof(CartoViewModel.SelectedDungeonMarker))
                 RequestMapMarkersRefresh();
             return;
         }
@@ -237,6 +243,7 @@ public partial class CartoView : UserControl
         if (e.PropertyName is nameof(CartoViewModel.IsRosterOpen)
             or nameof(CartoViewModel.IsItemSearchOpen)
             or nameof(CartoViewModel.IsTimersPanelOpen)
+            or nameof(CartoViewModel.IsZonesPanelOpen)
             or nameof(CartoViewModel.IsSettingsPanelOpen))
         {
             ApplyRightPanelLayout();
@@ -270,10 +277,7 @@ public partial class CartoView : UserControl
         else if (isLoadEvent)
         {
             if (vm.CharactersLoaded)
-            {
                 RebuildCharacterRoster();
-                RequestMapMarkersRefresh();
-            }
             TryApplyCharacterUiWhenReady();
         }
     }
@@ -421,8 +425,10 @@ public partial class CartoView : UserControl
         var h = MapHeight;
         if (w <= 0 || h <= 0) return;
 
+        var focusZone = Vm.IsZonesPanelOpen && Vm.SelectedZoneRect != null;
         var zonesToDraw = Vm.ZoneRects
             .Where(z => !CartoRuntimeOptions.ShowCapitalMaps || !ClassicEraMapProjection.IsCapitalMap(z.MapId))
+            .Where(z => !focusZone || ReferenceEquals(z, Vm.SelectedZoneRect))
             .OrderBy(z => ReferenceEquals(z, Vm.SelectedZoneRect) ? 1 : 0)
             .ToList();
 
@@ -487,6 +493,104 @@ public partial class CartoView : UserControl
                 MapCanvas.Children.Add(handle);
             }
         }
+
+        RedrawDungeonMarkers();
+    }
+
+    private const string DungeonMarkerTag = "dungeon-marker";
+
+    private void RedrawDungeonMarkers()
+    {
+        for (var i = MapCanvas.Children.Count - 1; i >= 0; i--)
+        {
+            if (MapCanvas.Children[i] is FrameworkElement { Tag: string tag }
+                && (tag == DungeonMarkerTag || tag == "dungeon-marker-handle"))
+                MapCanvas.Children.RemoveAt(i);
+        }
+
+        if (Vm == null || !Vm.IsZonesPanelOpen)
+            return;
+
+        var w = MapWidth;
+        var h = MapHeight;
+        if (w <= 0 || h <= 0)
+            return;
+
+        var focusDungeon = Vm.SelectedDungeonMarker != null;
+        foreach (var marker in Vm.DungeonMarkers)
+        {
+            if (marker.MapX <= 0 && marker.MapY <= 0)
+                continue;
+            if (focusDungeon && !ReferenceEquals(marker, Vm.SelectedDungeonMarker))
+                continue;
+
+            var selected = ReferenceEquals(marker, Vm.SelectedDungeonMarker);
+            var size = selected ? 14.0 : 10.0;
+            var dot = new Ellipse
+            {
+                Width = size,
+                Height = size,
+                Fill = new SolidColorBrush(selected ? Color.FromRgb(0xBB, 0x99, 0xFF) : Color.FromRgb(0x88, 0x66, 0xCC)),
+                Stroke = selected ? Brushes.White : new SolidColorBrush(Color.FromArgb(200, 0, 0, 0)),
+                StrokeThickness = selected ? 2 : 1,
+                Tag = DungeonMarkerTag,
+                IsHitTestVisible = false
+            };
+            Canvas.SetLeft(dot, marker.MapX * w - size / 2);
+            Canvas.SetTop(dot, marker.MapY * h - size / 2);
+            Panel.SetZIndex(dot, selected ? 85 : 18);
+            MapCanvas.Children.Add(dot);
+
+            if (selected)
+            {
+                var label = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(0xDD, 0x28, 0x20, 0x40)),
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(5, 2, 5, 2),
+                    Child = new TextBlock
+                    {
+                        Text = marker.DisplayName,
+                        FontSize = 9,
+                        Foreground = Brushes.White
+                    },
+                    Tag = DungeonMarkerTag,
+                    IsHitTestVisible = false
+                };
+                Canvas.SetLeft(label, marker.MapX * w + size);
+                Canvas.SetTop(label, marker.MapY * h - 8);
+                Panel.SetZIndex(label, 86);
+                MapCanvas.Children.Add(label);
+            }
+        }
+    }
+
+    private bool TryHitDungeonMarker(Point mapPos, out CartoDungeonMarker? marker)
+    {
+        marker = null;
+        if (Vm == null)
+            return false;
+
+        const double hitPx = 16;
+        var best = double.MaxValue;
+        CartoDungeonMarker? bestM = null;
+        foreach (var m in Vm.DungeonMarkers)
+        {
+            if (m.MapX <= 0 && m.MapY <= 0)
+                continue;
+
+            var cx = m.MapX * MapWidth;
+            var cy = m.MapY * MapHeight;
+            var d = Math.Abs(mapPos.X - cx) + Math.Abs(mapPos.Y - cy);
+            if (d < hitPx && d < best)
+            {
+                best = d;
+                bestM = m;
+            }
+        }
+
+        marker = bestM;
+        return marker != null;
     }
 
     private static bool IsZoneResizeHit(CartoZoneRectItem z, double nx, double ny, double handleN)
@@ -764,7 +868,8 @@ public partial class CartoView : UserControl
             user.Name,
             userBrush,
             totalCharacterCount,
-            userVisToggle);
+            userVisToggle,
+            Vm.GetUserTotalGoldCopper(user.Id));
 
         var expander = CartoRosterPanelUi.StretchExpander(new Expander
         {
@@ -843,7 +948,11 @@ public partial class CartoView : UserControl
             Children =
             {
                 CartoRosterPanelUi.BuildCategoryTitleRow(
-                    category, title, totalInCategory, categoryVisToggle)
+                    category,
+                    title,
+                    totalInCategory,
+                    categoryVisToggle,
+                    Vm.GetCategoryGoldCopper(Vm.GetLocalCharactersForUserCategory(user.Id, category)))
             }
         });
 
@@ -997,9 +1106,55 @@ public partial class CartoView : UserControl
 
     private static readonly SolidColorBrush MapLabelBg = new(Color.FromArgb(200, 15, 12, 5));
     private static readonly SolidColorBrush MapShardBrush = new(Color.FromRgb(148, 130, 201));
+    private static readonly Dictionary<string, SolidColorBrush> ClassBrushCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly SolidColorBrush TpBoyStrokeBrush = new(Color.FromRgb(148, 130, 201));
+    private static readonly SolidColorBrush DefaultStrokeBrush = new(Color.FromArgb(180, 0, 0, 0));
+
+    static CartoView()
+    {
+        MapLabelBg.Freeze();
+        MapShardBrush.Freeze();
+        TpBoyStrokeBrush.Freeze();
+        DefaultStrokeBrush.Freeze();
+    }
+
+    private static SolidColorBrush GetClassBrush(string hexColor)
+    {
+        if (ClassBrushCache.TryGetValue(hexColor, out var cached))
+            return cached;
+
+        var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hexColor));
+        brush.Freeze();
+        ClassBrushCache[hexColor] = brush;
+        return brush;
+    }
 
     private static double GetMapMarkerDotSize(bool isSelected, bool isTpBoy) =>
         (isSelected ? (isTpBoy ? 11.0 : 10.0) : (isTpBoy ? 8.5 : 7.0)) * MapMarkerScale;
+
+    private static double EstimateLabelWidth(string text, bool hasInlineShard)
+    {
+        var w = text.Length * 3.7 + MapLabelPadding.Left + MapLabelPadding.Right + 6;
+        if (hasInlineShard)
+            w += MapShardIconSize + 14;
+        return Math.Clamp(w, 28, 240);
+    }
+
+    private static string GetMapLabelText(WowCharacter ch, CartoViewModel vm)
+    {
+        var lockPrefix = ch.IsLocked ? "🔒 " : "";
+        if (ch.IsExternal && ch.ExternalSource != null)
+        {
+            var friendName = vm.GetFriendName(ch.ExternalSource)
+                               ?? ch.ExternalSource[..Math.Min(8, ch.ExternalSource.Length)];
+            return $"{lockPrefix}[{friendName}] {ch.Name}";
+        }
+
+        return vm.ShouldShowAccountNameForCharacter(ch)
+               && vm.Accounts.FirstOrDefault(a => a.Id == ch.AccountId)?.Name is { } accountName
+            ? $"{lockPrefix}{ch.Name} ({accountName})"
+            : $"{lockPrefix}{ch.Name}";
+    }
 
     private static Border BuildMapCharacterLabel(
         WowCharacter ch,
@@ -1010,21 +1165,7 @@ public partial class CartoView : UserControl
         out bool inlineShard)
     {
         inlineShard = false;
-        var lockPrefix = ch.IsLocked ? "🔒 " : "";
-        string labelText;
-        if (ch.IsExternal && ch.ExternalSource != null)
-        {
-            var friendName = vm.GetFriendName(ch.ExternalSource)
-                               ?? ch.ExternalSource[..Math.Min(8, ch.ExternalSource.Length)];
-            labelText = $"{lockPrefix}[{friendName}] {ch.Name}";
-        }
-        else
-        {
-            labelText = vm.ShouldShowAccountNameForCharacter(ch)
-                        && vm.Accounts.FirstOrDefault(a => a.Id == ch.AccountId)?.Name is { } accountName
-                ? $"{lockPrefix}{ch.Name} ({accountName})"
-                : $"{lockPrefix}{ch.Name}";
-        }
+        var labelText = GetMapLabelText(ch, vm);
 
         var row = new StackPanel
         {
@@ -1101,130 +1242,20 @@ public partial class CartoView : UserControl
         return row;
     }
 
-    private sealed class MapCharacterLabelLayout
+    /// <summary>Position fixe au-dessus de la pastille (sans calcul anti-chevauchement).</summary>
+    private static void PlaceMapCharacterLabel(
+        Border label, double pixX, double pixY, double dotSize, double labelW, double mapW, double mapH)
     {
-        public required WowCharacter Character { get; init; }
-        public double PixX { get; init; }
-        public double PixY { get; init; }
-        public double DotSize { get; init; }
-        public required Border Label { get; init; }
-        public double LabelWidth { get; init; }
-        public double LabelHeight { get; init; }
-        public bool InlineShard { get; init; }
-    }
-
-    private static double EstimateShardBadgeHeight(MapCharacterLabelLayout item)
-    {
-        var ch = item.Character;
-        if (ch.Class != WowClass.Demoniste || ch.ShardCount <= 0)
-            return 0;
-        if (ch.Status == CharacterStatus.TpBoy || item.InlineShard)
-            return 0;
-        return 18;
-    }
-
-    private static bool ShouldClusterMapLabels(MapCharacterLabelLayout a, MapCharacterLabelLayout b)
-    {
-        const double dotClusterPx = 44;
-        var dx = a.PixX - b.PixX;
-        var dy = a.PixY - b.PixY;
-        if (dx * dx + dy * dy <= dotClusterPx * dotClusterPx)
-            return true;
-
-        var shardA = EstimateShardBadgeHeight(a);
-        var shardB = EstimateShardBadgeHeight(b);
-        const double pad = 6;
-        var overlapW = (a.LabelWidth + b.LabelWidth) / 2 + pad;
-        var overlapH = (a.LabelHeight + b.LabelHeight + shardA + shardB) / 2 + pad + 10;
-        return Math.Abs(dx) < overlapW && Math.Abs(dy) < overlapH;
-    }
-
-    /// <summary>Écarte les étiquettes (et place pour les badges fragments) quand plusieurs persos sont proches.</summary>
-    private void LayoutMapCharacterLabels(IReadOnlyList<MapCharacterLabelLayout> items)
-    {
-        if (items.Count == 0) return;
-
-        var parent = Enumerable.Range(0, items.Count).ToArray();
-        int Find(int x)
-        {
-            while (parent[x] != x)
-                parent[x] = parent[parent[x]];
-            return parent[x];
-        }
-
-        void Union(int a, int b)
-        {
-            var ra = Find(a);
-            var rb = Find(b);
-            if (ra != rb)
-                parent[rb] = ra;
-        }
-
-        for (var i = 0; i < items.Count; i++)
-        for (var j = i + 1; j < items.Count; j++)
-        {
-            if (ShouldClusterMapLabels(items[i], items[j]))
-                Union(i, j);
-        }
-
-        var groups = new Dictionary<int, List<MapCharacterLabelLayout>>();
-        for (var i = 0; i < items.Count; i++)
-        {
-            var root = Find(i);
-            if (!groups.TryGetValue(root, out var list))
-            {
-                list = [];
-                groups[root] = list;
-            }
-
-            list.Add(items[i]);
-        }
-
-        var mapW = MapWidth;
-        var mapH = MapHeight;
-        if (items[0].Label.Parent is Canvas capCanvas && capCanvas != MapCanvas)
-        {
-            mapW = capCanvas.ActualWidth > 0 ? capCanvas.ActualWidth : mapW;
-            mapH = capCanvas.ActualHeight > 0 ? capCanvas.ActualHeight : mapH;
-        }
-
-        foreach (var group in groups.Values)
-        {
-            group.Sort((a, b) =>
-            {
-                var tpA = a.Character.Status == CharacterStatus.TpBoy ? 1 : 0;
-                var tpB = b.Character.Status == CharacterStatus.TpBoy ? 1 : 0;
-                if (tpA != tpB) return tpA.CompareTo(tpB);
-                return string.Compare(a.Character.Name, b.Character.Name, StringComparison.OrdinalIgnoreCase);
-            });
-
-            var anchorX = group.Average(g => g.PixX);
-            var anchorY = group.Average(g => g.PixY);
-            var maxDot = group.Max(g => g.DotSize);
-            var baseTop = anchorY - maxDot / 2 - 2;
-
-            for (var idx = 0; idx < group.Count; idx++)
-            {
-                var item = group[idx];
-                var stackOffset = 0.0;
-                for (var j = 0; j < idx; j++)
-                    stackOffset += group[j].LabelHeight + 2 + EstimateShardBadgeHeight(group[j]);
-
-                var left = anchorX - item.LabelWidth / 2;
-                var top = baseTop - item.LabelHeight - stackOffset;
-                Canvas.SetLeft(item.Label, Math.Clamp(left, 0, Math.Max(0, mapW - item.LabelWidth)));
-                Canvas.SetTop(item.Label, Math.Clamp(top, 0, Math.Max(0, mapH - item.LabelHeight)));
-                Panel.SetZIndex(item.Label, 20 + idx);
-                item.Label.Visibility = Visibility.Visible;
-            }
-        }
+        var left = pixX - labelW / 2;
+        var top = pixY - dotSize / 2 - MapLabelHeight - 2;
+        Canvas.SetLeft(label, Math.Clamp(left, 0, Math.Max(0, mapW - labelW)));
+        Canvas.SetTop(label, Math.Clamp(top, 0, Math.Max(0, mapH - MapLabelHeight)));
     }
 
     private void RedrawMarkers()
     {
         if (Vm == null) return;
 
-        // Remove old character markers only
         for (int i = MapCanvas.Children.Count - 1; i >= 0; i--)
         {
             if (MapCanvas.Children[i] is Ellipse { Tag: WowCharacter }
@@ -1234,14 +1265,13 @@ public partial class CartoView : UserControl
                 MapCanvas.Children.RemoveAt(i);
         }
 
-        var labelLayouts = new List<MapCharacterLabelLayout>();
+        var mapW = MapWidth;
+        var mapH = MapHeight;
 
-        var mapCharacters = Vm.FilteredCharacters
-            .Where(ch => Vm.TryGetMarkerPosition(ch, out _, out _))
-            .OrderBy(ch => ch.Status == CharacterStatus.TpBoy ? 1 : 0)
-            .ThenBy(ch => ch.Name, StringComparer.OrdinalIgnoreCase);
-
-        foreach (var ch in mapCharacters)
+        foreach (var ch in Vm.FilteredCharacters
+                     .Where(c => Vm.TryGetMarkerPosition(c, out _, out _))
+                     .OrderBy(c => c.Status == CharacterStatus.TpBoy ? 1 : 0)
+                     .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
         {
             if (CartoRuntimeOptions.ShowCapitalMaps && TryGetCharacterCapitalMapId(ch, Vm, out _))
                 continue;
@@ -1250,16 +1280,14 @@ public partial class CartoView : UserControl
                 continue;
 
             var isTpBoy = ch.Status == CharacterStatus.TpBoy;
-            var color = WowClassColors.GetHexColor(ch.Class);
-            var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
             var isSelected = ch == Vm.SelectedCharacter;
+            var brush = GetClassBrush(WowClassColors.GetHexColor(ch.Class));
             var size = GetMapMarkerDotSize(isSelected, isTpBoy);
 
-            Brush strokeBrush;
-            if (isSelected) strokeBrush = Brushes.White;
-            else if (isTpBoy) strokeBrush = new SolidColorBrush(Color.FromRgb(148, 130, 201));
-            else if (ch.IsExternal) strokeBrush = Brushes.CornflowerBlue;
-            else strokeBrush = new SolidColorBrush(Color.FromArgb(180, 0, 0, 0));
+            Brush strokeBrush = isSelected ? Brushes.White
+                : isTpBoy ? TpBoyStrokeBrush
+                : ch.IsExternal ? Brushes.CornflowerBlue
+                : DefaultStrokeBrush;
 
             var marker = new Ellipse
             {
@@ -1268,130 +1296,23 @@ public partial class CartoView : UserControl
                 Stroke = strokeBrush,
                 StrokeThickness = isTpBoy ? 1.5 : (ch.IsExternal ? 1.5 : (isSelected ? 1.5 : 1)),
                 Cursor = Cursors.Hand,
-                Tag = ch
+                Tag = ch,
+                ToolTip = ch.Name
             };
             Panel.SetZIndex(marker, isTpBoy ? 14 : 10);
 
-            var pixX = mapX * MapWidth;
-            var pixY = mapY * MapHeight;
+            var pixX = mapX * mapW;
+            var pixY = mapY * mapH;
 
             Canvas.SetLeft(marker, pixX - size / 2);
             Canvas.SetTop(marker, pixY - size / 2);
             MapCanvas.Children.Add(marker);
 
             var label = BuildMapCharacterLabel(ch, Vm, brush, isSelected, isTpBoy, out var inlineShard);
-            label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            label.Arrange(new Rect(label.DesiredSize));
-            var labelW = label.DesiredSize.Width;
-            var labelH = label.DesiredSize.Height;
+            var labelW = EstimateLabelWidth(GetMapLabelText(ch, Vm), inlineShard);
             MapCanvas.Children.Add(label);
             Panel.SetZIndex(label, isTpBoy ? 18 : 15);
-            label.Visibility = Visibility.Visible;
-
-            labelLayouts.Add(new MapCharacterLabelLayout
-            {
-                Character = ch,
-                PixX = pixX,
-                PixY = pixY,
-                DotSize = size,
-                Label = label,
-                LabelWidth = labelW,
-                LabelHeight = labelH,
-                InlineShard = inlineShard
-            });
-        }
-
-        if (CartoRuntimeOptions.SimpleMapMarkers)
-        {
-            var mapW = MapWidth;
-            var mapH = MapHeight;
-            foreach (var item in labelLayouts)
-            {
-                var left = item.PixX - item.LabelWidth / 2;
-                var top = item.PixY - item.DotSize / 2 - item.LabelHeight - 2;
-                Canvas.SetLeft(item.Label, Math.Clamp(left, 0, Math.Max(0, mapW - item.LabelWidth)));
-                Canvas.SetTop(item.Label, Math.Clamp(top, 0, Math.Max(0, mapH - item.LabelHeight)));
-            }
-        }
-        else
-        {
-            LayoutMapCharacterLabels(labelLayouts);
-            AddMapShardBadges(labelLayouts);
-        }
-    }
-
-    /// <summary>Fragments d'âme au-dessus de l'étiquette — priorité visuelle pour les TP Boys.</summary>
-    private void AddMapShardBadges(IReadOnlyList<MapCharacterLabelLayout> layouts)
-    {
-        const double gap = 2;
-        var mapW = MapWidth;
-        var mapH = MapHeight;
-
-        foreach (var item in layouts)
-        {
-            var canvas = item.Label.Parent as Canvas;
-            if (canvas != null && canvas != MapCanvas)
-            {
-                mapW = canvas.ActualWidth > 0 ? canvas.ActualWidth : mapW;
-                mapH = canvas.ActualHeight > 0 ? canvas.ActualHeight : mapH;
-            }
-
-            var ch = item.Character;
-            if (ch.Class != WowClass.Demoniste || ch.ShardCount <= 0)
-                continue;
-
-            if (ch.Status == CharacterStatus.TpBoy || item.InlineShard)
-                continue;
-
-            var row = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-
-            var shardItem = new WowItem
-            {
-                ItemId = 6265,
-                Name = "Fragment d'âme",
-                Count = ch.ShardCount,
-                Quality = 1
-            };
-            row.Children.Add(CartoMapQuestIcon.Create(shardItem, 13));
-            row.Children.Add(new TextBlock
-            {
-                Text = ch.ShardCount.ToString(),
-                FontSize = 8,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = MapShardBrush,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 0, 0)
-            });
-
-            var badge = new Border
-            {
-                Tag = "shard-label",
-                Background = new SolidColorBrush(Color.FromArgb(220, 25, 18, 45)),
-                BorderBrush = MapShardBrush,
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(3),
-                Padding = new Thickness(3, 1, 3, 1),
-                Child = row,
-                ToolTip = $"{ch.Name} — {ch.ShardCount} fragment(s) d'âme"
-            };
-
-            badge.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            badge.Arrange(new Rect(badge.DesiredSize));
-            var badgeW = badge.DesiredSize.Width;
-            var badgeH = badge.DesiredSize.Height;
-
-            var labelTop = Canvas.GetTop(item.Label);
-            var badgeLeft = item.PixX - badgeW / 2;
-            var badgeTop = labelTop - badgeH - gap;
-
-            Canvas.SetLeft(badge, Math.Clamp(badgeLeft, 0, Math.Max(0, mapW - badgeW)));
-            Canvas.SetTop(badge, Math.Clamp(badgeTop, 0, Math.Max(0, mapH - badgeH)));
-            Panel.SetZIndex(badge, 24);
-            (item.Label.Parent as Canvas ?? MapCanvas).Children.Add(badge);
+            PlaceMapCharacterLabel(label, pixX, pixY, size, labelW, mapW, mapH);
         }
     }
 
@@ -1618,12 +1539,36 @@ public partial class CartoView : UserControl
         if (e.Handled)
             return;
 
+        if (Vm.IsPlacingDungeonMarker)
+        {
+            var pos = e.GetPosition(MapImage);
+            if (Vm.TryPlaceDungeonMarkerAt(pos.X / MapWidth, pos.Y / MapHeight))
+            {
+                RedrawZoneEditor();
+                e.Handled = true;
+                return;
+            }
+        }
+
         if (Vm.IsZoneEditMode)
         {
             var mapPos = e.GetPosition(MapImage);
+            if (TryHitDungeonMarker(mapPos, out var dungeonHit) && dungeonHit != null)
+            {
+                Vm.SelectedDungeonMarker = dungeonHit;
+                Vm.SelectedZoneRect = null;
+                _dungeonDragMarker = dungeonHit;
+                _dungeonDragStartMap = mapPos;
+                MapBorder.CaptureMouse();
+                RedrawZoneEditor();
+                e.Handled = true;
+                return;
+            }
+
             if (TryHitZone(mapPos, out var hit, out var resize) && hit != null)
             {
                 Vm.SelectedZoneRect = hit;
+                Vm.SelectedDungeonMarker = null;
                 _zoneDragItem = hit;
                 _zoneDragCapitalSlot = null;
                 _zoneResizeDrag = resize;
@@ -1717,6 +1662,14 @@ public partial class CartoView : UserControl
     {
         var pos = e.GetPosition(MapBorder);
 
+        if (_dungeonDragMarker != null)
+        {
+            var mapPos = e.GetPosition(MapImage);
+            Vm.MoveSelectedDungeonMarker(mapPos.X / MapWidth, mapPos.Y / MapHeight);
+            RedrawZoneEditor();
+            return;
+        }
+
         if (_zoneDragItem != null)
         {
             var mapPos = e.GetPosition(MapImage);
@@ -1767,6 +1720,15 @@ public partial class CartoView : UserControl
 
     private void MapCanvas_MouseUp(object sender, MouseButtonEventArgs e)
     {
+        if (_dungeonDragMarker != null)
+        {
+            _dungeonDragMarker = null;
+            MapBorder.ReleaseMouseCapture();
+            RedrawZoneEditor();
+            e.Handled = true;
+            return;
+        }
+
         if (_zoneDragItem != null)
         {
             Vm.PersistZoneRects();
@@ -2008,7 +1970,19 @@ public partial class CartoView : UserControl
         SetPanelOpen(CartoPanel.Settings, false);
     }
 
-    private enum CartoPanel { Roster, Search, Timers, Settings }
+    private void PanelZones_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressPanelToggleEvents) return;
+        SetPanelOpen(CartoPanel.Zones, true);
+    }
+
+    private void PanelZones_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressPanelToggleEvents) return;
+        SetPanelOpen(CartoPanel.Zones, false);
+    }
+
+    private enum CartoPanel { Roster, Search, Timers, Zones, Settings }
 
     private void SetPanelOpen(CartoPanel panel, bool open)
     {
@@ -2020,6 +1994,7 @@ public partial class CartoView : UserControl
                 break;
             case CartoPanel.Search: Vm.IsItemSearchOpen = open; break;
             case CartoPanel.Timers: Vm.IsTimersPanelOpen = open; break;
+            case CartoPanel.Zones: Vm.IsZonesPanelOpen = open; break;
             case CartoPanel.Settings: Vm.IsSettingsPanelOpen = open; break;
         }
         ApplyRightPanelLayout();
@@ -2088,6 +2063,68 @@ public partial class CartoView : UserControl
         SetPanelOpen(CartoPanel.Settings, false);
     }
 
+    private void CloseZonesPanel_Click(object sender, RoutedEventArgs e)
+    {
+        if (Vm == null) return;
+        e.Handled = true;
+        SetPanelOpen(CartoPanel.Zones, false);
+    }
+
+    private void ZoneRectsListBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (Vm == null || sender is not ListBox listBox)
+            return;
+
+        var zone = GetListBoxItemDataContext<CartoZoneRectItem>(listBox, e.OriginalSource);
+        if (zone == null)
+            return;
+
+        if (ReferenceEquals(Vm.SelectedZoneRect, zone))
+        {
+            Vm.SelectedZoneRect = null;
+            listBox.SelectedItem = null;
+            ScheduleZoneEditorRedraw();
+            e.Handled = true;
+        }
+    }
+
+    private void DungeonMarkersListBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (Vm == null || sender is not ListBox listBox)
+            return;
+
+        var marker = GetListBoxItemDataContext<CartoDungeonMarker>(listBox, e.OriginalSource);
+        if (marker == null)
+            return;
+
+        if (ReferenceEquals(Vm.SelectedDungeonMarker, marker))
+        {
+            Vm.SelectedDungeonMarker = null;
+            listBox.SelectedItem = null;
+            ScheduleZoneEditorRedraw();
+            e.Handled = true;
+        }
+    }
+
+    private static T? GetListBoxItemDataContext<T>(ListBox listBox, object source) where T : class
+    {
+        for (var dep = source as DependencyObject; dep != null; dep = VisualTreeHelper.GetParent(dep))
+        {
+            if (dep is Button)
+                return null;
+            if (dep is ListBoxItem { DataContext: T ctx })
+                return ctx;
+            if (dep == listBox)
+                break;
+        }
+
+        return null;
+    }
+
+    private void ZoneListDelete_Click(object sender, RoutedEventArgs e) => e.Handled = true;
+
+    private void DungeonListDelete_Click(object sender, RoutedEventArgs e) => e.Handled = true;
+
     private void ApplyRightPanelLayout()
     {
         if (Vm == null || ItemSearchPanel == null || CharacterRosterHost == null)
@@ -2098,6 +2135,8 @@ public partial class CartoView : UserControl
             TimersPanelHost.Visibility = Vm.IsTimersPanelOpen ? Visibility.Visible : Visibility.Collapsed;
         if (SettingsPanelHost != null)
             SettingsPanelHost.Visibility = Vm.IsSettingsPanelOpen ? Visibility.Visible : Visibility.Collapsed;
+        if (ZonesPanelHost != null)
+            ZonesPanelHost.Visibility = Vm.IsZonesPanelOpen ? Visibility.Visible : Visibility.Collapsed;
 
         CharacterRosterHost.Visibility = Vm.IsRosterOpen ? Visibility.Visible : Visibility.Collapsed;
 
@@ -2117,7 +2156,7 @@ public partial class CartoView : UserControl
         SyncPanelToolbarToggles();
 
         var anyPanelOpen = Vm.IsRosterOpen || Vm.IsItemSearchOpen || Vm.IsTimersPanelOpen
-                           || Vm.IsSettingsPanelOpen;
+                           || Vm.IsZonesPanelOpen || Vm.IsSettingsPanelOpen;
 
         if (RightDockHost != null)
             RightDockHost.Visibility = anyPanelOpen ? Visibility.Visible : Visibility.Collapsed;
@@ -2140,6 +2179,7 @@ public partial class CartoView : UserControl
             if (BtnPanelRoster != null) BtnPanelRoster.IsChecked = Vm.IsRosterOpen;
             if (BtnPanelSearch != null) BtnPanelSearch.IsChecked = Vm.IsItemSearchOpen;
             if (BtnPanelTimers != null) BtnPanelTimers.IsChecked = Vm.IsTimersPanelOpen;
+            if (BtnPanelZones != null) BtnPanelZones.IsChecked = Vm.IsZonesPanelOpen;
             if (BtnPanelSettings != null) BtnPanelSettings.IsChecked = Vm.IsSettingsPanelOpen;
         }
         finally
@@ -2719,14 +2759,11 @@ public partial class CartoView : UserControl
 
         if (isWowSync && !ch.IsExternal)
         {
-            CharPopupActionsHost.Children.Add(MakeActionButton("📍 Zone WowSync", "#FF66AAFF", () =>
+            CharPopupActionsHost.Children.Add(MakeActionButton("📍 Placer sur la carte (WowSync)", "#FF66AAFF", () =>
             {
                 var error = Vm.TryPlaceCharacterFromWowSync(ch);
-                if (error != null)
-                {
+                if (!string.IsNullOrWhiteSpace(error))
                     MessageBox.Show(error, "Placement WowSync", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
-                }
 
                 RedrawAll();
                 RebuildTooltipContent(ch);

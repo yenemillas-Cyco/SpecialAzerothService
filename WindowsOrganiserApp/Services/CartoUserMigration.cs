@@ -13,13 +13,34 @@ public static class CartoUserMigration
     /// <summary>Comptes WTF rattachés à l'utilisateur Eloi (Harry est un compte, pas un utilisateur).</summary>
     private static readonly HashSet<string> EloiAccountNames = new(StringComparer.OrdinalIgnoreCase)
     {
-        "harry", "wow1", "wow2", "wow3"
+        "harry", "wow1", "wow2", "wow3", "HARRYKENLER", "Harrykenler"
     };
 
+    /// <summary>Dossiers fantômes sans persos WowSync (doublon nom affiché « Lucky », etc.).</summary>
     public static readonly HashSet<string> GhostAccountFolders = new(StringComparer.OrdinalIgnoreCase)
     {
-        "HARRYKENLER", "Harrykenler", "Lucky"
+        "Lucky"
     };
+
+    public static bool IsHarryWtfFolder(string? folder) =>
+        !string.IsNullOrWhiteSpace(folder)
+        && folder.Contains("harry", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Utilisateur par défaut pour un nouveau dossier WTF (ex. HARRYKENLER → Eloi).</summary>
+    public static string? ResolveDefaultUserIdForFolder(string sourceFolder, CartoData data)
+    {
+        if (IsHarryWtfFolder(sourceFolder))
+        {
+            var eloi = data.Users.FirstOrDefault(u =>
+                u.Name.Equals(EloiUserName, StringComparison.OrdinalIgnoreCase));
+            if (eloi != null)
+                return eloi.Id;
+        }
+
+        return data.Users.FirstOrDefault(u =>
+            u.Name.Equals(DefaultUserName, StringComparison.OrdinalIgnoreCase))?.Id
+            ?? data.Users.OrderBy(u => u.SortOrder).FirstOrDefault()?.Id;
+    }
 
     public static void Migrate(CartoData data)
     {
@@ -127,12 +148,19 @@ public static class CartoUserMigration
         if (!data.AccountSettings.TryGetValue(LuckyAccountFolder, out var cfg))
             return;
 
-        cfg.DisplayName = LuckyUserName;
+        var luckyUser = EnsureCanonicalLuckyUser(data);
+        if (string.IsNullOrWhiteSpace(cfg.DisplayName)
+            || cfg.DisplayName.Equals(LuckyAccountFolder, StringComparison.OrdinalIgnoreCase))
+            cfg.DisplayName = LuckyUserName;
+
         cfg.FriendLabel = null;
         cfg.Scope = AccountScope.Mine;
-        cfg.UserId = EnsureCanonicalLuckyUser(data).Id;
 
-        data.AccountDisplayNames[LuckyAccountFolder] = LuckyUserName;
+        if (string.IsNullOrWhiteSpace(cfg.UserId)
+            || !data.Users.Any(u => u.Id == cfg.UserId))
+            cfg.UserId = luckyUser.Id;
+
+        data.AccountDisplayNames[LuckyAccountFolder] = cfg.DisplayName;
 
         var account = data.Accounts.FirstOrDefault(a =>
             LuckyAccountFolder.Equals(a.SourceFolder, StringComparison.OrdinalIgnoreCase));
@@ -317,23 +345,30 @@ public static class CartoUserMigration
             var hasValidUser = !string.IsNullOrWhiteSpace(cfg.UserId)
                 && data.Users.Any(u => u.Id == cfg.UserId);
 
-            if (folder.Equals(LuckyAccountFolder, StringComparison.OrdinalIgnoreCase)
+            var isLuckyFolder = folder.Equals(LuckyAccountFolder, StringComparison.OrdinalIgnoreCase)
                 || IsLuckylliasAccount(display, cfg.FriendLabel ?? "")
-                || folder.Contains("luckyllias", StringComparison.OrdinalIgnoreCase))
+                || folder.Contains("luckyllias", StringComparison.OrdinalIgnoreCase);
+
+            if (isLuckyFolder)
             {
-                cfg.UserId = lucky.Id;
-                if (folder.Equals(LuckyAccountFolder, StringComparison.OrdinalIgnoreCase))
+                // Ne pas écraser un rattachement déjà choisi par l'utilisateur (sauvegardé dans carto.json).
+                if (!hasValidUser)
+                    cfg.UserId = lucky.Id;
+
+                if (folder.Equals(LuckyAccountFolder, StringComparison.OrdinalIgnoreCase)
+                    && (string.IsNullOrWhiteSpace(cfg.DisplayName)
+                        || cfg.DisplayName.Equals(LuckyAccountFolder, StringComparison.OrdinalIgnoreCase)))
                     cfg.DisplayName = LuckyUserName;
+
                 continue;
             }
 
-            // Ne pas écraser un rattachement déjà choisi par l'utilisateur (sauvegardé dans carto.json).
             if (hasValidUser)
                 continue;
 
             if (eloi != null
                 && (BelongsToEloi(display, cfg.FriendLabel ?? "")
-                    || folder.Contains("harry", StringComparison.OrdinalIgnoreCase)))
+                    || IsHarryWtfFolder(folder)))
                 cfg.UserId = eloi.Id;
         }
     }

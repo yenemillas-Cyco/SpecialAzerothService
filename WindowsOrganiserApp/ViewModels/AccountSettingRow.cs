@@ -15,20 +15,28 @@ public partial class AccountSettingRow : ObservableObject
 
     public int CharacterCount { get; init; }
 
-    public CartoAccountConfig ToConfig()
+    public long GoldCopper { get; init; }
+
+    public CartoAccountConfig ToConfig(CartoAccountConfig? previous = null)
     {
         var name = DisplayName.Trim();
         return new CartoAccountConfig
         {
-            DisplayName = name,
-            UserId = UserId
+            DisplayName = string.IsNullOrWhiteSpace(name)
+                ? previous?.DisplayName ?? SourceFolder
+                : name,
+            UserId = !string.IsNullOrWhiteSpace(UserId) ? UserId : previous?.UserId,
+            Scope = previous?.Scope ?? AccountScope.Mine,
+            FriendLabel = previous?.FriendLabel,
+            IsHiddenOnMap = previous?.IsHiddenOnMap ?? false
         };
     }
 
     public static AccountSettingRow From(
         string sourceFolder,
         CartoAccountConfig? config,
-        int characterCount)
+        int characterCount,
+        long goldCopper = 0)
     {
         config ??= new CartoAccountConfig { DisplayName = sourceFolder };
         return new AccountSettingRow
@@ -36,7 +44,8 @@ public partial class AccountSettingRow : ObservableObject
             SourceFolder = sourceFolder,
             DisplayName = string.IsNullOrWhiteSpace(config.DisplayName) ? sourceFolder : config.DisplayName,
             UserId = config.UserId,
-            CharacterCount = characterCount
+            CharacterCount = characterCount,
+            GoldCopper = goldCopper
         };
     }
 }

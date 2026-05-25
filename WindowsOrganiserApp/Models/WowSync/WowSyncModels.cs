@@ -9,6 +9,8 @@ public sealed class WowAccountData
 
     public string AccountName { get; set; } = "";
     public List<WowCharacterData> Characters { get; set; } = [];
+
+    public long TotalGoldCopper => Characters.Sum(c => c.Gold);
 }
 
 public sealed class WowCharacterData
@@ -51,6 +53,9 @@ public sealed class WowCharacterData
         X > 0 || Y > 0
             ? $"{X * 100:F1}, {Y * 100:F1} — {ZoneDisplay}" + (MapId > 0 ? $" (map {MapId})" : "")
             : string.IsNullOrEmpty(ZoneDisplay) ? "Coords manquantes — redéployez l'addon et déconnectez-vous" : $"Coords manquantes — {ZoneDisplay}";
+    /// <summary>Clé du tableau SavedVariables (peut différer de <see cref="Key"/> sur les accents).</summary>
+    public string StorageKey { get; set; } = "";
+
     public string Key => $"{Name}-{Realm}";
 }
 

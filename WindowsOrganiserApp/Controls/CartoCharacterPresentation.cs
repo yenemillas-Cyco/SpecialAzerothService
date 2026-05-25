@@ -37,6 +37,9 @@ public static class CartoCharacterPresentation
 
     public static bool ShowCooldownsBody(WowCharacter ch) => IsPersonnages(ch);
 
+    /// <summary>Or du personnage (toutes catégories locales, dont Banque).</summary>
+    public static bool ShowGoldBody(WowCharacter ch) => !ch.IsExternal;
+
     /// <summary>Inventaire + banque WowSync (personnages principaux et persos Banque).</summary>
     public static bool ShowInventoryBankSection(WowCharacter ch) =>
         IsPersonnages(ch) || IsBank(ch);

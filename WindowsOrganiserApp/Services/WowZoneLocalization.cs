@@ -95,6 +95,8 @@ public static class WowZoneLocalization
         Add("Ironforge", "Forgefer");
         Add("Stormwind City", "Hurlevent");
         Add("Orgrimmar", "Orgrimmar");
+        Add("Valley of Strength", "Vallée de la Force");
+        Add("Vallée de la Force", "Vallée de la Force");
         Add("Thunder Bluff", "Pitons du Tonnerre");
         Add("Darnassus", "Darnassus");
     }

@@ -11,6 +11,7 @@
         <conv:CooldownRemainingConverter x:Key="CdConv"/>
         <conv:ListSummaryConverter x:Key="ListSummaryConv"/>
         <conv:AccountIdToNameConverter x:Key="AccountConv"/>
+        <conv:CharacterSyncGoldConverter x:Key="GoldConv"/>
         <conv:CharacterStatusConverter x:Key="StatusConv"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <conv:BoolToOnlineBrushConverter x:Key="BoolToOnlineBrush"/>
@@ -28,6 +29,57 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{DynamicResource BrightGoldBrush}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="CartoZoneListItem" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" CornerRadius="5" Padding="8,6" Background="#1A221810"
+                                BorderBrush="#3344AA66" BorderThickness="1" Cursor="Hand">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#282A3018"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#55AADD99"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#38382010"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#CCFFD766"/>
+                                <Setter TargetName="Bd" Property="BorderThickness" Value="1.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="CartoDungeonListItem" TargetType="ListBoxItem" BasedOn="{StaticResource CartoZoneListItem}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" CornerRadius="5" Padding="8,6" Background="#1A181028"
+                                BorderBrush="#335544AA" BorderThickness="1" Cursor="Hand">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#28182838"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#8899BBEE"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#30202848"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#CCBB99FF"/>
+                                <Setter TargetName="Bd" Property="BorderThickness" Value="1.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style x:Key="CartoThinClose" TargetType="Button">
             <Setter Property="Content" Value="×"/>
@@ -78,6 +130,10 @@
                                       FontSize="10" Padding="10,4" Margin="4,0,0,0"
                                       Checked="PanelTimers_Checked" Unchecked="PanelTimers_Unchecked"
                                       ToolTip="Timers sur la carte"/>
+                        <ToggleButton x:Name="BtnPanelZones" Content="Zones" Style="{DynamicResource StoneToggle}"
+                                      FontSize="10" Padding="10,4" Margin="4,0,0,0"
+                                      Checked="PanelZones_Checked" Unchecked="PanelZones_Unchecked"
+                                      ToolTip="Calibrer les zones et repères donjons"/>
                         <ToggleButton x:Name="BtnPanelSettings" Content="Paramètres" Style="{DynamicResource StoneToggle}"
                                       FontSize="10" Padding="10,4" Margin="4,0,0,0"
                                       Checked="PanelSettings_Checked" Unchecked="PanelSettings_Unchecked"
@@ -103,24 +159,6 @@
                               Foreground="{DynamicResource GoldBrush}" VerticalAlignment="Center"
                               ToolTip="Vue liste à la place de la carte"/>
 
-                    <Border Width="1" Height="20" Background="{DynamicResource BorderBrush}" Margin="0,0,8,0"/>
-
-                    <CheckBox Content="Zones" IsChecked="{Binding IsZoneEditMode}" FontSize="10"
-                              Foreground="#FFAAEE88" VerticalAlignment="Center" Margin="0,0,4,0"
-                              ToolTip="Éditer les rectangles sur la carte"/>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
-                                Visibility="{Binding IsZoneEditMode, Converter={StaticResource BoolToVis}}">
-                        <ComboBox Width="160" Height="26" FontSize="10" Margin="0,0,4,0"
-                                  ItemsSource="{Binding ZoneCatalog}"
-                                  DisplayMemberPath="DisplayName"
-                                  SelectedValuePath="MapId"
-                                  SelectedValue="{Binding ZoneToAddMapId}"/>
-                        <Button Content="Ajouter" Style="{DynamicResource StoneButton}" FontSize="10" Padding="8,4" Margin="0,0,2,0"
-                                Command="{Binding AddZoneCommand}"/>
-                        <Button Content="Supprimer" Style="{DynamicResource StoneButton}" FontSize="10" Padding="8,4"
-                                Command="{Binding DeleteZoneCommand}"/>
-                    </StackPanel>
-
                     <Border Background="#44FF0000" CornerRadius="3" Padding="8,3" Margin="6,0,0,0"
                             Visibility="{Binding IsPlacingCharacter, Converter={StaticResource BoolToVis}}">
                         <TextBlock Text="Clic carte = placer le perso" FontSize="10" Foreground="#FFFF8888"/>
@@ -128,6 +166,15 @@
                     <Border Background="#4400AAFF" CornerRadius="3" Padding="8,3" Margin="6,0,0,0"
                             Visibility="{Binding IsPlacingTimer, Converter={StaticResource BoolToVis}}">
                         <TextBlock Text="Clic carte = placer le timer" FontSize="10" Foreground="#FF88CCFF"/>
+                    </Border>
+                    <Border Background="#44AA44FF" CornerRadius="3" Padding="8,3" Margin="6,0,0,0"
+                            Visibility="{Binding IsPlacingDungeonMarker, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="Clic carte = repère donjon" FontSize="10" Foreground="#FFCCAAFF"/>
+                    </Border>
+                    <Border Background="#3322AA44" CornerRadius="3" Padding="8,3" Margin="6,0,0,0"
+                            Visibility="{Binding IsZonesPanelOpen, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="{Binding ZonePanelStatusMessage}" FontSize="10" Foreground="#FFAAEE88"
+                                   MaxWidth="280" TextTrimming="CharacterEllipsis"/>
                     </Border>
                 </WrapPanel>
                 </DockPanel>
@@ -372,6 +419,7 @@
                         <DataGridTextColumn Header="Nom" Binding="{Binding Name}" Width="100"/>
                         <DataGridTextColumn Header="Classe" Binding="{Binding Class}" Width="75"/>
                         <DataGridTextColumn Header="Lv" Binding="{Binding Level}" Width="30"/>
+                        <DataGridTextColumn Header="Or" Binding="{Binding ., Converter={StaticResource GoldConv}}" Width="95"/>
                         <DataGridTextColumn Header="Status" Binding="{Binding Status, Converter={StaticResource StatusConv}}" Width="60"/>
                         <DataGridTextColumn Header="Compte" Binding="{Binding AccountId, Converter={StaticResource AccountConv}}" Width="75"/>
                         <DataGridTextColumn Header="💎" Binding="{Binding ShardCount}" Width="30"/>
@@ -389,6 +437,7 @@
         <!-- Volets droite : pas de cadre global, un cadre par volet seulement -->
         <Grid x:Name="RightDockHost" Grid.Row="1" Grid.Column="2" Visibility="Collapsed">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
@@ -622,8 +671,195 @@
                     </DockPanel>
                 </Border>
 
+                <!-- Volet zones & donjons -->
+                <Border x:Name="ZonesPanelHost" Grid.Column="3" Width="328" Margin="0,0,4,0"
+                        Background="#12181014" BorderThickness="1" CornerRadius="6" ClipToBounds="True"
+                        BorderBrush="#55AAEE88" Visibility="Collapsed">
+                    <DockPanel LastChildFill="True">
+                        <Border DockPanel.Dock="Top" Padding="10,8" Margin="0,0,0,1"
+                                BorderBrush="#44AAEE88" BorderThickness="0,0,0,1"
+                                Background="#1E281810">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource CartoThinClose}"
+                                        Click="CloseZonesPanel_Click"/>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="🗺" FontSize="13" Margin="0,0,6,0"
+                                               Foreground="#FFAAEE88" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Zones" FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <TextBlock DockPanel.Dock="Bottom" Text="{Binding ZonePanelStatusMessage}"
+                                   FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                   TextWrapping="Wrap" Margin="10,6,10,8" MinHeight="28"/>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,6,8,4">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <Button DockPanel.Dock="Right" Content="＋" Style="{DynamicResource StoneButton}"
+                                            FontSize="14" Padding="8,4" MinWidth="30" Margin="6,0,0,0"
+                                            Command="{Binding AddWorldZoneFromPanelCommand}"
+                                            ToolTip="Ajouter une zone (ou clic sur la carte)"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Zones ouvertes" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="#FFAAEE88"/>
+                                        <TextBlock Text="Rectangles sur la carte monde" FontSize="9"
+                                                   Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </DockPanel>
+                                <ComboBox x:Name="ZoneAddCombo" Height="26" FontSize="10" Margin="0,0,0,4"
+                                          ItemsSource="{Binding ZoneCatalogItems}"
+                                          SelectedValuePath="MapId"
+                                          SelectedValue="{Binding ZoneToAddMapId, Mode=TwoWay}"
+                                          ToolTip="Zone à ajouter sur la carte">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type carto:ZoneCatalogListItem}">
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="10"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Content="Tout afficher sur la carte" Style="{DynamicResource StoneButton}"
+                                        FontSize="9" Padding="6,3" Margin="0,0,0,6" HorizontalAlignment="Left"
+                                        Command="{Binding ClearZoneMapFocusCommand}"
+                                        ToolTip="Désélectionner pour réafficher toutes les zones"/>
+                                <ListBox x:Name="ZoneRectsListBox"
+                                         ItemsSource="{Binding WorldZoneRects}"
+                                         SelectedItem="{Binding SelectedZoneRect, Mode=TwoWay}"
+                                         MaxHeight="220" Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         PreviewMouseDown="ZoneRectsListBox_PreviewMouseDown"
+                                         ItemContainerStyle="{StaticResource CartoZoneListItem}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type carto:CartoZoneRectItem}">
+                                            <DockPanel LastChildFill="True">
+                                                <Button DockPanel.Dock="Right" Content="✕"
+                                                        Style="{DynamicResource StoneButton}"
+                                                        FontSize="11" Padding="6,2" MinWidth="26" Margin="6,0,0,0"
+                                                        VerticalAlignment="Center"
+                                                        Command="{Binding DataContext.DeleteZoneCommand, ElementName=RootGrid}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="Supprimer cette zone"
+                                                        Click="ZoneListDelete_Click"/>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource TextBrush}"/>
+                                                    <TextBlock FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0">
+                                                        <Run Text="Carte "/><Run Text="{Binding MapId, Mode=OneWay}"/>
+                                                        <Run Text=" · "/>
+                                                        <Run Text="{Binding Width, StringFormat={}{0:P0}, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <Border Height="1" Background="#33AA8833" Margin="0,10,0,10"/>
+
+                                <DockPanel Margin="0,0,0,6">
+                                    <Button DockPanel.Dock="Right" Content="＋" Style="{DynamicResource StoneButton}"
+                                            FontSize="14" Padding="8,4" MinWidth="30" Margin="6,0,0,0"
+                                            Command="{Binding StartPlaceDungeonMarkerCommand}"
+                                            ToolTip="Placer un repère donjon sur la carte"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Donjons" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="#FFBBAAEE"/>
+                                        <TextBlock Text="Combo + ＋ pour placer — liste = repères déjà posés" FontSize="9"
+                                                   Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </DockPanel>
+                                <ComboBox x:Name="DungeonAddCombo" Height="26" FontSize="10" Margin="0,0,0,4"
+                                          ItemsSource="{Binding DungeonCatalogItems}"
+                                          SelectedValuePath="Key"
+                                          SelectedValue="{Binding DungeonToPlaceKey, Mode=TwoWay}"
+                                          ToolTip="Donjon à placer">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type carto:DungeonCatalogListItem}">
+                                            <TextBlock Text="{Binding DisplayLabel}" FontSize="10"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Content="Tout afficher sur la carte" Style="{DynamicResource StoneButton}"
+                                        FontSize="9" Padding="6,3" Margin="0,0,0,6" HorizontalAlignment="Left"
+                                        Command="{Binding ClearDungeonMapFocusCommand}"
+                                        ToolTip="Désélectionner pour réafficher tous les repères"/>
+                                <ListBox x:Name="DungeonMarkersListBox"
+                                         ItemsSource="{Binding DungeonMarkers}"
+                                         SelectedItem="{Binding SelectedDungeonMarker, Mode=TwoWay}"
+                                         MaxHeight="240" Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         PreviewMouseDown="DungeonMarkersListBox_PreviewMouseDown"
+                                         ItemContainerStyle="{StaticResource CartoDungeonListItem}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type carto:CartoDungeonMarker}">
+                                            <DockPanel LastChildFill="True">
+                                                <Button DockPanel.Dock="Right" Content="✕"
+                                                        Style="{DynamicResource StoneButton}"
+                                                        FontSize="11" Padding="6,2" MinWidth="26" Margin="6,0,0,0"
+                                                        VerticalAlignment="Center"
+                                                        Command="{Binding DataContext.ClearDungeonMarkerCommand, ElementName=RootGrid}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="Retirer le repère sur la carte"
+                                                        Click="DungeonListDelete_Click"/>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource TextBrush}"/>
+                                                    <TextBlock Text="{Binding PositionHint}" FontSize="9"
+                                                               Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <Border Height="1" Background="#33AA8833" Margin="0,10,0,10"/>
+
+                                <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="#FFFFAA66" Margin="0,0,0,4">
+                                    <Run Text="Non placés sur la carte ("/>
+                                    <Run Text="{Binding UnplacedCharacters.Count, Mode=OneWay}"/>
+                                    <Run Text=")"/>
+                                </TextBlock>
+                                <TextBlock Text="Zone WowSync — pour repérer instances / zones non calibrées"
+                                           FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                <ListBox ItemsSource="{Binding UnplacedCharacters}"
+                                         MaxHeight="200" Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type carto:CartoUnplacedCharacterItem}">
+                                            <Button Style="{StaticResource StoneButton}" Padding="6,4" Margin="0,0,0,3"
+                                                    HorizontalContentAlignment="Left"
+                                                    Command="{Binding DataContext.SelectUnplacedCharacterCommand, ElementName=RootGrid}"
+                                                    CommandParameter="{Binding}"
+                                                    ToolTip="{Binding SummaryLine}">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource TextBrush}"/>
+                                                    <TextBlock FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0">
+                                                        <Run Text="{Binding AccountName, Mode=OneWay}"/>
+                                                        <Run Text=" · "/>
+                                                        <Run Text="{Binding ZoneDisplay, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                    <TextBlock FontSize="9" Foreground="#FFCC9966" Margin="0,1,0,0">
+                                                        <Run Text="map "/>
+                                                        <Run Text="{Binding MapId, Mode=OneWay}"/>
+                                                        <Run Text=" · "/>
+                                                        <Run Text="{Binding CoordsDisplay, Mode=OneWay}"/>
+                                                        <Run Text=" · "/>
+                                                        <Run Text="{Binding ReasonDisplay, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+
                 <!-- Volet paramètres (comptes WTF) -->
-                <Border x:Name="SettingsPanelHost" Grid.Column="3" Width="384" Margin="0,0,0,0"
+                <Border x:Name="SettingsPanelHost" Grid.Column="4" Width="384" Margin="0,0,0,0"
                         Background="#18141008" BorderThickness="1" CornerRadius="6" ClipToBounds="True"
                         BorderBrush="#55AA8833" Visibility="Collapsed">
                     <DockPanel LastChildFill="True">
@@ -707,6 +943,7 @@
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
                                                             <ColumnDefinition Width="110"/>
                                                         </Grid.ColumnDefinitions>
                                                         <TextBox Grid.Column="0" Text="{Binding DisplayName, UpdateSourceTrigger=PropertyChanged}"
@@ -714,7 +951,12 @@
                                                                  Background="{DynamicResource SelectionBgBrush}"
                                                                  Foreground="{DynamicResource TextBrush}"
                                                                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                                                        <ComboBox Grid.Column="1" FontSize="10" Height="26"
+                                                        <cartoUi:WowCurrencyControl Grid.Column="1"
+                                                                                       CopperTotal="{Binding GoldCopper}"
+                                                                                       IconSize="14" AmountFontSize="10"
+                                                                                       VerticalAlignment="Center"
+                                                                                       Margin="0,0,8,0"/>
+                                                        <ComboBox Grid.Column="2" FontSize="10" Height="26"
                                                                   ItemsSource="{Binding DataContext.CartoUsers, ElementName=RootGrid}"
                                                                   DisplayMemberPath="Name"
                                                                   SelectedValuePath="Id"

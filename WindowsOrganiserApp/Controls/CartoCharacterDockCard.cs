@@ -73,6 +73,13 @@ public static class CartoCharacterDockCard
 
         var body = new StackPanel();
 
+        if (CartoCharacterPresentation.ShowGoldBody(ch) && sync is { Gold: > 0 })
+        {
+            var goldLine = new WrapPanel { Margin = new Thickness(0, 0, 0, RowGap) };
+            goldLine.Children.Add(WowCurrencyDisplay.Build(sync.Gold, iconSize: 16, fontSize: 12));
+            body.Children.Add(goldLine);
+        }
+
         if (CartoCharacterPresentation.ShowProfessionsBody(ch))
         {
             var infoLine = new WrapPanel { Margin = new Thickness(0, 0, 0, RowGap) };
@@ -85,9 +92,6 @@ public static class CartoCharacterDockCard
                     $"{ch.ShardCount}",
                     new SolidColorBrush(Color.FromRgb(148, 130, 201))));
             }
-
-            if (sync is { Gold: > 0 })
-                infoLine.Children.Add(WowCurrencyDisplay.Build(sync.Gold, iconSize: 16, fontSize: 12));
 
             var profLine = BuildProfessionsLine(ch, sync);
             if (profLine != null)

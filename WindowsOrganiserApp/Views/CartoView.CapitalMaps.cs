@@ -228,8 +228,10 @@ public partial class CartoView
         var h = slot.Canvas.ActualHeight;
         if (w <= 1 || h <= 1) return;
 
+        var focusZone = Vm.IsZonesPanelOpen && Vm.SelectedZoneRect != null;
         var zones = Vm.ZoneRects
             .Where(z => z.MapId == slot.Definition.MapId)
+            .Where(z => !focusZone || ReferenceEquals(z, Vm.SelectedZoneRect))
             .OrderBy(z => ReferenceEquals(z, Vm.SelectedZoneRect) ? 1 : 0);
         foreach (var zone in zones)
             DrawZoneRectOnCanvas(slot.Canvas, zone, w, h, Vm.SelectedZoneRect);
@@ -319,7 +321,6 @@ public partial class CartoView
         if (w <= 1 || h <= 1) return;
 
         var mapId = slot.Definition.MapId;
-        var labelLayouts = new List<MapCharacterLabelLayout>();
 
         foreach (var ch in Vm.FilteredCharacters
                      .Where(c => c.IsPlacedOnMap && !c.IsExternal)
@@ -328,11 +329,8 @@ public partial class CartoView
             if (!TryGetCapitalLocalPosition(ch, Vm, mapId, out var mapX, out var mapY))
                 continue;
 
-            AddCapitalCharacterMarker(slot.Canvas, ch, w, h, mapX, mapY, labelLayouts);
+            AddCapitalCharacterMarker(slot.Canvas, ch, w, h, mapX, mapY);
         }
-
-        LayoutMapCharacterLabels(labelLayouts);
-        AddMapShardBadges(labelLayouts);
     }
 
     private void AddCapitalCharacterMarker(
@@ -341,12 +339,10 @@ public partial class CartoView
         double mapW,
         double mapH,
         double mapX,
-        double mapY,
-        List<MapCharacterLabelLayout> labelLayouts)
+        double mapY)
     {
         var isTpBoy = ch.Status == CharacterStatus.TpBoy;
-        var color = WowClassColors.GetHexColor(ch.Class);
-        var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
+        var brush = GetClassBrush(WowClassColors.GetHexColor(ch.Class));
         var isSelected = ch == Vm.SelectedCharacter;
         var size = GetMapMarkerDotSize(isSelected, isTpBoy);
 
@@ -363,7 +359,8 @@ public partial class CartoView
             Stroke = strokeBrush,
             StrokeThickness = isTpBoy ? 1.5 : (isSelected ? 1.5 : 1),
             Cursor = Cursors.Hand,
-            Tag = ch
+            Tag = ch,
+            ToolTip = ch.Name
         };
         Panel.SetZIndex(marker, isTpBoy ? 14 : 10);
 
@@ -373,23 +370,13 @@ public partial class CartoView
         Canvas.SetTop(marker, pixY - size / 2);
         canvas.Children.Add(marker);
 
-        var label = BuildMapCharacterLabel(ch, Vm!, brush, isSelected, isTpBoy, out var inlineShard);
-        label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        label.Arrange(new Rect(label.DesiredSize));
+        if (Vm == null) return;
+
+        var label = BuildMapCharacterLabel(ch, Vm, brush, isSelected, isTpBoy, out var inlineShard);
+        var labelW = EstimateLabelWidth(GetMapLabelText(ch, Vm), inlineShard);
         canvas.Children.Add(label);
         Panel.SetZIndex(label, isTpBoy ? 18 : 15);
-
-        labelLayouts.Add(new MapCharacterLabelLayout
-        {
-            Character = ch,
-            PixX = pixX,
-            PixY = pixY,
-            DotSize = size,
-            Label = label,
-            LabelWidth = label.DesiredSize.Width,
-            LabelHeight = label.DesiredSize.Height,
-            InlineShard = inlineShard
-        });
+        PlaceMapCharacterLabel(label, pixX, pixY, size, labelW, mapW, mapH);
     }
 
     private bool TryHitZoneOnCanvas(

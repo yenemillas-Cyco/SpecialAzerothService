@@ -95,7 +95,9 @@ public sealed class WowSyncService : IWowSyncService
                 foreach (var (charKey, charValue) in db)
                 {
                     if (charValue is not Dictionary<string, object?> charData) continue;
-                    account.Characters.Add(ParseCharacter(charData));
+                    var ch = ParseCharacter(charData);
+                    ch.StorageKey = charKey.Trim();
+                    account.Characters.Add(ch);
                 }
             }
             catch { /* skip corrupted files */ }

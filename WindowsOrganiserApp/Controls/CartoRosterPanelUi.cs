@@ -66,19 +66,30 @@ public static class CartoRosterPanelUi
         };
     }
 
-    public static Grid BuildAlignedRightRail(int count, Brush? countAccent, params UIElement[] trailingControls)
+    public static Grid BuildAlignedRightRail(int count, Brush? countAccent, long totalGoldCopper = 0, params UIElement[] trailingControls)
     {
         var grid = new Grid
         {
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center
         };
+        var col = 0;
+        if (totalGoldCopper > 0)
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var goldHost = WowCurrencyDisplay.Build(totalGoldCopper, iconSize: 13, fontSize: 10);
+            goldHost.Margin = new Thickness(0, 0, 8, 0);
+            goldHost.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(goldHost, col++);
+            grid.Children.Add(goldHost);
+        }
+
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(CountColumnWidth) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(VisColumnWidth) });
 
         var badgeHost = new Grid { HorizontalAlignment = HorizontalAlignment.Center };
         badgeHost.Children.Add(BuildCountBadge(count, countAccent));
-        Grid.SetColumn(badgeHost, 0);
+        Grid.SetColumn(badgeHost, col++);
         grid.Children.Add(badgeHost);
 
         var actionsHost = new StackPanel
@@ -90,7 +101,7 @@ public static class CartoRosterPanelUi
         foreach (var ctrl in trailingControls)
             actionsHost.Children.Add(ctrl);
 
-        Grid.SetColumn(actionsHost, 1);
+        Grid.SetColumn(actionsHost, col);
         grid.Children.Add(actionsHost);
         return grid;
     }
@@ -115,7 +126,8 @@ public static class CartoRosterPanelUi
         CharacterStatus category,
         string title,
         int characterCount,
-        UIElement visibilityToggle)
+        UIElement visibilityToggle,
+        long totalGoldCopper = 0)
     {
         var accent = GetCategoryAccent(category);
         var grid = new Grid();
@@ -155,13 +167,18 @@ public static class CartoRosterPanelUi
         Grid.SetColumn(titleBlock, 2);
         grid.Children.Add(titleBlock);
 
-        var right = BuildAlignedRightRail(characterCount, accent, visibilityToggle);
+        var right = BuildAlignedRightRail(characterCount, accent, totalGoldCopper, visibilityToggle);
         Grid.SetColumn(right, 3);
         grid.Children.Add(right);
         return StretchWidth(grid);
     }
 
-    public static Grid BuildUserTitleRow(string userName, Brush nameBrush, int characterCount, UIElement visibilityToggle)
+    public static Grid BuildUserTitleRow(
+        string userName,
+        Brush nameBrush,
+        int characterCount,
+        UIElement visibilityToggle,
+        long totalGoldCopper = 0)
     {
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) });
@@ -188,7 +205,7 @@ public static class CartoRosterPanelUi
         Grid.SetColumn(title, 1);
         grid.Children.Add(title);
 
-        var right = BuildAlignedRightRail(characterCount, nameBrush, visibilityToggle);
+        var right = BuildAlignedRightRail(characterCount, nameBrush, totalGoldCopper, visibilityToggle);
         Grid.SetColumn(right, 2);
         grid.Children.Add(right);
         return StretchWidth(grid);

@@ -40,11 +40,8 @@ public static class CartoSyncMapper
         CartoCharacterProfile? profile,
         int stackIndex)
     {
+        _ = stackIndex;
         var isPlaced = extras?.IsPlacedOnMap == true;
-        var useCustom = isPlaced && extras?.HasCustomMapPosition == true;
-        var (stackX, stackY) = isPlaced && !useCustom
-            ? CartoMapLayout.GetStackPosition(stackIndex)
-            : (0.0, 0.0);
 
         return new WowCharacter
         {
@@ -57,9 +54,9 @@ public static class CartoSyncMapper
             AccountId = accountId ?? extras?.AccountId,
             Status = profile?.Category ?? extras?.Status ?? CharacterStatus.Reroll,
             IsPlacedOnMap = isPlaced,
-            MapX = useCustom ? extras!.MapX : stackX,
-            MapY = useCustom ? extras!.MapY : stackY,
-            HasCustomMapPosition = useCustom,
+            MapX = 0,
+            MapY = 0,
+            HasCustomMapPosition = false,
             Professions = extras?.Professions != null
                 ? [.. extras.Professions]
                 : [],
@@ -85,6 +82,7 @@ public static class CartoSyncMapper
         Note = ch.Note ?? ""
     };
 
+    /// <summary>Positions carte : uniquement via WowSync en mémoire — pas de persistance locale.</summary>
     public static CartoCharacterExtras ToExtras(WowCharacter ch) => new()
     {
         Id = ch.Id,
@@ -98,9 +96,9 @@ public static class CartoSyncMapper
         IsLocked = ch.IsLocked,
         ExcludeFromSync = ch.ExcludeFromSync,
         IsPlacedOnMap = ch.IsPlacedOnMap,
-        HasCustomMapPosition = ch.HasCustomMapPosition,
-        MapX = ch.MapX,
-        MapY = ch.MapY
+        HasCustomMapPosition = false,
+        MapX = 0,
+        MapY = 0
     };
 
     public static void ApplyCooldownsFromSync(WowCharacterData sync, WowCharacter carto)
@@ -152,8 +150,8 @@ public static class CartoSyncMapper
         IsLocked = ch.IsLocked,
         ExcludeFromSync = ch.ExcludeFromSync,
         IsPlacedOnMap = ch.IsPlacedOnMap,
-        HasCustomMapPosition = ch.HasCustomMapPosition,
-        MapX = ch.MapX,
-        MapY = ch.MapY
+        HasCustomMapPosition = false,
+        MapX = 0,
+        MapY = 0
     };
 }
