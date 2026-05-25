@@ -1,0 +1,14 @@
+﻿{
+    "kalimdor":  {
+                     "offsetY":  -0.026178,
+                     "offsetX":  -0.016393,
+                     "scaleX":  2.04918,
+                     "scaleY":  1.04712
+                 },
+    "eastern_kingdoms":  {
+                             "offsetY":  -0.026178,
+                             "offsetX":  -1.034836,
+                             "scaleX":  2.04918,
+                             "scaleY":  1.04712
+                         }
+}

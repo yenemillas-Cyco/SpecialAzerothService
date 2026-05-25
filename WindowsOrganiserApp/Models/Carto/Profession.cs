@@ -74,4 +74,21 @@ public sealed class CooldownEntry
     public DateTime? ReadyAt => LastUsed?.Add(Duration);
     public bool IsReady => LastUsed == null || DateTime.Now >= ReadyAt;
     public TimeSpan? TimeRemaining => IsReady ? null : ReadyAt - DateTime.Now;
+
+    /// <summary>Avancement du CD (0 = début, 1 = prêt).</summary>
+    public double ElapsedFraction
+    {
+        get
+        {
+            if (IsReady)
+                return 1;
+
+            var total = Duration.TotalSeconds;
+            if (total <= 0)
+                return 1;
+
+            var remaining = TimeRemaining?.TotalSeconds ?? 0;
+            return Math.Clamp(1 - remaining / total, 0, 1);
+        }
+    }
 }

@@ -12,7 +12,7 @@
     <AssemblyName>SpecialAzerothService</AssemblyName>
     <Product>Special Azeroth Service — Multibox Organiser</Product>
     <Description>WoW Multibox Window Organiser pour Polux</Description>
-    <Version>3.0.12</Version>
+    <Version>3.0.13</Version>
 
     <!-- Publication self-contained -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -20,24 +20,37 @@
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.7" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
     <PackageReference Include="Serilog" Version="4.3.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
-    <PackageReference Include="System.Net.Http.WinHttpHandler" Version="10.0.7" />
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Assets\wow_logo.png" />
-    <Resource Include="Assets\wow_bg.png" />
-    <Resource Include="Assets\wow_map_vanilla.png" />
+    <EmbeddedResource Include="Assets\zone-rects-classic-era.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\WowMap.png" />
+    <Resource Include="Assets\Alliance.png" />
+    <Resource Include="Assets\Horde.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Classes\class_warrior.jpg" />
+    <Resource Include="Assets\Classes\class_paladin.jpg" />
+    <Resource Include="Assets\Classes\class_hunter.jpg" />
+    <Resource Include="Assets\Classes\class_rogue.jpg" />
+    <Resource Include="Assets\Classes\class_priest.jpg" />
+    <Resource Include="Assets\Classes\class_shaman.jpg" />
+    <Resource Include="Assets\Classes\class_mage.jpg" />
+    <Resource Include="Assets\Classes\class_warlock.jpg" />
+    <Resource Include="Assets\Classes\class_druid.jpg" />
   </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
+using WindowsOrganiserApp.Controls;
 using WindowsOrganiserApp.Services;
 using WindowsOrganiserApp.ViewModels;
 using WindowsOrganiserApp.Views;
@@ -23,6 +24,23 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception ex)
+                Log.Fatal(ex, "Exception fatale non gérée");
+        };
+
+        DispatcherUnhandledException += (_, args) =>
+        {
+            Log.Error(args.Exception, "Exception UI non gérée");
+            MessageBox.Show(
+                $"Erreur inattendue :\n{args.Exception.Message}",
+                "Special Azeroth Service",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            args.Handled = true;
+        };
 
         KillOtherInstances();
 
@@ -45,11 +63,8 @@ public partial class App : Application
         services.AddSingleton<ICartoService, CartoService>();
         services.AddSingleton<IBountyService, BountyService>();
         services.AddSingleton<IWowSyncService, WowSyncService>();
-        services.AddSingleton(sp =>
-        {
-            var settings = sp.GetRequiredService<ISettingsService>().Load();
-            return new SyncService(settings, sp.GetRequiredService<ILogger>());
-        });
+        services.AddSingleton<IWowItemLookupService, WowItemLookupService>();
+        services.AddSingleton<IUserProfileService, UserProfileService>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<AdvancedViewModel>();
         services.AddSingleton<CartoViewModel>();
@@ -59,6 +74,7 @@ public partial class App : Application
         services.AddTransient<MainWindow>();
 
         _serviceProvider = services.BuildServiceProvider();
+        WowItemSlot.LookupService = _serviceProvider.GetRequiredService<IWowItemLookupService>();
 
         var mainVm = _serviceProvider.GetRequiredService<MainViewModel>();
         var advVm = _serviceProvider.GetRequiredService<AdvancedViewModel>();
@@ -69,10 +85,60 @@ public partial class App : Application
         mainVm.CartoVm = cartoVm;
         mainVm.BountyVm = bountyVm;
         mainVm.ConsoVm = consoVm;
-        mainVm.WowSyncVm = _serviceProvider.GetRequiredService<WowSyncViewModel>();
+        var wowSyncVm = _serviceProvider.GetRequiredService<WowSyncViewModel>();
+        wowSyncVm.MainVm = mainVm;
+        mainVm.WowSyncVm = wowSyncVm;
 
-        var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+        // Fenêtre principale assignée AVANT le splash : sinon la fermeture du splash
+        // coupe l'app (ShutdownMode=OnMainWindowClose).
+        MainWindow mainWindow;
+        try
+        {
+            mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+            MainWindow = mainWindow;
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Échec création de la fenêtre principale");
+            MessageBox.Show(
+                $"Impossible de démarrer l'application :\n\n{ex.Message}",
+                "Special Azeroth Service",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown(1);
+            return;
+        }
+
+        var splash = new SplashWindow();
+        splash.Show();
+
+        var startupProgress = new Progress<StartupLoadProgress>(p =>
+        {
+            splash.Dispatcher.Invoke(() => splash.Report(p), DispatcherPriority.Render);
+        });
+
+        try
+        {
+            await AppStartupService.RunAsync(_serviceProvider, startupProgress);
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Échec chargement au démarrage");
+            splash.Close();
+            MessageBox.Show(
+                $"Erreur au chargement :\n\n{ex.Message}",
+                "Special Azeroth Service",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown(1);
+            return;
+        }
+
+        splash.Close();
         mainWindow.Show();
+        mainWindow.Activate();
+        if (mainWindow.WindowState == WindowState.Minimized)
+            mainWindow.WindowState = WindowState.Normal;
 
         await CheckForUpdatesAsync();
     }
@@ -155,13 +221,6 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        try
-        {
-            var sync = _serviceProvider?.GetService<SyncService>();
-            sync?.DisconnectAsync().Wait(TimeSpan.FromSeconds(3));
-        }
-        catch { /* don't block exit */ }
-
         Log.CloseAndFlush();
         _serviceProvider?.Dispose();
         base.OnExit(e);

@@ -22,38 +22,18 @@ public sealed class FriendBountyGroup
 public partial class BountyViewModel : ObservableObject
 {
     private readonly IBountyService _bountyService;
-    private readonly SyncService _syncService;
     private BountyData _data;
 
     public static string[] WowClasses => ["Guerrier", "Paladin", "Chasseur", "Voleur", "Prêtre", "Chaman", "Mage", "Démoniste", "Druide"];
     public static string[] WowRaces => ["Humain", "Nain", "Elfe de la nuit", "Gnome", "Orc", "Tauren", "Troll", "Mort-vivant"];
 
-    public BountyViewModel(IBountyService bountyService, SyncService syncService)
+    public BountyViewModel(IBountyService bountyService)
     {
         _bountyService = bountyService;
-        _syncService = syncService;
         _data = _bountyService.Load();
         Bounties = new ObservableCollection<BountyEntry>(_data.Bounties);
         _rules = _data.Rules;
         RefreshStats();
-
-        _syncService.FriendBountyReceived += (guid, payload) =>
-            Application.Current?.Dispatcher.BeginInvoke(() =>
-            {
-                var friendName = _syncService.GetFriend(guid)?.Name ?? guid[..8];
-                var existing = FriendBounties.FirstOrDefault(f => f.FriendGuid == guid);
-                if (existing != null) FriendBounties.Remove(existing);
-                FriendBounties.Add(new FriendBountyGroup
-                {
-                    FriendName = friendName,
-                    FriendGuid = guid,
-                    Bounties = payload.Bounties
-                });
-                OnPropertyChanged(nameof(FriendBounties));
-            });
-
-        _syncService.PushRequested += () =>
-            Application.Current?.Dispatcher.BeginInvoke(() => PushBounties());
     }
 
     public ObservableCollection<BountyEntry> Bounties { get; }
@@ -90,17 +70,6 @@ public partial class BountyViewModel : ObservableObject
         _data.Rules = Rules;
         _bountyService.Save(_data);
         RefreshStats();
-        PushBounties();
-    }
-
-    private void PushBounties()
-    {
-        var payload = new BountySyncPayload
-        {
-            Bounties = [.. Bounties],
-            Rules = Rules
-        };
-        _ = _syncService.PushBountyUpdateAsync(payload);
     }
 
     private void RefreshStats()

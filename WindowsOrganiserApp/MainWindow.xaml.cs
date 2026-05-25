@@ -1,6 +1,7 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -34,12 +35,15 @@ public partial class MainWindow : Window
             windowService.OwnHandle = new WindowInteropHelper(this).Handle;
             RestoreWindowPosition();
             viewModel.RefreshWindowsCommand.Execute(null);
+            Activate();
+            if (WindowState == WindowState.Minimized)
+                WindowState = WindowState.Normal;
         };
 
         viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.IsOrganiserMode) && viewModel.IsOrganiserMode)
-                Dispatcher.InvokeAsync(RedrawAdvancedCanvas, System.Windows.Threading.DispatcherPriority.Render);
+                Dispatcher.InvokeAsync(RedrawAdvancedCanvas, DispatcherPriority.Render);
         };
 
         if (viewModel.AdvancedVm is not null)

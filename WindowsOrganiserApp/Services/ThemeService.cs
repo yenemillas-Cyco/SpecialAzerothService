@@ -30,7 +30,12 @@ public class ThemeService : IThemeService
         var mergedDicts = app.Resources.MergedDictionaries;
 
         var existing = mergedDicts.FirstOrDefault(d =>
-            d.Source?.OriginalString.Contains("Themes/") == true);
+        {
+            var src = d.Source?.OriginalString;
+            return src is not null
+                   && src.Contains("Themes/", StringComparison.OrdinalIgnoreCase)
+                   && !src.Contains("CartoTheme", StringComparison.OrdinalIgnoreCase);
+        });
         if (existing is not null)
             mergedDicts.Remove(existing);
 

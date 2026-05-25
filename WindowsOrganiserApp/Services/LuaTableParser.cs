@@ -198,13 +198,40 @@ public static class LuaTableParser
         => dict.TryGetValue(key, out var v) && v is string s ? s : fallback;
 
     public static int GetInt(Dictionary<string, object?> dict, string key, int fallback = 0)
-        => dict.TryGetValue(key, out var v) && v is double d ? (int)d : fallback;
+    {
+        if (!dict.TryGetValue(key, out var v) || v is null) return fallback;
+        return v switch
+        {
+            double d => (int)d,
+            long l => (int)l,
+            int i => i,
+            _ => fallback
+        };
+    }
 
     public static long GetLong(Dictionary<string, object?> dict, string key, long fallback = 0)
-        => dict.TryGetValue(key, out var v) && v is double d ? (long)d : fallback;
+    {
+        if (!dict.TryGetValue(key, out var v) || v is null) return fallback;
+        return v switch
+        {
+            double d => (long)d,
+            long l => l,
+            int i => i,
+            _ => fallback
+        };
+    }
 
     public static double GetDouble(Dictionary<string, object?> dict, string key, double fallback = 0)
-        => dict.TryGetValue(key, out var v) && v is double d ? d : fallback;
+    {
+        if (!dict.TryGetValue(key, out var v) || v is null) return fallback;
+        return v switch
+        {
+            double d => d,
+            long l => l,
+            int i => i,
+            _ => fallback
+        };
+    }
 
     public static Dictionary<string, object?>? GetTable(Dictionary<string, object?> dict, string key)
         => dict.TryGetValue(key, out var v) && v is Dictionary<string, object?> t ? t : null;

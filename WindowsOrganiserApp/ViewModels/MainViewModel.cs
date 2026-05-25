@@ -16,12 +16,11 @@ public partial class MainViewModel : ObservableObject
     private readonly IThemeService _themeService;
     private readonly ILocalizationService _localizationService;
     private readonly ILogger _logger;
-    private readonly SyncService _syncService;
     private AppSettings? _loadedSettings;
 
     public MainViewModel(IWindowService windowService, ILayoutService layoutService,
                          ISettingsService settingsService, IThemeService themeService,
-                         ILocalizationService localizationService, SyncService syncService,
+                         ILocalizationService localizationService,
                          ILogger logger)
     {
         _windowService = windowService;
@@ -29,15 +28,8 @@ public partial class MainViewModel : ObservableObject
         _settingsService = settingsService;
         _themeService = themeService;
         _localizationService = localizationService;
-        _syncService = syncService;
         _logger = logger;
         _loadedSettings = _settingsService.Load();
-
-        _syncService.ConnectionStateChanged += _ =>
-            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
-            {
-                IsSyncConnected = _syncService.IsConnected;
-            });
 
         if (!string.IsNullOrEmpty(_loadedSettings.Theme))
             _themeService.ApplyTheme(_loadedSettings.Theme);
@@ -81,7 +73,13 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsCartoModeChanged(bool value)
     {
-        if (value) { IsOrganiserMode = false; IsBountyMode = false; IsConsoMode = false; IsWowSyncMode = false; }
+        if (value)
+        {
+            IsOrganiserMode = false;
+            IsBountyMode = false;
+            IsConsoMode = false;
+            IsWowSyncMode = false;
+        }
     }
 
     partial void OnIsBountyModeChanged(bool value)
@@ -97,22 +95,6 @@ public partial class MainViewModel : ObservableObject
     partial void OnIsWowSyncModeChanged(bool value)
     {
         if (value) { IsOrganiserMode = false; IsCartoMode = false; IsBountyMode = false; IsConsoMode = false; }
-    }
-
-    // ─── WebSocket connection toggle ───────────────────────
-
-    [ObservableProperty]
-    private bool _isSyncConnected;
-
-    [RelayCommand]
-    private async Task ToggleSync()
-    {
-        if (_syncService.IsConnected)
-            await _syncService.DisconnectAsync();
-        else
-            await _syncService.ConnectAsync();
-
-        IsSyncConnected = _syncService.IsConnected;
     }
 
     // ─── Toast notifications ─────────────────────────────────
@@ -162,10 +144,12 @@ public partial class MainViewModel : ObservableObject
     }
 
     public AdvancedViewModel? AdvancedVm { get; set; }
-    public CartoViewModel? CartoVm { get; set; }
     public BountyViewModel? BountyVm { get; set; }
     public ConsoViewModel? ConsoVm { get; set; }
     public WowSyncViewModel? WowSyncVm { get; set; }
+
+    [ObservableProperty]
+    private CartoViewModel? _cartoVm;
 
     [ObservableProperty]
     private string _currentThemeLabel;

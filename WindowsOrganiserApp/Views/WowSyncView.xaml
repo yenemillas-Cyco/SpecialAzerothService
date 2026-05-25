@@ -3,11 +3,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:local="clr-namespace:WindowsOrganiserApp.Views"
+             xmlns:controls="clr-namespace:WindowsOrganiserApp.Controls"
              mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="1000">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-        <local:CountToVisibilityConverter x:Key="CountToVis"/>
+
+        <DataTemplate x:Key="ItemSlotTemplate">
+            <controls:WowItemSlot/>
+        </DataTemplate>
 
         <Style x:Key="SectionTitle" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Georgia"/>
@@ -51,6 +54,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
@@ -73,7 +77,10 @@
                     </DockPanel>
                     <StackPanel Orientation="Horizontal">
                         <Button Content="🚀 Déployer l'addon" Style="{StaticResource ActionBtn}"
-                                Command="{Binding DeployAddonCommand}" Margin="0,0,10,0"/>
+                                Command="{Binding DeployAddonCommand}" Margin="0,0,10,0"
+                                ToolTip="{Binding AddonVersion, StringFormat=Version addon déployée : v{0}}"/>
+                        <TextBlock Text="{Binding AddonVersion, StringFormat=v{0}}" FontSize="11"
+                                   Foreground="#88CCFF" VerticalAlignment="Center" Margin="0,0,10,0"/>
                         <Button Content="🔄 Refresh" Style="{StaticResource ActionBtn}"
                                 Command="{Binding RefreshCommand}"/>
                     </StackPanel>
@@ -84,8 +91,69 @@
             <TextBlock Grid.Row="1" Text="{Binding StatusText}" FontFamily="Georgia" FontSize="12"
                        Foreground="#88CC88" Margin="4,0,0,8"/>
 
+            <!-- Item search -->
+            <Border Grid.Row="2" Background="#201510" CornerRadius="6" Padding="12,8" Margin="0,0,0,10"
+                    BorderThickness="1" BorderBrush="#40806030">
+                <StackPanel>
+                    <TextBlock Text="🔍 Rechercher un objet" Style="{StaticResource SectionTitle}" FontSize="15" Margin="0,0,0,6"/>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="✕" Style="{StaticResource ActionBtn}"
+                                Padding="10,6" Margin="6,0,0,0" FontSize="12"
+                                Command="{Binding ClearSearchCommand}" ToolTip="Effacer la recherche"/>
+                        <TextBox Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                 FontFamily="Georgia" FontSize="13" Padding="8,5"
+                                 Background="#150D08" Foreground="#E8D5A3"
+                                 BorderBrush="#40806030" BorderThickness="1"
+                                 Tag="Ex: Feuillerêve, Thorium..."/>
+                    </DockPanel>
+                    <TextBlock FontFamily="Georgia" FontSize="11" Foreground="#706050" Margin="0,4,0,4"
+                               Text="Minimum 2 caractères — inventaire, banque et courrier"/>
+                    <ListBox ItemsSource="{Binding SearchResults}" MaxHeight="140" Margin="0,4,0,0"
+                             Background="#150D08" BorderBrush="#40806030" BorderThickness="1"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Button Background="Transparent" BorderThickness="0" Padding="6,4" Cursor="Hand"
+                                        HorizontalContentAlignment="Stretch"
+                                        Command="{Binding DataContext.SelectSearchResultCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding ItemName}" FontFamily="Georgia" FontSize="13"
+                                                       FontWeight="SemiBold" Foreground="#FFD700"/>
+                                            <TextBlock Text="{Binding DisplayLine}" FontFamily="Georgia" FontSize="11"
+                                                       Foreground="#A09070" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1" Text="{Binding AccountName}" FontFamily="Georgia"
+                                                   FontSize="10" Foreground="#706050" VerticalAlignment="Center"
+                                                   Margin="12,0,0,0"/>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0,1"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#18FFD700"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </StackPanel>
+            </Border>
+
             <!-- Accounts / Characters -->
-            <Grid Grid.Row="2">
+            <Grid Grid.Row="3">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="320"/>
                     <ColumnDefinition Width="12"/>
@@ -163,18 +231,49 @@
                                                 <Run Text=" — "/><Run Text="{Binding SubZone, Mode=OneWay}"/>
                                                 <Run Text=" ("/><Run Text="{Binding PositionDisplay, Mode=OneWay}"/><Run Text=")"/>
                                             </TextBlock>
+                                            <TextBlock Text="{Binding DataContext.CartoPositionHint, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                       FontFamily="Georgia" FontSize="11" Foreground="#88AACC" Margin="0,4,0,0"
+                                                       TextWrapping="Wrap"/>
+                                            <Button Content="🗺 Placer sur Carto" Margin="0,8,0,0" Padding="10,5" Cursor="Hand"
+                                                    FontFamily="Georgia" FontSize="12" FontWeight="SemiBold"
+                                                    Foreground="#FFD700" Background="#30D4A017" BorderBrush="#60806030" BorderThickness="1"
+                                                    Command="{Binding DataContext.PlaceOnCartoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                            <TextBlock FontFamily="Georgia" FontSize="16" FontWeight="Bold" Foreground="#FFD700"
-                                                       HorizontalAlignment="Right">
-                                                <Run Text="💰 "/><Run Text="{Binding GoldDisplay, Mode=OneWay}"/>
-                                            </TextBlock>
+                                            <controls:WowCurrencyControl CopperTotal="{Binding Gold, Mode=OneWay}"
+                                                                         IconSize="18" AmountFontSize="14"
+                                                                         HorizontalAlignment="Right"/>
                                             <TextBlock Style="{StaticResource InfoLabel}" HorizontalAlignment="Right" FontSize="10">
                                                 <Run Text="Màj: "/><Run Text="{Binding LastUpdate, Mode=OneWay}"/>
                                             </TextBlock>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
+
+                                <!-- Sync status -->
+                                <Border Background="#10FFFFFF" CornerRadius="4" Padding="10,8" Margin="0,0,0,10">
+                                    <StackPanel DataContext="{Binding Sync}">
+                                        <TextBlock Text="📡 Synchronisation addon" Style="{StaticResource SectionTitle}" FontSize="13" Margin="0,0,0,6"/>
+                                        <TextBlock Text="{Binding InventoryLabel, Mode=OneWay}" FontSize="12" Foreground="#C8B890" Margin="0,1"/>
+                                        <TextBlock Text="{Binding BankLabel, Mode=OneWay}" FontSize="12" Foreground="#C8B890" Margin="0,1"/>
+                                        <TextBlock Text="{Binding MailLabel, Mode=OneWay}" FontSize="12" Foreground="#C8B890" Margin="0,1"/>
+                                        <TextBlock Text="{Binding ProfessionsLabel, Mode=OneWay}" FontSize="12" Foreground="#C8B890" Margin="0,1"/>
+                                        <TextBlock FontSize="11" Foreground="#88AACC" TextWrapping="Wrap" Margin="0,6,0,0"
+                                                   Text="Banque et courrier : ouvrez-les en jeu. Puis déconnectez-vous pour mettre à jour l'application."/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Profession cooldowns -->
+                                <TextBlock Text="⏱ Cooldowns métiers" Style="{StaticResource SectionTitle}" FontSize="15"/>
+                                <ItemsControl ItemsSource="{Binding Cooldowns}" Margin="0,0,0,8">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock FontSize="12" Margin="0,2" Foreground="#C8B890">
+                                                <Run Text="• "/><Run Text="{Binding Display, Mode=OneWay}"/>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
 
                                 <!-- Professions -->
                                 <TextBlock Text="🔨 Métiers" Style="{StaticResource SectionTitle}" FontSize="15"/>
@@ -197,30 +296,15 @@
                                     <Run Text="{Binding Inventory.Count, Mode=OneWay}"/>
                                     <Run Text=" objets)"/>
                                 </TextBlock>
-                                <Border Background="#10FFFFFF" CornerRadius="4" Padding="8" MaxHeight="280">
+                                <Border Background="#10FFFFFF" CornerRadius="4" Padding="6" MaxHeight="320">
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                        <ItemsControl ItemsSource="{Binding Inventory}">
+                                        <ItemsControl ItemsSource="{Binding Inventory}"
+                                                      ItemTemplate="{StaticResource ItemSlotTemplate}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
                                                     <WrapPanel/>
                                                 </ItemsPanelTemplate>
                                             </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Background="{Binding QualityBorder}" BorderBrush="{Binding QualityColor}"
-                                                            BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="3">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="{Binding Name}" FontFamily="Georgia" FontSize="13"
-                                                                       Foreground="{Binding QualityColor}" FontWeight="SemiBold"/>
-                                                            <TextBlock FontFamily="Georgia" FontSize="12" Foreground="#A09070"
-                                                                       Margin="6,0,0,0" VerticalAlignment="Center"
-                                                                       Visibility="{Binding Count, Converter={StaticResource CountToVis}}">
-                                                                <Run Text="x"/><Run Text="{Binding Count, Mode=OneWay}"/>
-                                                            </TextBlock>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                     </ScrollViewer>
                                 </Border>
@@ -231,30 +315,15 @@
                                     <Run Text="{Binding Bank.Count, Mode=OneWay}"/>
                                     <Run Text=" objets)"/>
                                 </TextBlock>
-                                <Border Background="#10FFFFFF" CornerRadius="4" Padding="8" MaxHeight="280">
+                                <Border Background="#10FFFFFF" CornerRadius="4" Padding="6" MaxHeight="320">
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                        <ItemsControl ItemsSource="{Binding Bank}">
+                                        <ItemsControl ItemsSource="{Binding Bank}"
+                                                      ItemTemplate="{StaticResource ItemSlotTemplate}">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
                                                     <WrapPanel/>
                                                 </ItemsPanelTemplate>
                                             </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Background="{Binding QualityBorder}" BorderBrush="{Binding QualityColor}"
-                                                            BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="3">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <TextBlock Text="{Binding Name}" FontFamily="Georgia" FontSize="13"
-                                                                       Foreground="{Binding QualityColor}" FontWeight="SemiBold"/>
-                                                            <TextBlock FontFamily="Georgia" FontSize="12" Foreground="#A09070"
-                                                                       Margin="6,0,0,0" VerticalAlignment="Center"
-                                                                       Visibility="{Binding Count, Converter={StaticResource CountToVis}}">
-                                                                <Run Text="x"/><Run Text="{Binding Count, Mode=OneWay}"/>
-                                                            </TextBlock>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                     </ScrollViewer>
                                 </Border>
@@ -278,20 +347,13 @@
                                                             <Run Text="{Binding Sender, Mode=OneWay}"/><Run Text=" — "/><Run Text="{Binding Subject, Mode=OneWay}"/>
                                                         </TextBlock>
                                                     </DockPanel>
-                                                    <ItemsControl ItemsSource="{Binding Items}" Margin="0,4,0,0">
+                                                    <ItemsControl ItemsSource="{Binding Items}" Margin="0,6,0,0"
+                                                                  ItemTemplate="{StaticResource ItemSlotTemplate}">
                                                         <ItemsControl.ItemsPanel>
                                                             <ItemsPanelTemplate>
                                                                 <WrapPanel/>
                                                             </ItemsPanelTemplate>
                                                         </ItemsControl.ItemsPanel>
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <Border Background="#18FFD700" CornerRadius="3" Padding="6,3" Margin="2">
-                                                                    <TextBlock Text="{Binding Display}" FontFamily="Georgia" FontSize="12"
-                                                                               Foreground="#E8D5A3"/>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
                                                     </ItemsControl>
                                                 </StackPanel>
                                             </Border>
@@ -306,7 +368,7 @@
             </Grid>
 
             <!-- Bottom status -->
-            <TextBlock Grid.Row="3" Text="Déployez l'addon, connectez-vous en jeu, puis utilisez Refresh pour lire les données."
+            <TextBlock Grid.Row="4" Text="Déployez l'addon, connectez-vous en jeu, puis utilisez Refresh pour lire les données."
                        FontFamily="Georgia" FontSize="11" Foreground="#706050" Margin="4,8,0,0"/>
         </Grid>
     </Border>

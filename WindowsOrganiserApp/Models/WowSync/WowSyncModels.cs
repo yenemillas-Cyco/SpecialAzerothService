@@ -1,7 +1,12 @@
+using WindowsOrganiserApp.Services;
+
 namespace WindowsOrganiserApp.Models.WowSync;
 
 public sealed class WowAccountData
 {
+    /// <summary>Nom du dossier WTF (clé pour accountDisplayNames dans carto.json).</summary>
+    public string SourceAccountName { get; set; } = "";
+
     public string AccountName { get; set; } = "";
     public List<WowCharacterData> Characters { get; set; } = [];
 }
@@ -11,6 +16,8 @@ public sealed class WowCharacterData
     public string Name { get; set; } = "";
     public string Realm { get; set; } = "";
     public int Level { get; set; }
+    /// <summary>Pourcentage XP vers prochain niveau (0–100), fourni par l'addon.</summary>
+    public double XpPercent { get; set; } = -1;
     public string Class { get; set; } = "";
     public string Race { get; set; } = "";
     public long Gold { get; set; }
@@ -24,6 +31,8 @@ public sealed class WowCharacterData
     public List<WowItem> Inventory { get; set; } = [];
     public List<WowItem> Bank { get; set; } = [];
     public List<WowMailEntry> Mail { get; set; } = [];
+    public WowSyncMeta Sync { get; set; } = new();
+    public List<WowProfessionCooldown> Cooldowns { get; set; } = [];
 
     public string GoldDisplay
     {
@@ -32,11 +41,16 @@ public sealed class WowCharacterData
             var g = Gold / 10000;
             var s = (Gold % 10000) / 100;
             var c = Gold % 100;
-            return $"{g}g {s}s {c}c";
+            return $"{g} po {s} pa {c} pc";
         }
     }
 
-    public string PositionDisplay => X > 0 || Y > 0 ? $"{X * 100:F1}, {Y * 100:F1}" : "";
+    public string ZoneDisplay => WowZoneLocalization.FormatDisplay(Zone, SubZone);
+
+    public string PositionDisplay =>
+        X > 0 || Y > 0
+            ? $"{X * 100:F1}, {Y * 100:F1} — {ZoneDisplay}" + (MapId > 0 ? $" (map {MapId})" : "")
+            : string.IsNullOrEmpty(ZoneDisplay) ? "Coords manquantes — redéployez l'addon et déconnectez-vous" : $"Coords manquantes — {ZoneDisplay}";
     public string Key => $"{Name}-{Realm}";
 }
 
@@ -56,6 +70,21 @@ public sealed class WowItem
     public long Icon { get; set; }
     public int Quality { get; set; }
     public string Display => Count > 1 ? $"{Name} x{Count}" : Name;
+
+    public string QualityName => Quality switch
+    {
+        0 => "Médiocre",
+        1 => "Commun",
+        2 => "Peu commun",
+        3 => "Rare",
+        4 => "Épique",
+        5 => "Légendaire",
+        _ => ""
+    };
+
+    public string WowheadUrl => ItemId > 0
+        ? $"https://www.wowhead.com/classic/fr/item={ItemId}"
+        : "";
 
     public string QualityColor => Quality switch
     {
@@ -87,4 +116,60 @@ public sealed class WowMailEntry
     public long Money { get; set; }
     public double DaysLeft { get; set; }
     public List<WowItem> Items { get; set; } = [];
+}
+
+public sealed class WowSyncMeta
+{
+    public string Inventory { get; set; } = "";
+    public string Bank { get; set; } = "";
+    public string Mail { get; set; } = "";
+    public string Professions { get; set; } = "";
+    public string Cooldowns { get; set; } = "";
+
+    public bool HasInventory => !string.IsNullOrEmpty(Inventory);
+    public bool HasBank => !string.IsNullOrEmpty(Bank);
+    public bool HasMail => !string.IsNullOrEmpty(Mail);
+    public bool HasProfessions => !string.IsNullOrEmpty(Professions);
+    public bool HasCooldowns => !string.IsNullOrEmpty(Cooldowns);
+
+    public string InventoryLabel => HasInventory ? $"✅ {Inventory}" : "— pas encore";
+    public string BankLabel => HasBank ? $"✅ {Bank}" : "— ouvrir la banque";
+    public string MailLabel => HasMail ? $"✅ {Mail}" : "— ouvrir le courrier";
+    public string ProfessionsLabel => HasProfessions ? $"✅ {Professions}" : "— auto au login";
+}
+
+public sealed class WowProfessionCooldown
+{
+    public string Key { get; set; } = "";
+    public string Name { get; set; } = "";
+    public double RemainingSec { get; set; }
+    public double ScannedAt { get; set; }
+
+    public DateTime? ReadyAtUtc =>
+        ScannedAt > 0 && RemainingSec > 0
+            ? DateTimeOffset.FromUnixTimeSeconds((long)(ScannedAt + RemainingSec)).UtcDateTime
+            : null;
+
+    public bool IsReady => ReadyAtUtc == null || DateTime.UtcNow >= ReadyAtUtc;
+
+    public string Display
+    {
+        get
+        {
+            if (IsReady) return $"{ShortName} : prêt";
+            var left = ReadyAtUtc!.Value - DateTime.UtcNow;
+            if (left.TotalDays >= 1) return $"{ShortName} : {(int)left.TotalDays}j {left.Hours}h";
+            if (left.TotalHours >= 1) return $"{ShortName} : {(int)left.TotalHours}h {left.Minutes}m";
+            return $"{ShortName} : {Math.Max(0, (int)left.TotalMinutes)}m";
+        }
+    }
+
+    private string ShortName => Key switch
+    {
+        "arcanite" => "Arcanite",
+        "elemental" => "Transmu. élément.",
+        "mooncloth" => "Étoffe lunaire",
+        "salt" => "Tamis à sel",
+        _ => string.IsNullOrEmpty(Name) ? Key : Name
+    };
 }
