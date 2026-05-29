@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using WindowsOrganiserApp;
-using WindowsOrganiserApp.Services;
+using SpecialAzerothService.Core.Services;
 using WindowsOrganiserApp.ViewModels;
 
 namespace WindowsOrganiserApp.Views;

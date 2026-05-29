@@ -3,7 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Shapes;
-using WindowsOrganiserApp.Models.Carto;
+using SpecialAzerothService.Core.Models.Carto;
 
 namespace WindowsOrganiserApp.Controls;
 

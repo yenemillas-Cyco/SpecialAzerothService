@@ -7,9 +7,9 @@ using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
-using WindowsOrganiserApp.Models.Craft;
-using WindowsOrganiserApp.Models.WowSync;
-using WindowsOrganiserApp.Services;
+using SpecialAzerothService.Core.Models.Craft;
+using SpecialAzerothService.Core.Models.WowSync;
+using SpecialAzerothService.Core.Services;
 using WindowsOrganiserApp.Views;
 
 namespace WindowsOrganiserApp.ViewModels;

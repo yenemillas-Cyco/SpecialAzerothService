@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Serilog;
 using WindowsOrganiserApp.Helpers;
-using WindowsOrganiserApp.Models;
+using SpecialAzerothService.Core.Models;
 
 namespace WindowsOrganiserApp.Services;
 

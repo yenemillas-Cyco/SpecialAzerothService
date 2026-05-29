@@ -8,10 +8,10 @@ using System.Windows.Threading;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using WindowsOrganiserApp.Controls;
-using WindowsOrganiserApp.Models.Carto;
+using SpecialAzerothService.Core.Models.Carto;
 using WindowsOrganiserApp;
-using WindowsOrganiserApp.Models.WowSync;
-using WindowsOrganiserApp.Services;
+using SpecialAzerothService.Core.Models.WowSync;
+using SpecialAzerothService.Core.Services;
 using WindowsOrganiserApp.ViewModels;
 
 namespace WindowsOrganiserApp.Views;
@@ -3162,7 +3162,7 @@ public partial class CartoView : UserControl
 
         if (ch.Class == WowClass.Demoniste && ch.ShardCount > 0)
         {
-            var shardItem = new Models.WowSync.WowItem { ItemId = 6265, Name = "Fragment d'âme", Count = ch.ShardCount, Quality = 1 };
+            var shardItem = new WowItem { ItemId = 6265, Name = "Fragment d'âme", Count = ch.ShardCount, Quality = 1 };
             wrap.Children.Add(BuildIconAmountBadge(CartoMapQuestIcon.Create(shardItem, 18), ch.ShardCount.ToString(), shardBrush,
                 $"{ch.ShardCount} fragment(s) d'âme"));
         }

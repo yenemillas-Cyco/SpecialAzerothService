@@ -2,9 +2,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using WindowsOrganiserApp.Models.Carto;
-using WindowsOrganiserApp.Models.WowSync;
-using WindowsOrganiserApp.Services;
+using SpecialAzerothService.Core.Models.Carto;
+using SpecialAzerothService.Core.Models.WowSync;
+using SpecialAzerothService.Core.Services;
 using WindowsOrganiserApp.ViewModels;
 
 namespace WindowsOrganiserApp.Controls;

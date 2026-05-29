@@ -1,5 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using WindowsOrganiserApp.Models.Carto;
+using SpecialAzerothService.Core.Models.Carto;
 
 namespace WindowsOrganiserApp.ViewModels;
 

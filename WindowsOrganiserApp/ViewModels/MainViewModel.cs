@@ -3,8 +3,8 @@ using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
-using WindowsOrganiserApp.Models;
-using WindowsOrganiserApp.Services;
+using SpecialAzerothService.Core.Models;
+using SpecialAzerothService.Core.Services;
 
 namespace WindowsOrganiserApp.ViewModels;
 

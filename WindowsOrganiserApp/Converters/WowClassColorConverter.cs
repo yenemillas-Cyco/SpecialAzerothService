@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows.Data;
 using System.Windows.Media;
-using WindowsOrganiserApp.Models.Carto;
+using SpecialAzerothService.Core.Models.Carto;
 
 namespace WindowsOrganiserApp.Converters;
 
@@ -57,7 +57,7 @@ public class CharacterSyncGoldConverter : IValueConverter
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        if (value is Models.Carto.WowCharacter ch && Vm != null)
+        if (value is WowCharacter ch && Vm != null)
         {
             var sync = Vm.FindWowSyncCharacter(ch);
             if (sync is { Gold: > 0 })

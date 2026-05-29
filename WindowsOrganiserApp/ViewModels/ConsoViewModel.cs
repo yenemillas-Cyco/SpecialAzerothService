@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using WindowsOrganiserApp.Models.Conso;
+using SpecialAzerothService.Core.Models.Conso;
 
 namespace WindowsOrganiserApp.ViewModels;
 

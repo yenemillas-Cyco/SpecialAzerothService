@@ -2,9 +2,9 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using WindowsOrganiserApp.Models.Craft;
-using WindowsOrganiserApp.Models.WowSync;
-using WindowsOrganiserApp.Services;
+using SpecialAzerothService.Core.Models.Craft;
+using SpecialAzerothService.Core.Models.WowSync;
+using SpecialAzerothService.Core.Services;
 
 namespace WindowsOrganiserApp.ViewModels;
 

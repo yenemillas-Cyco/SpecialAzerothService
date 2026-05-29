@@ -3,8 +3,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
-using WindowsOrganiserApp.Models.WowSync;
-using WindowsOrganiserApp.Services;
+using SpecialAzerothService.Core.Models.WowSync;
+using SpecialAzerothService.Core.Services;
 
 namespace WindowsOrganiserApp.Controls;
 

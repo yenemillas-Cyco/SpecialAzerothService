@@ -1,0 +1,587 @@
+{
+  "version": 1,
+  "lists": [
+    {
+      "id": "b72ea97364964347af608d2b87096916",
+      "name": "Couture 1-300",
+      "items": [
+        {
+          "itemId": 2996,
+          "quantity": 80,
+          "professionId": "Tailoring",
+          "spellId": 2963
+        },
+        {
+          "itemId": 4238,
+          "quantity": 20,
+          "professionId": "Tailoring",
+          "spellId": 3755
+        },
+        {
+          "itemId": 2580,
+          "quantity": 5,
+          "professionId": "Tailoring",
+          "spellId": 2397
+        },
+        {
+          "itemId": 2997,
+          "quantity": 60,
+          "professionId": "Tailoring",
+          "spellId": 2964
+        },
+        {
+          "itemId": 2587,
+          "quantity": 5,
+          "professionId": "Tailoring",
+          "spellId": 2406
+        },
+        {
+          "itemId": 4314,
+          "quantity": 15,
+          "professionId": "Tailoring",
+          "spellId": 3848
+        },
+        {
+          "itemId": 4305,
+          "quantity": 190,
+          "professionId": "Tailoring",
+          "spellId": 3839
+        },
+        {
+          "itemId": 7048,
+          "quantity": 15,
+          "professionId": "Tailoring",
+          "spellId": 8760
+        },
+        {
+          "itemId": 7050,
+          "quantity": 10,
+          "professionId": "Tailoring",
+          "spellId": 8762
+        },
+        {
+          "itemId": 6795,
+          "quantity": 5,
+          "professionId": "Tailoring",
+          "spellId": 8483
+        },
+        {
+          "itemId": 4339,
+          "quantity": 10,
+          "professionId": "Tailoring",
+          "spellId": 3865
+        },
+        {
+          "itemId": 7058,
+          "quantity": 15,
+          "professionId": "Tailoring",
+          "spellId": 8791
+        },
+        {
+          "itemId": 7062,
+          "quantity": 15,
+          "professionId": "Tailoring",
+          "spellId": 8799
+        },
+        {
+          "itemId": 9999,
+          "quantity": 5,
+          "professionId": "Tailoring",
+          "spellId": 12049
+        },
+        {
+          "itemId": 10003,
+          "quantity": 10,
+          "professionId": "Tailoring",
+          "spellId": 12053
+        },
+        {
+          "itemId": 10024,
+          "quantity": 20,
+          "professionId": "Tailoring",
+          "spellId": 12072
+        },
+        {
+          "itemId": 14048,
+          "quantity": 180,
+          "professionId": "Tailoring",
+          "spellId": 18401
+        },
+        {
+          "itemId": 13856,
+          "quantity": 15,
+          "professionId": "Tailoring",
+          "spellId": 18402
+        },
+        {
+          "itemId": 14046,
+          "quantity": 5,
+          "professionId": "Tailoring",
+          "spellId": 18405
+        },
+        {
+          "itemId": 13863,
+          "quantity": 20,
+          "professionId": "Tailoring",
+          "spellId": 18417
+        }
+      ]
+    },
+    {
+      "id": "8de59c61f05e4ac7b57dd35f233d0a79",
+      "name": "Alchimie 1-300",
+      "items": [
+        {
+          "itemId": 118,
+          "quantity": 59,
+          "professionId": "Alchemy",
+          "spellId": 2330
+        },
+        {
+          "itemId": 858,
+          "quantity": 50,
+          "professionId": "Alchemy",
+          "spellId": 2337
+        },
+        {
+          "itemId": 3383,
+          "quantity": 5,
+          "professionId": "Alchemy",
+          "spellId": 3171
+        },
+        {
+          "itemId": 929,
+          "quantity": 30,
+          "professionId": "Alchemy",
+          "spellId": 3447
+        },
+        {
+          "itemId": 3385,
+          "quantity": 15,
+          "professionId": "Alchemy",
+          "spellId": 3173
+        },
+        {
+          "itemId": 1710,
+          "quantity": 20,
+          "professionId": "Alchemy",
+          "spellId": 7181
+        },
+        {
+          "itemId": 3827,
+          "quantity": 10,
+          "professionId": "Alchemy",
+          "spellId": 3452
+        },
+        {
+          "itemId": 8949,
+          "quantity": 20,
+          "professionId": "Alchemy",
+          "spellId": 11449
+        },
+        {
+          "itemId": 8951,
+          "quantity": 10,
+          "professionId": "Alchemy",
+          "spellId": 11450
+        },
+        {
+          "itemId": 3928,
+          "quantity": 25,
+          "professionId": "Alchemy",
+          "spellId": 11457
+        },
+        {
+          "itemId": 9179,
+          "quantity": 10,
+          "professionId": "Alchemy",
+          "spellId": 11465
+        },
+        {
+          "itemId": 9233,
+          "quantity": 20,
+          "professionId": "Alchemy",
+          "spellId": 11478
+        },
+        {
+          "itemId": 13447,
+          "quantity": 15,
+          "professionId": "Alchemy",
+          "spellId": 17555
+        },
+        {
+          "itemId": 13446,
+          "quantity": 15,
+          "professionId": "Alchemy",
+          "spellId": 17556
+        }
+      ]
+    },
+    {
+      "id": "36d5d7a6ea524e31bc9b232a4aad02b4",
+      "name": "Forge 1-300",
+      "items": [
+        {
+          "itemId": 2862,
+          "quantity": 25,
+          "professionId": "Blacksmithing",
+          "spellId": 2660
+        },
+        {
+          "itemId": 3470,
+          "quantity": 50,
+          "professionId": "Blacksmithing",
+          "spellId": 3320
+        },
+        {
+          "itemId": 2863,
+          "quantity": 16,
+          "professionId": "Blacksmithing",
+          "spellId": 2665
+        },
+        {
+          "itemId": 3478,
+          "quantity": 20,
+          "professionId": "Blacksmithing",
+          "spellId": 3326
+        },
+        {
+          "itemId": 2857,
+          "quantity": 10,
+          "professionId": "Blacksmithing",
+          "spellId": 2666
+        },
+        {
+          "itemId": 2865,
+          "quantity": 25,
+          "professionId": "Blacksmithing",
+          "spellId": 2668
+        },
+        {
+          "itemId": 2871,
+          "quantity": 35,
+          "professionId": "Blacksmithing",
+          "spellId": 2674
+        },
+        {
+          "itemId": 2868,
+          "quantity": 10,
+          "professionId": "Blacksmithing",
+          "spellId": 2672
+        },
+        {
+          "itemId": 3842,
+          "quantity": 10,
+          "professionId": "Blacksmithing",
+          "spellId": 3506
+        },
+        {
+          "itemId": 3835,
+          "quantity": 25,
+          "professionId": "Blacksmithing",
+          "spellId": 3501
+        },
+        {
+          "itemId": 6040,
+          "quantity": 10,
+          "professionId": "Blacksmithing",
+          "spellId": 7223
+        },
+        {
+          "itemId": 7964,
+          "quantity": 20,
+          "professionId": "Blacksmithing",
+          "spellId": 9918
+        },
+        {
+          "itemId": 7919,
+          "quantity": 15,
+          "professionId": "Blacksmithing",
+          "spellId": 9928
+        },
+        {
+          "itemId": 7924,
+          "quantity": 11,
+          "professionId": "Blacksmithing",
+          "spellId": 9937
+        },
+        {
+          "itemId": 7931,
+          "quantity": 14,
+          "professionId": "Blacksmithing",
+          "spellId": 9961
+        },
+        {
+          "itemId": 12404,
+          "quantity": 20,
+          "professionId": "Blacksmithing",
+          "spellId": 16641
+        },
+        {
+          "itemId": 12408,
+          "quantity": 16,
+          "professionId": "Blacksmithing",
+          "spellId": 16644
+        },
+        {
+          "itemId": 12425,
+          "quantity": 14,
+          "professionId": "Blacksmithing",
+          "spellId": 16649
+        },
+        {
+          "itemId": 12409,
+          "quantity": 10,
+          "professionId": "Blacksmithing",
+          "spellId": 16652
+        }
+      ]
+    },
+    {
+      "id": "56642ae6222a473e803137fab11f6f69",
+      "name": "Ing\u00E9nierie 1-300",
+      "items": [
+        {
+          "itemId": 4357,
+          "quantity": 60,
+          "professionId": "Engineering",
+          "spellId": 3918
+        },
+        {
+          "itemId": 4359,
+          "quantity": 30,
+          "professionId": "Engineering",
+          "spellId": 3922
+        },
+        {
+          "itemId": 4360,
+          "quantity": 30,
+          "professionId": "Engineering",
+          "spellId": 3923
+        },
+        {
+          "itemId": 4364,
+          "quantity": 60,
+          "professionId": "Engineering",
+          "spellId": 3929
+        },
+        {
+          "itemId": 4365,
+          "quantity": 20,
+          "professionId": "Engineering",
+          "spellId": 3931
+        },
+        {
+          "itemId": 4404,
+          "quantity": 5,
+          "professionId": "Engineering",
+          "spellId": 3973
+        },
+        {
+          "itemId": 4371,
+          "quantity": 10,
+          "professionId": "Engineering",
+          "spellId": 3938
+        },
+        {
+          "itemId": 4368,
+          "quantity": 5,
+          "professionId": "Engineering",
+          "spellId": 3934
+        },
+        {
+          "itemId": 4377,
+          "quantity": 30,
+          "professionId": "Engineering",
+          "spellId": 3945
+        },
+        {
+          "itemId": 4375,
+          "quantity": 15,
+          "professionId": "Engineering",
+          "spellId": 3942
+        },
+        {
+          "itemId": 4382,
+          "quantity": 15,
+          "professionId": "Engineering",
+          "spellId": 3953
+        },
+        {
+          "itemId": 4384,
+          "quantity": 15,
+          "professionId": "Engineering",
+          "spellId": 3955
+        },
+        {
+          "itemId": 10505,
+          "quantity": 60,
+          "professionId": "Engineering",
+          "spellId": 12585
+        },
+        {
+          "itemId": 10559,
+          "quantity": 7,
+          "professionId": "Engineering",
+          "spellId": 12589
+        },
+        {
+          "itemId": 10560,
+          "quantity": 20,
+          "professionId": "Engineering",
+          "spellId": 12591
+        },
+        {
+          "itemId": 10561,
+          "quantity": 40,
+          "professionId": "Engineering",
+          "spellId": 12599
+        },
+        {
+          "itemId": 15992,
+          "quantity": 20,
+          "professionId": "Engineering",
+          "spellId": 19788
+        },
+        {
+          "itemId": 15994,
+          "quantity": 25,
+          "professionId": "Engineering",
+          "spellId": 19791
+        },
+        {
+          "itemId": 16000,
+          "quantity": 20,
+          "professionId": "Engineering",
+          "spellId": 19795
+        }
+      ]
+    },
+    {
+      "id": "6d557fa765814f7e8d7381c304950e91",
+      "name": "Cuisine 1-300",
+      "items": [
+        {
+          "itemId": 2679,
+          "quantity": 50,
+          "professionId": "Cooking",
+          "spellId": 2538
+        },
+        {
+          "itemId": 6890,
+          "quantity": 25,
+          "professionId": "Cooking",
+          "spellId": 8607
+        },
+        {
+          "itemId": 2682,
+          "quantity": 25,
+          "professionId": "Cooking",
+          "spellId": 2545
+        },
+        {
+          "itemId": 1017,
+          "quantity": 50,
+          "professionId": "Cooking",
+          "spellId": 2549
+        },
+        {
+          "itemId": 3727,
+          "quantity": 25,
+          "professionId": "Cooking",
+          "spellId": 3398
+        },
+        {
+          "itemId": 3729,
+          "quantity": 25,
+          "professionId": "Cooking",
+          "spellId": 3400
+        },
+        {
+          "itemId": 17222,
+          "quantity": 25,
+          "professionId": "Cooking",
+          "spellId": 21175
+        },
+        {
+          "itemId": 12218,
+          "quantity": 50,
+          "professionId": "Cooking",
+          "spellId": 15933
+        },
+        {
+          "itemId": 20452,
+          "quantity": 25,
+          "professionId": "Cooking",
+          "spellId": 24801
+        }
+      ]
+    },
+    {
+      "id": "124f45cfa4184162a66a3cf08b9ece80",
+      "name": "Secourisme 1-300",
+      "items": [
+        {
+          "itemId": 1251,
+          "quantity": 50,
+          "professionId": "FirstAid",
+          "spellId": 3275
+        },
+        {
+          "itemId": 2581,
+          "quantity": 60,
+          "professionId": "FirstAid",
+          "spellId": 3276
+        },
+        {
+          "itemId": 3530,
+          "quantity": 60,
+          "professionId": "FirstAid",
+          "spellId": 3277
+        },
+        {
+          "itemId": 3531,
+          "quantity": 60,
+          "professionId": "FirstAid",
+          "spellId": 3278
+        },
+        {
+          "itemId": 6450,
+          "quantity": 50,
+          "professionId": "FirstAid",
+          "spellId": 7928
+        },
+        {
+          "itemId": 6451,
+          "quantity": 50,
+          "professionId": "FirstAid",
+          "spellId": 7929
+        },
+        {
+          "itemId": 8544,
+          "quantity": 60,
+          "professionId": "FirstAid",
+          "spellId": 10840
+        },
+        {
+          "itemId": 8545,
+          "quantity": 60,
+          "professionId": "FirstAid",
+          "spellId": 10841
+        },
+        {
+          "itemId": 14529,
+          "quantity": 50,
+          "professionId": "FirstAid",
+          "spellId": 18629
+        },
+        {
+          "itemId": 14530,
+          "quantity": 15,
+          "professionId": "FirstAid",
+          "spellId": 18630
+        }
+      ]
+    }
+  ]
+}

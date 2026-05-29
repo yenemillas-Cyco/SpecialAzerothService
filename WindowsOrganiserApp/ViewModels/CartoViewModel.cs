@@ -6,9 +6,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WindowsOrganiserApp.Controls;
 using WindowsOrganiserApp.Converters;
-using WindowsOrganiserApp.Models.Carto;
-using WindowsOrganiserApp.Models.WowSync;
-using WindowsOrganiserApp.Services;
+using SpecialAzerothService.Core.Models.Carto;
+using SpecialAzerothService.Core.Models.WowSync;
+using SpecialAzerothService.Core.Services;
 
 namespace WindowsOrganiserApp.ViewModels;
 

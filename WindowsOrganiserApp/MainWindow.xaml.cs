@@ -8,9 +8,9 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
-using WindowsOrganiserApp.Models;
-using WindowsOrganiserApp.Services;
-using WindowsOrganiserApp.Models.Carto;
+using SpecialAzerothService.Core.Models;
+using SpecialAzerothService.Core.Services;
+using SpecialAzerothService.Core.Models.Carto;
 using WindowsOrganiserApp.ViewModels;
 
 namespace WindowsOrganiserApp;

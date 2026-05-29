@@ -1,4 +1,4 @@
-using WindowsOrganiserApp.Models;
+using SpecialAzerothService.Core.Models;
 
 namespace WindowsOrganiserApp.Services;
 

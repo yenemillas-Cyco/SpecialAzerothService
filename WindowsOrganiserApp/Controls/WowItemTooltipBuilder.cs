@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using WindowsOrganiserApp.Models.WowSync;
+using SpecialAzerothService.Core.Models.WowSync;
 
 namespace WindowsOrganiserApp.Controls;
 

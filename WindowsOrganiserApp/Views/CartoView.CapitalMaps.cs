@@ -5,8 +5,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
-using WindowsOrganiserApp.Models.Carto;
-using WindowsOrganiserApp.Services;
+using SpecialAzerothService.Core.Models.Carto;
+using SpecialAzerothService.Core.Services;
 using WindowsOrganiserApp.ViewModels;
 
 namespace WindowsOrganiserApp.Views;

@@ -1,5 +1,5 @@
 using System.Windows;
-using WindowsOrganiserApp.Services;
+using SpecialAzerothService.Core.Services;
 
 namespace WindowsOrganiserApp.Views;
 

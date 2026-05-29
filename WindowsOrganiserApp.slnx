@@ -1,4 +1,6 @@
 <Solution>
   <Project Path="CartoSyncServer/CartoSyncServer.csproj" />
+  <Project Path="SpecialAzerothService.SpecialAzerothServiceApp/SpecialAzerothService.SpecialAzerothServiceApp.csproj" Id="4376cf0d-44ad-430d-935e-0e23bf53796d" />
+  <Project Path="SpecialAzerothService.Core/SpecialAzerothService.Core.csproj" />
   <Project Path="WindowsOrganiserApp/WindowsOrganiserApp.csproj" />
 </Solution>

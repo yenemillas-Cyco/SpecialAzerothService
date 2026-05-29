@@ -9,8 +9,8 @@ using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using WindowsOrganiserApp.Controls;
-using WindowsOrganiserApp.Models;
-using WindowsOrganiserApp.Services;
+using SpecialAzerothService.Core.Models;
+using SpecialAzerothService.Core.Services;
 using WindowsOrganiserApp.ViewModels;
 using WindowsOrganiserApp.Views;
 
@@ -87,6 +87,7 @@ public partial class App : Application
         services.AddSingleton<SyncService>(sp =>
             new SyncService(sp.GetRequiredService<AppSettings>(), sp.GetRequiredService<ILogger>()));
         services.AddSingleton<IWowSyncService, WowSyncService>();
+        services.AddSingleton<IWowheadDataService, WowheadDataService>();
         services.AddSingleton<IWowItemLookupService, WowItemLookupService>();
         services.AddSingleton<ICraftService, CraftService>();
         services.AddSingleton<ICraftListsService, CraftListsService>();

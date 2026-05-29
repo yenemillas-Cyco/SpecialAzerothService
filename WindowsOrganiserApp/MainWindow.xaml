@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:WindowsOrganiserApp.ViewModels"
         xmlns:conv="clr-namespace:WindowsOrganiserApp.Converters"
-        xmlns:models="clr-namespace:WindowsOrganiserApp.Models"
+        xmlns:models="clr-namespace:SpecialAzerothService.Core.Models;assembly=SpecialAzerothService.Core"
         xmlns:views="clr-namespace:WindowsOrganiserApp.Views"
         mc:Ignorable="d"
         Title="Special Azeroth Service — Multibox Organiser"

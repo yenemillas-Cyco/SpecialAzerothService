@@ -6,9 +6,9 @@ using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
-using WindowsOrganiserApp.Models.Bounty;
-using WindowsOrganiserApp.Models.Carto;
-using WindowsOrganiserApp.Services;
+using SpecialAzerothService.Core.Models.Bounty;
+using SpecialAzerothService.Core.Models.Carto;
+using SpecialAzerothService.Core.Services;
 
 namespace WindowsOrganiserApp.ViewModels;
 
