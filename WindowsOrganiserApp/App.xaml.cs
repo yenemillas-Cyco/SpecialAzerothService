@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using WindowsOrganiserApp.Controls;
+using WindowsOrganiserApp.Models;
 using WindowsOrganiserApp.Services;
 using WindowsOrganiserApp.ViewModels;
 using WindowsOrganiserApp.Views;
@@ -71,11 +72,20 @@ public partial class App : Application
         services.AddSingleton<IWindowService, WindowService>();
         services.AddSingleton<ILayoutService, LayoutService>();
         services.AddSingleton<ISettingsService, SettingsService>();
+        services.AddSingleton(sp =>
+        {
+            var settings = sp.GetRequiredService<ISettingsService>().Load();
+            if (string.IsNullOrWhiteSpace(settings.UserGuid))
+                settings.UserGuid = Guid.NewGuid().ToString();
+            return settings;
+        });
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IPresetService, PresetService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
         services.AddSingleton<ICartoService, CartoService>();
         services.AddSingleton<IBountyService, BountyService>();
+        services.AddSingleton<SyncService>(sp =>
+            new SyncService(sp.GetRequiredService<AppSettings>(), sp.GetRequiredService<ILogger>()));
         services.AddSingleton<IWowSyncService, WowSyncService>();
         services.AddSingleton<IWowItemLookupService, WowItemLookupService>();
         services.AddSingleton<ICraftService, CraftService>();
@@ -241,6 +251,16 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        try
+        {
+            var sync = _serviceProvider?.GetService<SyncService>();
+            sync?.DisconnectAsync().Wait(TimeSpan.FromSeconds(3));
+        }
+        catch
+        {
+            // Ne pas bloquer la fermeture
+        }
+
         Log.CloseAndFlush();
         _serviceProvider?.Dispose();
         base.OnExit(e);

@@ -18,6 +18,7 @@ public partial class CartoViewModel : ObservableObject
     private readonly IWowSyncService _wowSyncService;
     private readonly ISettingsService _settingsService;
     private readonly IUserProfileService _userProfile;
+    private readonly SyncService _syncService;
     private readonly DispatcherTimer _cooldownTimer;
     private CartoData _data;
     private List<WowAccountData>? _wowSyncCache;
@@ -37,11 +38,13 @@ public partial class CartoViewModel : ObservableObject
     public CartoViewModel(
         ICartoService cartoService,
         IWowSyncService wowSyncService,
+        SyncService syncService,
         IUserProfileService userProfile,
         ISettingsService settingsService)
     {
         _cartoService = cartoService;
         _wowSyncService = wowSyncService;
+        _syncService = syncService;
         _userProfile = userProfile;
         _settingsService = settingsService;
         _data = _cartoService.Load();
@@ -62,6 +65,44 @@ public partial class CartoViewModel : ObservableObject
         foreach (var ext in _data.ExternalCharacters)
             Characters.Add(ext);
 
+        var friendGuids = _syncService.Friends.Select(f => f.Guid).ToHashSet();
+        var orphanedExternal = Characters
+            .Where(c => c.IsExternal && (c.ExternalSource == null || !friendGuids.Contains(c.ExternalSource)))
+            .ToList();
+        foreach (var ch in orphanedExternal)
+            Characters.Remove(ch);
+
+        _syncService.FriendDataReceived += OnFriendDataReceived;
+        _syncService.FriendOnlineChanged += (guid, online) =>
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+            {
+                var friend = _syncService.GetFriend(guid);
+                if (friend != null) friend.IsOnline = online;
+                RefreshFriends();
+            });
+        _syncService.PushRequested += () =>
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+            {
+                PersistDataForSync();
+                _ = _syncService.PushUpdateAsync(_data);
+            });
+        _syncService.ConnectionStateChanged += s =>
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(async () =>
+            {
+                SyncStatus = s;
+                OnPropertyChanged(nameof(FriendsSummary));
+                if (s == "Connecté")
+                {
+                    PersistDataForSync();
+                    _ = _syncService.PushUpdateAsync(_data);
+
+                    var onlineGuids = await _syncService.GetOnlineFriendsAsync();
+                    foreach (var f in _syncService.Friends)
+                        f.IsOnline = onlineGuids.Contains(f.Guid);
+                    RefreshFriends();
+                }
+            });
+
         _cooldownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _cooldownTimer.Tick += (_, _) =>
         {
@@ -77,6 +118,7 @@ public partial class CartoViewModel : ObservableObject
         CharacterSyncGoldConverter.Vm = this;
         _wowSyncService.WowPath = _wowSyncService.WowPath;
         WowPath = _wowSyncService.WowPath;
+        _ = ConnectSync();
     }
 
     public string AddonVersion => _wowSyncService.AddonVersion;
@@ -251,7 +293,7 @@ public partial class CartoViewModel : ObservableObject
 
     private bool ApplyFiltersChanged()
     {
-        var hiddenFriends = _userProfile.Friends
+        var hiddenFriends = _syncService.Friends
             .Where(f => !f.IsVisible).Select(f => f.Guid).ToHashSet();
 
         var filtered = Characters.AsEnumerable()
@@ -593,7 +635,7 @@ public partial class CartoViewModel : ObservableObject
     {
         if (c.IsExternal)
         {
-            var hiddenFriends = _userProfile.Friends
+            var hiddenFriends = _syncService.Friends
                 .Where(f => !f.IsVisible).Select(f => f.Guid).ToHashSet();
             return c.ExternalSource != null && !hiddenFriends.Contains(c.ExternalSource);
         }
@@ -2419,6 +2461,7 @@ public partial class CartoViewModel : ObservableObject
         AccountIdToNameConverter.Accounts = [.. Accounts];
         CharacterSyncGoldConverter.Vm = this;
         _cartoService.Save(BuildDiskSnapshot());
+        _ = _syncService.PushUpdateAsync(_data);
     }
 
     private CartoData BuildDiskSnapshot() => new()
@@ -2435,38 +2478,78 @@ public partial class CartoViewModel : ObservableObject
         Characters = []
     };
 
-    // ─── Amis / persos externes (local) ─────────────────────
+    // ─── Amis réseau (SignalR) / persos externes ──────────────
 
-    public string MyGuid => _userProfile.UserGuid;
+    public string MyGuid => _syncService.UserGuid;
 
     [ObservableProperty]
     private ObservableCollection<FriendEntry> _friends = [];
+
+    [ObservableProperty]
+    private string _syncStatus = "Déconnecté";
+
+    [ObservableProperty]
+    private string _friendGuidInput = string.Empty;
+
+    [ObservableProperty]
+    private string _friendNameInput = string.Empty;
+
+    partial void OnSyncStatusChanged(string value) => OnPropertyChanged(nameof(FriendsSummary));
 
     public string FriendsSummary
     {
         get
         {
-            var total = _userProfile.Friends.Count;
-            return total == 0 ? "👥 Données locales" : $"👥 {total} ami(s) enregistré(s)";
+            var total = _syncService.Friends.Count;
+            if (total == 0)
+                return $"🔄 {SyncStatus}";
+            var online = _syncService.Friends.Count(f => f.IsOnline);
+            return $"🔄 {SyncStatus} · {online}/{total} ami(s)";
         }
     }
 
     public void RefreshFriends()
     {
-        Friends = new ObservableCollection<FriendEntry>(_userProfile.Friends);
+        Friends = new ObservableCollection<FriendEntry>(_syncService.Friends);
         OnPropertyChanged(nameof(FriendsSummary));
     }
 
-    private void SaveSettings() => _userProfile.Save();
+    private void SaveSettings() => _settingsService.Save(_syncService.Settings);
 
-    public string? GetFriendName(string guid) => _userProfile.GetFriend(guid)?.Name;
+    public string? GetFriendName(string guid) => _syncService.GetFriend(guid)?.Name;
 
     [RelayCommand]
-    private void RemoveFriend(FriendEntry friend)
+    private async Task ConnectSync()
+    {
+        SyncStatus = "Connexion...";
+        OnPropertyChanged(nameof(FriendsSummary));
+        await _syncService.ConnectAsync();
+    }
+
+    [RelayCommand]
+    private async Task AddFriend()
+    {
+        var guid = FriendGuidInput.Trim();
+        if (string.IsNullOrWhiteSpace(guid) || guid == MyGuid)
+            return;
+
+        var name = string.IsNullOrWhiteSpace(FriendNameInput)
+            ? guid[..Math.Min(8, guid.Length)]
+            : FriendNameInput.Trim();
+
+        await _syncService.SubscribeToFriend(guid, name);
+        FriendGuidInput = string.Empty;
+        FriendNameInput = string.Empty;
+        RefreshFriends();
+        SaveSettings();
+    }
+
+    [RelayCommand]
+    private async Task RemoveFriend(FriendEntry friend)
     {
         var toRemove = Characters.Where(c => c.IsExternal && c.ExternalSource == friend.Guid).ToList();
         foreach (var ch in toRemove) Characters.Remove(ch);
-        _userProfile.RemoveFriend(friend.Guid);
+        await _syncService.UnsubscribeFromFriend(friend.Guid);
         RefreshFriends();
         SaveSettings();
         ApplyFilters();
@@ -2510,6 +2593,31 @@ public partial class CartoViewModel : ObservableObject
 
     public bool ShouldShowNetworkFriend(FriendEntry friend) =>
         friend.IsVisible && !HasLocalFriendAccountsForName(friend.Name);
+
+    private void OnFriendDataReceived(string friendGuid, SyncPayload payload)
+    {
+        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+        {
+            var friend = _syncService.GetFriend(friendGuid);
+            if (friend != null)
+                RefreshFriends();
+
+            var toRemove = Characters.Where(c => c.IsExternal && c.ExternalSource == friendGuid).ToList();
+            foreach (var ch in toRemove) Characters.Remove(ch);
+
+            foreach (var ch in payload.Characters)
+            {
+                ch.IsExternal = true;
+                ch.ExternalSource = friendGuid;
+                ch.IsLocked = true;
+                Characters.Add(ch);
+            }
+
+            PersistDataForSync();
+            _cartoService.Save(BuildDiskSnapshot());
+            ApplyFilters();
+        });
+    }
 
     [RelayCommand]
     private void ToggleCharacterMapVisibility(WowCharacter character)

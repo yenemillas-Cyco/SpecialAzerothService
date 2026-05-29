@@ -6,12 +6,12 @@ namespace WindowsOrganiserApp.Services;
 public sealed class UserProfileService : IUserProfileService
 {
     private readonly ISettingsService _settingsService;
-    private AppSettings _settings;
+    private readonly AppSettings _settings;
 
-    public UserProfileService(ISettingsService settingsService)
+    public UserProfileService(AppSettings settings, ISettingsService settingsService)
     {
+        _settings = settings;
         _settingsService = settingsService;
-        _settings = settingsService.Load();
         if (string.IsNullOrWhiteSpace(_settings.UserGuid))
             _settings.UserGuid = Guid.NewGuid().ToString();
     }
