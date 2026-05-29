@@ -47,12 +47,7 @@ public class WindowService : IWindowService
 
             if (wowOnly)
             {
-#if DEBUG
-                var allowed = new[] { "Wow", "WowClassic", "WowT", "WowB", "msedge" };
-#else
-                var allowed = new[] { "Wow", "WowClassic", "WowT", "WowB" };
-#endif
-                if (!allowed.Any(a => processName.Equals(a, StringComparison.OrdinalIgnoreCase)))
+                if (!WowWindowRules.IsWowGameProcess(processName, processId))
                     return true;
             }
             else
