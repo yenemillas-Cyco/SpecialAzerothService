@@ -33,6 +33,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Assets\zone-rects-classic-era.json" />
+    <EmbeddedResource Include="Assets\Craft.json" />
+    <EmbeddedResource Include="Assets\CraftLevelingLists.seed.json" />
   </ItemGroup>
 
   <ItemGroup>

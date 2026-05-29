@@ -3,31 +3,34 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conv="clr-namespace:WindowsOrganiserApp.Converters"
              xmlns:local="clr-namespace:WindowsOrganiserApp.Controls"
-             Width="40" Height="40" Margin="2">
+             MinWidth="16" MinHeight="16" Width="40" Height="40" Margin="2"
+             HorizontalAlignment="Left" VerticalAlignment="Center">
     <UserControl.Resources>
         <conv:HexColorToBrushConverter x:Key="HexToBrush"/>
         <local:CountToVisibilityConverter x:Key="CountToVis"/>
     </UserControl.Resources>
 
-    <Grid>
-        <Border x:Name="SlotBorder" Width="38" Height="38" CornerRadius="4"
-                BorderThickness="2" Background="#18120C"
-                BorderBrush="{Binding QualityColor, Converter={StaticResource HexToBrush}}">
-            <Grid>
-                <Image x:Name="IconImage" Width="34" Height="34" Stretch="Uniform"
-                       RenderOptions.BitmapScalingMode="HighQuality"
-                       SnapsToDevicePixels="True"/>
-                <TextBlock x:Name="FallbackText" Text="?" FontFamily="Georgia" FontSize="18" FontWeight="Bold"
-                           Foreground="#706050" HorizontalAlignment="Center" VerticalAlignment="Center"
-                           Visibility="Collapsed"/>
-            </Grid>
-        </Border>
+    <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+        <Grid Width="40" Height="40">
+            <Border x:Name="SlotBorder" Width="38" Height="38" CornerRadius="4"
+                    BorderThickness="2" Background="#18120C"
+                    BorderBrush="{Binding QualityColor, Converter={StaticResource HexToBrush}}">
+                <Grid>
+                    <Image x:Name="IconImage" Width="34" Height="34" Stretch="Uniform"
+                           RenderOptions.BitmapScalingMode="HighQuality"
+                           SnapsToDevicePixels="True"/>
+                    <TextBlock x:Name="FallbackText" Text="?" FontFamily="Georgia" FontSize="18" FontWeight="Bold"
+                               Foreground="#706050" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Visibility="Collapsed"/>
+                </Grid>
+            </Border>
 
-        <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                Background="#D0000000" CornerRadius="3" Padding="3,1" Margin="0,0,2,2"
-                Visibility="{Binding Count, Converter={StaticResource CountToVis}}">
-            <TextBlock Text="{Binding Count, Mode=OneWay}" FontFamily="Arial" FontSize="11"
-                       FontWeight="Bold" Foreground="#FFD700"/>
-        </Border>
-    </Grid>
+            <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Background="#D0000000" CornerRadius="3" Padding="3,1" Margin="0,0,2,2"
+                    Visibility="{Binding Count, Converter={StaticResource CountToVis}}">
+                <TextBlock Text="{Binding Count, Mode=OneWay}" FontFamily="Arial" FontSize="11"
+                           FontWeight="Bold" Foreground="#FFD700"/>
+            </Border>
+        </Grid>
+    </Viewbox>
 </UserControl>

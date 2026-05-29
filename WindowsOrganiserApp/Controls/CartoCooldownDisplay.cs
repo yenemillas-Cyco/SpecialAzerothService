@@ -27,7 +27,8 @@ public static class CartoCooldownDisplay
         ColumnDefinition emptyColumn,
         Border fillBorder,
         TextBlock? remainingBlock,
-        TextBlock? compactTimeBlock)
+        TextBlock? compactTimeBlock,
+        bool showProgressRatio = false)
     {
         public CooldownEntry Entry { get; } = entry;
         public ColumnDefinition FillColumn { get; } = fillColumn;
@@ -35,6 +36,7 @@ public static class CartoCooldownDisplay
         public Border FillBorder { get; } = fillBorder;
         public TextBlock? RemainingBlock { get; } = remainingBlock;
         public TextBlock? CompactTimeBlock { get; } = compactTimeBlock;
+        public bool ShowProgressRatio { get; } = showProgressRatio;
     }
 
     public static StackPanel? BuildPanel(WowCharacter ch, double labelFontSize = 10, WowCharacterData? sync = null)
@@ -83,35 +85,69 @@ public static class CartoCooldownDisplay
                 if (syncCd.IsReady)
                     continue;
 
-                var type = MapSyncCooldownKey(syncCd.Key);
+                var type = MapSyncCooldownKey(syncCd.Key, syncCd.Name);
                 if (type == null)
                     continue;
 
-                if (!byType.TryGetValue(type.Value, out var entry))
+                if (!byType.TryGetValue(type.Value, out var entry)
+                    && CooldownGroups.IsAlchemyTransmute(type.Value))
+                    entry = byType.Values.FirstOrDefault(c => CooldownGroups.IsAlchemyTransmute(c.Type));
+
+                if (entry == null)
                 {
                     entry = new CooldownEntry { Type = type.Value };
                     byType[type.Value] = entry;
                 }
+                else if (CooldownGroups.IsAlchemyTransmute(type.Value))
+                {
+                    var staleKey = byType.FirstOrDefault(kv => ReferenceEquals(kv.Value, entry)).Key;
+                    if (!staleKey.Equals(default) && staleKey != type.Value)
+                        byType.Remove(staleKey);
+                    entry.Type = type.Value;
+                    byType[type.Value] = entry;
+                }
 
-                if (entry.LastUsed == null && syncCd.ReadyAtUtc is { } readyAt)
-                    entry.LastUsed = readyAt - entry.Duration;
+                if (syncCd.ReadyAtUtc is { } readyAt)
+                {
+                    entry.ReadyAtOverride = readyAt;
+                    var remaining = readyAt - DateTime.UtcNow;
+                    if (remaining > TimeSpan.Zero)
+                    {
+                        var total = entry.Duration;
+                        if (type == CooldownType.Arcanite && remaining > TimeSpan.FromHours(25))
+                            total = TimeSpan.FromHours(48);
+                        else if (remaining > total)
+                            total = remaining;
+
+                        entry.LastUsed = readyAt - total;
+                    }
+                    else if (entry.LastUsed == null)
+                        entry.LastUsed = readyAt - entry.Duration;
+                }
             }
         }
 
-        return byType.Values
+        var merged = byType.Values.ToList();
+        CooldownGroups.NormalizeAlchemyCooldowns(merged);
+
+        return merged
             .OrderBy(c => c.IsReady ? 1 : 0)
             .ThenBy(c => c.TimeRemaining ?? TimeSpan.Zero)
             .ToList();
     }
 
-    private static CooldownType? MapSyncCooldownKey(string key) => key.ToLowerInvariant() switch
+    private static CooldownType? MapSyncCooldownKey(string key, string? syncName = null)
     {
-        "arcanite" => CooldownType.Arcanite,
-        "elemental" => CooldownType.Transmute_Elementaire,
-        "mooncloth" => CooldownType.Mooncloth,
-        "salt" => CooldownType.Sel_raffine,
-        _ => null
-    };
+        if (CooldownGroups.MapAlchemySyncKey(key, syncName) is { } alchemy)
+            return alchemy;
+
+        return key.ToLowerInvariant() switch
+        {
+            "mooncloth" => CooldownType.Mooncloth,
+            "salt" => CooldownType.Sel_raffine,
+            _ => null
+        };
+    }
 
     private static SolidColorBrush AccentBrushFor(CooldownType type) => type switch
     {
@@ -175,17 +211,19 @@ public static class CartoCooldownDisplay
         SetBarWidths(state.FillColumn, state.EmptyColumn, fraction);
         state.FillBorder.Background = FillBrushFor(cd.Type, cd.IsReady);
 
-        var timeText = cd.IsReady ? "Prêt" : FormatTimeRemaining(cd.TimeRemaining, compact: true);
-
         if (state.RemainingBlock != null)
         {
-            state.RemainingBlock.Text = cd.IsReady ? "Prêt" : FormatTimeRemaining(cd.TimeRemaining);
+            state.RemainingBlock.Text = cd.IsReady ? "Prêt" : FormatProgressRatio(cd);
             state.RemainingBlock.Foreground = cd.IsReady ? ReadyBrush : RemainingBrush;
         }
 
         if (state.CompactTimeBlock != null)
         {
-            state.CompactTimeBlock.Text = timeText;
+            state.CompactTimeBlock.Text = cd.IsReady
+                ? "Prêt"
+                : state.ShowProgressRatio
+                    ? FormatProgressRatio(cd, compact: true)
+                    : FormatTimeRemaining(cd.TimeRemaining, compact: true);
             state.CompactTimeBlock.Foreground = cd.IsReady ? ReadyBrush : CompactTimeBrush;
         }
     }
@@ -248,7 +286,7 @@ public static class CartoCooldownDisplay
                 FontSize = labelFontSize,
                 Foreground = cd.IsReady ? ReadyBrush : RemainingBrush,
                 VerticalAlignment = VerticalAlignment.Center,
-                Text = cd.IsReady ? "Prêt" : FormatTimeRemaining(cd.TimeRemaining)
+                Text = cd.IsReady ? "Prêt" : FormatProgressRatio(cd)
             };
 
             var header = new Grid { Margin = new Thickness(0, 0, 0, 3) };
@@ -278,25 +316,31 @@ public static class CartoCooldownDisplay
 
         compactTime = new TextBlock
         {
-            Text = cd.IsReady ? "Prêt" : FormatTimeRemaining(cd.TimeRemaining, compact: true),
-            FontSize = rosterList ? 11 : portraitInset ? 7 : 8,
+            Text = cd.IsReady
+                ? "Prêt"
+                : rosterList
+                    ? FormatProgressRatio(cd, compact: true)
+                    : FormatTimeRemaining(cd.TimeRemaining, compact: true),
+            FontSize = rosterList ? 10 : portraitInset ? 7 : 8,
             FontWeight = FontWeights.SemiBold,
             Foreground = cd.IsReady ? ReadyBrush : CompactTimeBrush,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(rosterList ? 8 : portraitInset ? 3 : 4, 0, 0, 0),
+            Margin = new Thickness(rosterList ? 6 : portraitInset ? 3 : 4, 0, 0, 0),
             TextAlignment = TextAlignment.Right,
-            MinWidth = rosterList ? 44 : portraitInset ? 28 : 34
+            MinWidth = rosterList ? 72 : portraitInset ? 28 : 34
         };
 
         var typeLabel = new TextBlock
         {
-            Text = CdTinyLabel(cd.Type),
+            Text = rosterList ? CdRosterLabel(cd.Type) : CdTinyLabel(cd.Type),
             FontSize = rosterList ? 10 : 7,
-            FontWeight = FontWeights.Bold,
+            FontWeight = rosterList ? FontWeights.SemiBold : FontWeights.Bold,
             Foreground = AccentBrushFor(cd.Type),
             VerticalAlignment = VerticalAlignment.Center,
-            Width = rosterList ? 28 : 18,
-            TextAlignment = TextAlignment.Center,
+            Margin = rosterList ? new Thickness(0, 0, 6, 0) : new Thickness(0),
+            TextAlignment = rosterList ? TextAlignment.Left : TextAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            MaxWidth = rosterList ? 88 : double.PositiveInfinity,
             ToolTip = cd.Type.DisplayName()
         };
 
@@ -305,7 +349,7 @@ public static class CartoCooldownDisplay
             Margin = portraitInset
                 ? new Thickness(2, 1, 2, 1)
                 : new Thickness(0, 0, 0, rosterList ? 5 : 2),
-            ToolTip = $"{cd.Type.DisplayName()} — {(cd.IsReady ? "Prêt" : FormatTimeRemaining(cd.TimeRemaining))}"
+            ToolTip = $"{cd.Type.DisplayName()} — {(cd.IsReady ? "Prêt" : FormatProgressRatio(cd))}"
         };
 
         if (rosterList)
@@ -348,8 +392,23 @@ public static class CartoCooldownDisplay
             barRow.Children.Add(compactTime);
         }
 
-        barRow.Tag = new CooldownRowState(cd, fillColumn, emptyColumn, fill, null, compactTime);
+        barRow.Tag = new CooldownRowState(cd, fillColumn, emptyColumn, fill, null, compactTime, rosterList);
         return barRow;
+    }
+
+    private static string CdRosterLabel(CooldownType type)
+    {
+        if (CooldownGroups.IsAlchemyTransmute(type) && type != CooldownType.Arcanite)
+            return CdShortLabel(type);
+
+        return type switch
+        {
+            CooldownType.Arcanite => "Arcanite",
+            CooldownType.Transmute_Elementaire => "Élémentaire",
+            CooldownType.Mooncloth or CooldownType.Etoffe_lunaire => "Étoffe lunaire",
+            CooldownType.Sel_raffine => "Sel raffiné",
+            _ => CdShortLabel(type)
+        };
     }
 
     private static string CdTinyLabel(CooldownType type) => type switch
@@ -365,9 +424,17 @@ public static class CartoCooldownDisplay
     {
         CooldownType.Arcanite => "Arcanite",
         CooldownType.Transmute_Elementaire => "Élémentaire",
+        CooldownType.Air_to_Fire => "Air → Feu",
+        CooldownType.Fire_to_Earth => "Feu → Terre",
+        CooldownType.Earth_to_Water => "Terre → Eau",
+        CooldownType.Water_to_Air => "Eau → Air",
+        CooldownType.Undeath_to_Water => "Mort → Eau",
+        CooldownType.Water_to_Undeath => "Eau → Mort",
+        CooldownType.Life_to_Earth => "Vie → Terre",
+        CooldownType.Earth_to_Life => "Terre → Vie",
         CooldownType.Mooncloth => "Lunaire",
         CooldownType.Sel_raffine => "Sel",
-        _ => type.ToString()
+        _ => type.ToString().Replace('_', ' ')
     };
 
     private static IEnumerable<T> FindTagged<T>(DependencyObject parent, string tag)
@@ -385,26 +452,50 @@ public static class CartoCooldownDisplay
         }
     }
 
+    private static string FormatProgressRatio(CooldownEntry cd, bool compact = false)
+    {
+        if (cd.IsReady)
+            return "Prêt";
+
+        var remaining = cd.TimeRemaining ?? TimeSpan.Zero;
+        var elapsed = cd.Duration - remaining;
+        if (elapsed < TimeSpan.Zero)
+            elapsed = TimeSpan.Zero;
+
+        return $"{FormatDuration(elapsed, compact)} / {FormatDuration(cd.EffectiveDuration, compact)}";
+    }
+
+    private static string FormatDuration(TimeSpan span, bool compact = false)
+    {
+        if (span.TotalDays >= 1)
+        {
+            var days = (int)span.TotalDays;
+            if (compact && span - TimeSpan.FromDays(days) < TimeSpan.FromHours(1))
+                return $"{days}j";
+
+            return compact
+                ? $"{days}j{span.Hours:D2}"
+                : $"{days} j {span.Hours:D2} h";
+        }
+
+        if (span.TotalHours >= 1)
+            return compact
+                ? $"{(int)span.TotalHours}h{span.Minutes:D2}"
+                : $"{(int)span.TotalHours} h {span.Minutes:D2} min";
+
+        if (span.TotalSeconds < 60)
+            return compact ? $"{span.Seconds}s" : $"{span.Seconds} s";
+
+        return compact
+            ? $"{(int)span.TotalMinutes}m"
+            : $"{(int)span.TotalMinutes} min {span.Seconds:D2} s";
+    }
+
     private static string FormatTimeRemaining(TimeSpan? ts, bool compact = false)
     {
         if (ts == null)
             return compact ? "—" : "—";
 
-        if (ts.Value.TotalDays >= 1)
-            return compact
-                ? $"{(int)ts.Value.TotalDays}j"
-                : $"{(int)ts.Value.TotalDays} j {ts.Value.Hours:D2} h";
-
-        if (ts.Value.TotalHours >= 1)
-            return compact
-                ? $"{(int)ts.Value.TotalHours}h{ts.Value.Minutes:D2}"
-                : $"{(int)ts.Value.TotalHours} h {ts.Value.Minutes:D2} min";
-
-        if (ts.Value.TotalSeconds < 60)
-            return compact ? $"{ts.Value.Seconds}s" : $"{ts.Value.Seconds} s";
-
-        return compact
-            ? $"{(int)ts.Value.TotalMinutes}m"
-            : $"{(int)ts.Value.TotalMinutes} min {ts.Value.Seconds:D2} s";
+        return FormatDuration(ts.Value, compact);
     }
 }

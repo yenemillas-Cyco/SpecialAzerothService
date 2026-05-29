@@ -1,0 +1,132 @@
+{
+  "source": "https://www.wowisclassic.com/fr/guide-metier/",
+  "guides": [
+    {
+      "professionId": "Tailoring",
+      "listName": "Couture 1-300",
+      "steps": [
+        { "label": "Bolt of Linen Cloth", "qty": 80 },
+        { "label": "Linen Bag", "qty": 20 },
+        { "label": "Reinforced Linen Cape", "qty": 5 },
+        { "label": "Bolt of Woolen Cloth", "qty": 60 },
+        { "label": "Gray Woolen Shirt", "qty": 5 },
+        { "label": "Double-stitched Woolen Shoulders", "qty": 15 },
+        { "label": "Bolt of Silk Cloth", "qty": 190 },
+        { "label": "Azure Silk Hood", "qty": 15 },
+        { "label": "Silk Headband", "qty": 10 },
+        { "label": "White Swashbuckler's Shirt", "qty": 5 },
+        { "label": "Bolt of Mageweave", "qty": 10 },
+        { "label": "Crimson Silk Vest", "qty": 15 },
+        { "label": "Crimson Silk Pantaloons", "qty": 15 },
+        { "label": "Black Mageweave Leggings", "qty": 5 },
+        { "label": "Black Mageweave Gloves", "qty": 10 },
+        { "label": "Black Mageweave Headband", "qty": 20 },
+        { "label": "Bolt of Runecloth", "qty": 180 },
+        { "label": "Runecloth Belt", "qty": 15 },
+        { "label": "Runecloth Bag", "qty": 5 },
+        { "label": "Runecloth Gloves", "qty": 20 }
+      ]
+    },
+    {
+      "professionId": "Alchemy",
+      "listName": "Alchimie 1-300",
+      "steps": [
+        { "label": "Minor Healing Potion", "qty": 59 },
+        { "label": "Lesser Healing Potion", "qty": 50 },
+        { "label": "Elixir of Wisdom", "qty": 5 },
+        { "label": "Healing Potion", "qty": 30 },
+        { "label": "Lesser Mana Potion", "qty": 15 },
+        { "label": "Greater Healing Potion", "qty": 20 },
+        { "label": "Mana Potion", "qty": 10 },
+        { "label": "Elixir of Agility", "qty": 20 },
+        { "label": "Elixir of Greater Defense", "qty": 10 },
+        { "label": "Superior Healing Potion", "qty": 25 },
+        { "label": "Elixir of Greater Intellect", "qty": 10 },
+        { "label": "Elixir of Detect Demon", "qty": 20 },
+        { "label": "Elixir of the Sages", "qty": 15 },
+        { "label": "Major Healing Potion", "qty": 15 }
+      ]
+    },
+    {
+      "professionId": "Blacksmithing",
+      "listName": "Forge 1-300",
+      "steps": [
+        { "label": "Rough Sharpening Stone", "qty": 25 },
+        { "label": "Rough Grinding Stone", "qty": 50 },
+        { "label": "Coarse Sharpening Stone", "qty": 16 },
+        { "label": "Coarse Grinding Stone", "qty": 20 },
+        { "label": "Runed Copper Belt", "qty": 10 },
+        { "label": "Rough Bronze Leggings", "qty": 25 },
+        { "label": "Heavy Sharpening Stone", "qty": 35 },
+        { "label": "Patterned Bronze Bracers", "qty": 10 },
+        { "label": "Green Iron Leggings", "qty": 10 },
+        { "label": "Green Iron Bracers", "qty": 25 },
+        { "label": "Golden Scale Bracers", "qty": 10 },
+        { "label": "Solid Sharpening Stone", "qty": 20 },
+        { "label": "Heavy Mithril Gauntlet", "qty": 15 },
+        { "label": "Mithril Scale Bracers", "qty": 11 },
+        { "label": "Mithril Coif", "qty": 14 },
+        { "label": "Dense Sharpening Stone", "qty": 20 },
+        { "label": "Thorium Bracers", "qty": 16 },
+        { "label": "Imperial Plate Bracers", "qty": 14 },
+        { "label": "Thorium Boots", "qty": 10 }
+      ]
+    },
+    {
+      "professionId": "Engineering",
+      "listName": "Ingénierie 1-300",
+      "steps": [
+        { "label": "Rough Blasting Powder", "qty": 60 },
+        { "label": "Handful of Copper Bolts", "qty": 30 },
+        { "label": "Rough Copper Bomb", "qty": 30 },
+        { "label": "Coarse Blasting Powder", "qty": 60 },
+        { "label": "Coarse Dynamite", "qty": 20 },
+        { "label": "Silver Contact", "qty": 5 },
+        { "label": "Bronze Tube", "qty": 10 },
+        { "label": "Flying Tiger Goggles", "qty": 5 },
+        { "label": "Heavy Blasting Powder", "qty": 30 },
+        { "label": "Whirring Bronze Gizmo", "qty": 15 },
+        { "label": "Bronze Framework", "qty": 15 },
+        { "label": "Explosive Sheep", "qty": 15 },
+        { "label": "Solid Blasting Powder", "qty": 60 },
+        { "label": "Mithril Tube", "qty": 7 },
+        { "label": "Unstable Trigger", "qty": 20 },
+        { "label": "Mithril Casing", "qty": 40 },
+        { "label": "Dense Blasting Powder", "qty": 20 },
+        { "label": "Thorium Widget", "qty": 25 },
+        { "label": "Thorium Tube", "qty": 20 }
+      ]
+    },
+    {
+      "professionId": "Cooking",
+      "listName": "Cuisine 1-300",
+      "steps": [
+        { "label": "Charred Wolf Meat", "qty": 50 },
+        { "label": "Smoked Bear Meat", "qty": 25 },
+        { "label": "Cooked Crab Claw", "qty": 25 },
+        { "label": "Seasoned Wolf Kabob", "qty": 50 },
+        { "label": "Hot Lion Chops", "qty": 25 },
+        { "label": "Soothing Turtle Bisque", "qty": 25 },
+        { "label": "Spider Sausage", "qty": 25 },
+        { "label": "Monster Omelet", "qty": 50 },
+        { "label": "Smoked Desert Dumplings", "qty": 25 }
+      ]
+    },
+    {
+      "professionId": "FirstAid",
+      "listName": "Secourisme 1-300",
+      "steps": [
+        { "label": "Linen Bandage", "qty": 50 },
+        { "label": "Heavy Linen Bandage", "qty": 60 },
+        { "label": "Wool Bandage", "qty": 60 },
+        { "label": "Heavy Wool Bandage", "qty": 60 },
+        { "label": "Silk Bandage", "qty": 50 },
+        { "label": "Heavy Silk Bandage", "qty": 50 },
+        { "label": "Mageweave Bandage", "qty": 60 },
+        { "label": "Heavy Mageweave Bandage", "qty": 60 },
+        { "label": "Runecloth Bandage", "qty": 50 },
+        { "label": "Heavy Runecloth Bandage", "qty": 15 }
+      ]
+    }
+  ]
+}

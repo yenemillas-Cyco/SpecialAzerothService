@@ -52,7 +52,6 @@ public static class CartoCharacterDockCard
                 IconWidth = 40,
                 ShowZone = false,
                 ShowSyncDate = false,
-                ShowAccountName = false,
                 ShowCooldownBarsOnPortrait = false,
                 ShowQuestIcons = CartoCharacterPresentation.ShowQuestBody(ch),
                 QuestIconSize = 22

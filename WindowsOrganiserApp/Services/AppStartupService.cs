@@ -29,6 +29,10 @@ public sealed class AppStartupService
         var cartoVm = services.GetRequiredService<CartoViewModel>();
         await cartoVm.WarmupAsync(progress, cancellationToken).ConfigureAwait(false);
 
+        Report(94, "Comptes craft…");
+        var craftVm = services.GetRequiredService<CraftCraftingViewModel>();
+        await craftVm.WarmupStockAccountsAsync(cancellationToken).ConfigureAwait(false);
+
         Report(100, "Prêt");
     }
 }

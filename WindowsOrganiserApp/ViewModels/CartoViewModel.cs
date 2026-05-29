@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
+using System.IO;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -74,7 +75,37 @@ public partial class CartoViewModel : ObservableObject
         RefreshFriendCartoUsers();
         ApplyFilters();
         CharacterSyncGoldConverter.Vm = this;
+        _wowSyncService.WowPath = _wowSyncService.WowPath;
+        WowPath = _wowSyncService.WowPath;
     }
+
+    public string AddonVersion => _wowSyncService.AddonVersion;
+
+    [ObservableProperty]
+    private string _wowPath = "";
+
+    [ObservableProperty]
+    private string _addonStatusText = "";
+
+    /// <summary>Volet configuration addon WowSync (chemin WoW, déploiement).</summary>
+    [ObservableProperty]
+    private bool _isAddonPanelOpen;
+
+    partial void OnWowPathChanged(string value)
+    {
+        var normalized = WowInstallPaths.NormalizeGameRoot(value);
+        if (!string.Equals(normalized, value, StringComparison.Ordinal))
+            WowPath = normalized;
+        else
+            _wowSyncService.WowPath = normalized;
+
+        OnPropertyChanged(nameof(AddonInstallPathHint));
+    }
+
+    public string AddonInstallPathHint =>
+        string.IsNullOrWhiteSpace(WowPath)
+            ? ""
+            : $"Addon : {WowInstallPaths.GetAddonsDirectory(WowPath)}";
 
     public const string CharactersLoadedPropertyName = nameof(CharactersLoaded);
 
@@ -396,6 +427,41 @@ public partial class CartoViewModel : ObservableObject
     [RelayCommand]
     private void ToggleRosterPanel() => IsRosterOpen = !IsRosterOpen;
 
+    [RelayCommand]
+    private void ToggleAddonPanel() => IsAddonPanelOpen = !IsAddonPanelOpen;
+
+    [RelayCommand]
+    private void BrowseWowPath()
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Sélectionner le dossier World of Warcraft (racine du jeu)"
+        };
+        if (dialog.ShowDialog() == true)
+            WowPath = dialog.FolderName;
+    }
+
+    [RelayCommand]
+    private void DeployAddon()
+    {
+        if (string.IsNullOrWhiteSpace(WowPath))
+        {
+            AddonStatusText = "⚠ Configurez le chemin WoW d'abord.";
+            return;
+        }
+
+        try
+        {
+            _wowSyncService.DeployAddon();
+            AddonStatusText =
+                $"✅ Addon v{WowSyncService.AddonVersionValue} déployé dans _classic_era_\\Interface\\AddOns — /reload en jeu.";
+        }
+        catch (Exception ex)
+        {
+            AddonStatusText = $"❌ Erreur déploiement : {ex.Message}";
+        }
+    }
+
     partial void OnIsSettingsPanelOpenChanged(bool value)
     {
         if (value)
@@ -675,7 +741,14 @@ public partial class CartoViewModel : ObservableObject
         if (SelectedCharacter == null) return;
         if (SelectedCharacter.Cooldowns.Any(c => c.Type == type)) return;
 
+        if (CooldownGroups.IsAlchemyTransmute(type))
+        {
+            foreach (var other in SelectedCharacter.Cooldowns.Where(c => CooldownGroups.IsAlchemyTransmute(c.Type)).ToList())
+                SelectedCharacter.Cooldowns.Remove(other);
+        }
+
         SelectedCharacter.Cooldowns.Add(new CooldownEntry { Type = type });
+        CooldownGroups.NormalizeAlchemyCooldowns(SelectedCharacter.Cooldowns);
         Save();
         OnPropertyChanged(nameof(SelectedCharacter));
     }
@@ -683,8 +756,16 @@ public partial class CartoViewModel : ObservableObject
     [RelayCommand]
     private void ActivateCooldown(CooldownEntry cd)
     {
+        if (SelectedCharacter != null && CooldownGroups.IsAlchemyTransmute(cd.Type))
+        {
+            foreach (var other in SelectedCharacter.Cooldowns.Where(c => CooldownGroups.IsAlchemyTransmute(c.Type) && c != cd).ToList())
+                SelectedCharacter.Cooldowns.Remove(other);
+            cd.ReadyAtOverride = null;
+        }
+
         cd.LastUsed = DateTime.Now;
         cd.Note = null;
+        CooldownGroups.NormalizeAlchemyCooldowns(SelectedCharacter?.Cooldowns ?? []);
         Save();
         OnPropertyChanged(nameof(SelectedCharacter));
         OnPropertyChanged(nameof(FilteredCharacters));
@@ -1266,13 +1347,12 @@ public partial class CartoViewModel : ObservableObject
         {
             if (string.IsNullOrWhiteSpace(_wowSyncService.WowPath))
             {
-                System.Windows.MessageBox.Show(
-                    "Configurez le chemin WoW dans l'onglet Addon, puis réessayez.",
-                    "WowSync",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Information);
+                AddonStatusText = "⚠ Configurez le chemin WoW dans le panneau Addon.";
                 return;
             }
+
+            var wtfPath = _wowSyncService.ResolvedWtfPath;
+            var wtfExists = Directory.Exists(wtfPath);
 
             _wowSyncCache = null;
             BumpMapPlacementStamp();
@@ -1291,11 +1371,18 @@ public partial class CartoViewModel : ObservableObject
             Save();
             OnPropertyChanged(nameof(OverlayChanged));
             OnPropertyChanged(CharactersLoadedPropertyName);
+
+            var localCount = Characters.Count(c => !c.IsExternal);
+            if (!wtfExists)
+                AddonStatusText = $"❌ Dossier WTF introuvable : {wtfPath}";
+            else if (localCount == 0)
+                AddonStatusText = $"⚠ WTF OK mais aucun WowSync.lua — déployez l'addon, jouez, déconnectez-vous.";
+            else
+                AddonStatusText = $"✅ {localCount} personnage(s) relu(s) depuis le WTF.";
         }
         catch (Exception ex)
         {
-            System.Windows.MessageBox.Show($"Erreur lecture WowSync : {ex.Message}", "WowSync",
-                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            AddonStatusText = $"❌ Erreur lecture : {ex.Message}";
         }
     }
 
@@ -1624,6 +1711,23 @@ public partial class CartoViewModel : ObservableObject
     {
         var userId = GetUserIdForCharacter(ch);
         return userId != null && GetAccountCountForUser(userId) > 1;
+    }
+
+    /// <summary>Nom affiché du compte WTF lié au personnage (paramètres Comptes).</summary>
+    public string? GetCharacterAccountDisplayName(WowCharacter ch)
+    {
+        if (ch.IsExternal || string.IsNullOrEmpty(ch.AccountId))
+            return null;
+
+        var account = Accounts.FirstOrDefault(a => a.Id == ch.AccountId);
+        if (account == null)
+            return null;
+
+        var folder = GetSourceFolderForAccount(account);
+        if (!string.IsNullOrWhiteSpace(folder))
+            return GetAccountDisplayName(folder);
+
+        return string.IsNullOrWhiteSpace(account.Name) ? null : account.Name.Trim();
     }
 
     public long GetUserTotalGoldCopper(string userId, IReadOnlyList<WowCharacter>? scopeChars = null)

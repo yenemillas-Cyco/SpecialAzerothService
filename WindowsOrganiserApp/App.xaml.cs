@@ -33,9 +33,23 @@ public partial class App : Application
 
         DispatcherUnhandledException += (_, args) =>
         {
-            Log.Error(args.Exception, "Exception UI non gérée");
+            Log.Error(args.Exception, "Exception UI non gérée : {Message}", args.Exception.ToString());
+            // Ne pas bloquer l’UI pour les erreurs réseau Wowhead / tooltips
+            if (IsNonCriticalUiException(args.Exception))
+            {
+                args.Handled = true;
+                return;
+            }
+
+            if (args.Exception is NullReferenceException)
+            {
+                args.Handled = true;
+                return;
+            }
+
+            var detail = args.Exception.InnerException?.Message ?? args.Exception.Message;
             MessageBox.Show(
-                $"Erreur inattendue :\n{args.Exception.Message}",
+                $"Erreur inattendue :\n{detail}",
                 "Special Azeroth Service",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
@@ -64,13 +78,22 @@ public partial class App : Application
         services.AddSingleton<IBountyService, BountyService>();
         services.AddSingleton<IWowSyncService, WowSyncService>();
         services.AddSingleton<IWowItemLookupService, WowItemLookupService>();
+        services.AddSingleton<ICraftService, CraftService>();
+        services.AddSingleton<ICraftListsService, CraftListsService>();
+        services.AddSingleton<ICraftCatalogLookup, CraftCatalogLookup>();
+        services.AddSingleton<ICraftDecompositionService, CraftDecompositionService>();
+        services.AddSingleton<ICraftPickupPlanner, CraftPickupPlannerService>();
+        services.AddSingleton<ICraftPlanningContext, CraftPlanningContext>();
+        services.AddSingleton<ICraftStockService, CraftStockService>();
         services.AddSingleton<IUserProfileService, UserProfileService>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<AdvancedViewModel>();
         services.AddSingleton<CartoViewModel>();
         services.AddSingleton<BountyViewModel>();
         services.AddSingleton<ConsoViewModel>();
-        services.AddSingleton<WowSyncViewModel>();
+        services.AddSingleton<CraftViewModel>();
+        services.AddSingleton<CraftCraftingViewModel>();
+        services.AddSingleton<CraftShellViewModel>();
         services.AddTransient<MainWindow>();
 
         _serviceProvider = services.BuildServiceProvider();
@@ -80,14 +103,11 @@ public partial class App : Application
         var advVm = _serviceProvider.GetRequiredService<AdvancedViewModel>();
         var cartoVm = _serviceProvider.GetRequiredService<CartoViewModel>();
         var bountyVm = _serviceProvider.GetRequiredService<BountyViewModel>();
-        var consoVm = _serviceProvider.GetRequiredService<ConsoViewModel>();
+        var craftShellVm = _serviceProvider.GetRequiredService<CraftShellViewModel>();
         mainVm.AdvancedVm = advVm;
         mainVm.CartoVm = cartoVm;
         mainVm.BountyVm = bountyVm;
-        mainVm.ConsoVm = consoVm;
-        var wowSyncVm = _serviceProvider.GetRequiredService<WowSyncViewModel>();
-        wowSyncVm.MainVm = mainVm;
-        mainVm.WowSyncVm = wowSyncVm;
+        mainVm.CraftVm = craftShellVm;
 
         // Fenêtre principale assignée AVANT le splash : sinon la fermeture du splash
         // coupe l'app (ShutdownMode=OnMainWindowClose).
@@ -238,6 +258,17 @@ public partial class App : Application
             }
             proc.Dispose();
         }
+    }
+
+    private static bool IsNonCriticalUiException(Exception ex)
+    {
+        for (var e = ex; e != null; e = e.InnerException)
+        {
+            if (e is HttpRequestException or TaskCanceledException or OperationCanceledException)
+                return true;
+        }
+
+        return false;
     }
 }
 

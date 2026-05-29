@@ -101,7 +101,7 @@ public static class CartoCharacterPresentation
     {
         options ??= new CharacterHeaderOptions();
         var nameBrush = GetCharacterNameBrush(ch, vm);
-        var accountName = vm.Accounts.FirstOrDefault(a => a.Id == ch.AccountId)?.Name;
+        var accountName = vm.GetCharacterAccountDisplayName(ch);
         var showAccount = !ch.IsExternal && !string.IsNullOrEmpty(accountName);
 
         UIElement? questContent = null;

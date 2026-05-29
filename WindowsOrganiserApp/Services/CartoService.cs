@@ -77,6 +77,9 @@ public sealed class CartoService : ICartoService
         data.AccountDisplayNames = new Dictionary<string, string>(
             data.AccountDisplayNames ?? new Dictionary<string, string>(),
             StringComparer.OrdinalIgnoreCase);
+
+        foreach (var ch in data.Characters)
+            CooldownGroups.NormalizeAlchemyCooldowns(ch.Cooldowns);
     }
 
 

@@ -15,7 +15,7 @@ public interface IWowSyncService
 
 public sealed class WowSyncService : IWowSyncService
 {
-    public const string AddonVersionValue = "1.3.5";
+    public const string AddonVersionValue = "1.3.6";
     public string AddonVersion => AddonVersionValue;
 
     private readonly ISettingsService _settingsService;
@@ -23,11 +23,11 @@ public sealed class WowSyncService : IWowSyncService
 
     public string WowPath
     {
-        get => _settingsService.Load().WowPath;
+        get => WowInstallPaths.NormalizeGameRoot(_settingsService.Load().WowPath);
         set
         {
             var s = _settingsService.Load();
-            s.WowPath = value;
+            s.WowPath = WowInstallPaths.NormalizeGameRoot(value);
             _settingsService.Save(s);
         }
     }
@@ -40,22 +40,14 @@ public sealed class WowSyncService : IWowSyncService
 
     public void DeployAddon()
     {
-        var addonsDir = Path.Combine(WowPath.Trim(), "WowSync");
+        var addonsDir = WowInstallPaths.GetAddonsDirectory(WowPath);
         Directory.CreateDirectory(addonsDir);
 
         File.WriteAllText(Path.Combine(addonsDir, "WowSync.toc"), TocContent);
         File.WriteAllText(Path.Combine(addonsDir, "WowSync.lua"), LuaContent);
     }
 
-    public string ResolvedWtfPath
-    {
-        get
-        {
-            var path = WowPath.Trim();
-            var root = Path.GetFullPath(Path.Combine(path, "..", ".."));
-            return Path.Combine(root, "WTF", "Account");
-        }
-    }
+    public string ResolvedWtfPath => WowInstallPaths.GetWtfAccountDirectory(WowPath);
 
     public List<WowAccountData> ReadAllAccounts(IReadOnlyDictionary<string, CartoAccountConfig>? accountSettings = null)
     {
@@ -180,7 +172,23 @@ public sealed class WowSyncService : IWowSyncService
                 ScannedAt = LuaTableParser.GetDouble(cd, "scannedAt")
             });
         }
-        return list.OrderBy(c => c.IsReady).ThenBy(c => c.ReadyAtUtc).ToList();
+        return CollapseAlchemySyncCooldowns(list.OrderBy(c => c.IsReady).ThenBy(c => c.ReadyAtUtc).ToList());
+    }
+
+    private static List<WowProfessionCooldown> CollapseAlchemySyncCooldowns(List<WowProfessionCooldown> list)
+    {
+        var alchemy = list.Where(c => CooldownGroups.IsAlchemySyncKey(c.Key)).ToList();
+        if (alchemy.Count <= 1)
+            return list;
+
+        var rest = list.Where(c => !CooldownGroups.IsAlchemySyncKey(c.Key)).ToList();
+        var best = alchemy
+            .Where(c => !c.IsReady)
+            .OrderByDescending(c => c.ReadyAtUtc ?? DateTime.MinValue)
+            .FirstOrDefault() ?? alchemy[0];
+
+        rest.Add(best);
+        return rest;
     }
 
     private static List<WowItem> ParseItems(Dictionary<string, object?>? table)
@@ -261,10 +269,13 @@ public sealed class WowSyncService : IWowSyncService
 
     private const string LuaContent =
         """
-        local WOWSYNC_VERSION = "1.3.5"
+        local WOWSYNC_VERSION = "1.3.6"
+        local WOWSYNC_DEBUG = false
+        local function WSLog(msg)
+            if WOWSYNC_DEBUG then print(msg) end
+        end
 
         WowSyncDB = WowSyncDB or {}
-        print("|cFF00FF00[WowSync]|r v" .. WOWSYNC_VERSION .. " charge.")
 
         local _GetNumSlots = C_Container and C_Container.GetContainerNumSlots or GetContainerNumSlots
         local _GetItemLink = C_Container and C_Container.GetContainerItemLink or GetContainerItemLink
@@ -439,9 +450,38 @@ public sealed class WowSyncService : IWowSyncService
         local function ScanCooldowns()
             local cds = {}
             local now = time()
+            -- Transmu alchimie : un seul CD partage (arcanite + elementaires)
+            local alchemySpells = {
+                { key = "arcanite", name = "Transmu. Arcanite", id = 17187 },
+                { key = "elemental", name = "Transmu. Air / Feu", id = 17559 },
+                { key = "elemental", name = "Transmu. Feu / Terre", id = 17560 },
+                { key = "elemental", name = "Transmu. Terre / Eau", id = 17561 },
+                { key = "elemental", name = "Transmu. Eau / Air", id = 17562 },
+                { key = "elemental", name = "Transmu. Mort / Eau", id = 17563 },
+                { key = "elemental", name = "Transmu. Eau / Mort", id = 17564 },
+                { key = "elemental", name = "Transmu. Vie / Terre", id = 17565 },
+                { key = "elemental", name = "Transmu. Terre / Vie", id = 17566 },
+            }
+            local bestAlchemyRemaining = 0
+            local bestAlchemyKey, bestAlchemyName = nil, nil
+            for _, spell in ipairs(alchemySpells) do
+                local start, duration = GetSpellCooldown(spell.id)
+                if start and duration and duration > 2 then
+                    local remaining = start + duration - GetTime()
+                    if remaining > bestAlchemyRemaining then
+                        bestAlchemyRemaining = remaining
+                        bestAlchemyKey = spell.key
+                        bestAlchemyName = spell.name
+                    end
+                end
+            end
+            if bestAlchemyRemaining > 1 and bestAlchemyKey then
+                table.insert(cds, {
+                    key = bestAlchemyKey, name = bestAlchemyName,
+                    remainingSec = bestAlchemyRemaining, scannedAt = now
+                })
+            end
             local tracked = {
-                { key = "arcanite", name = "Transmu. Arcanite", spells = { 17187 } },
-                { key = "elemental", name = "Transmu. elementaire", spells = { 17559, 17560, 17561, 17562, 17563, 17564, 17565, 17566 } },
                 { key = "mooncloth", name = "Etoffe lunaire", spells = { 18560 } },
             }
             for _, t in ipairs(tracked) do
@@ -478,13 +518,23 @@ public sealed class WowSyncService : IWowSyncService
                         if lname:find("lunaire") or lname:find("mooncloth") then
                             key, label = "mooncloth", "Etoffe lunaire"
                         elseif lname:find("arcanite") then
-                            key, label = "arcanite", "Transmu. Arcanite"
+                            key, label = "arcanite", skillName
                         elseif lname:find("element") or lname:find("elementaire") then
-                            key, label = "elemental", "Transmu. elementaire"
+                            key, label = "elemental", skillName
                         end
                         if key then
                             local found = false
-                            for _, c in ipairs(cds) do if c.key == key then found = true break end end
+                            for _, c in ipairs(cds) do
+                                if c.key == key or c.key == "arcanite" or c.key == "elemental" then
+                                    found = true
+                                    if cooldown > (c.remainingSec or 0) then
+                                        c.remainingSec = cooldown
+                                        c.key = key
+                                        c.name = label
+                                    end
+                                    break
+                                end
+                            end
                             if not found then
                                 table.insert(cds, {
                                     key = key, name = label,
@@ -716,7 +766,7 @@ public sealed class WowSyncService : IWowSyncService
                 end
             end)
             if not ok then
-                print("|cFFFFAA00[WowSync]|r Metiers: " .. tostring(result))
+                WSLog("|cFFFFAA00[WowSync]|r Metiers: " .. tostring(result))
             end
             return profs
         end
@@ -747,7 +797,7 @@ public sealed class WowSyncService : IWowSyncService
                 end
             end)
             if not ok then
-                print("|cFFFFAA00[WowSync]|r Courrier: " .. tostring(err))
+                WSLog("|cFFFFAA00[WowSync]|r Courrier: " .. tostring(err))
             end
             return mails
         end
@@ -762,13 +812,13 @@ public sealed class WowSyncService : IWowSyncService
                 inv = ScanInventory()
             end)
             if not okInv then
-                print("|cFFFF0000[WowSync]|r Err inventaire: " .. tostring(errInv))
+                WSLog("|cFFFF0000[WowSync]|r Err inventaire: " .. tostring(errInv))
                 inv = prev.inventory or {}
             end
             -- 2e appel a la deco : sacs deja fermes → ne pas ecraser un inventaire valide
             if fromLogout and #inv == 0 and prev.inventory and #prev.inventory > 0 then
                 inv = prev.inventory
-                print("|cFFFFAA00[WowSync]|r Sacs: scan vide a la deco, inventaire precedant conserve (" .. #inv .. " objets).")
+                WSLog("|cFFFFAA00[WowSync]|r Sacs: scan vide a la deco, inventaire precedant conserve (" .. #inv .. " objets).")
             end
 
             local coords = GetPlayerCoords()
@@ -817,24 +867,24 @@ public sealed class WowSyncService : IWowSyncService
                     TouchSync(key, "professions")
                 end
             end)
-            if not ok1 then print("|cFFFF0000[WowSync]|r Err metiers: " .. tostring(e1)) end
+            if not ok1 then WSLog("|cFFFF0000[WowSync]|r Err metiers: " .. tostring(e1)) end
 
             local ok3, e3 = pcall(function()
                 local cds = ScanCooldowns()
                 entry.cooldowns = cds
                 if #cds > 0 then TouchSync(key, "cooldowns") end
             end)
-            if not ok3 then print("|cFFFF0000[WowSync]|r Err CD: " .. tostring(e3)) end
+            if not ok3 then WSLog("|cFFFF0000[WowSync]|r Err CD: " .. tostring(e3)) end
 
             local g = math.floor((entry.gold or 0) / 10000)
             local s = math.floor(((entry.gold or 0) % 10000) / 100)
             local c = (entry.gold or 0) % 100
             if fromLogout then
-                print(string.format(
+                WSLog(string.format(
                     "|cFF00FF00[WowSync]|r Deconnexion — %d objets en sacs sauvegardes.",
                     #entry.inventory))
             else
-                print(string.format(
+                WSLog(string.format(
                     "|cFF00FF00[WowSync]|r Sync OK | or: %dg %ds %dc | pos: %.1f, %.1f | inv: %d",
                     g, s, c,
                     (entry.x or 0) * 100, (entry.y or 0) * 100,
@@ -887,7 +937,7 @@ public sealed class WowSyncService : IWowSyncService
                 if WowSyncDB[key] then
                     WowSyncDB[key].bank = ScanBank()
                     TouchSync(key, "bank")
-                    print("|cFF00FF00[WowSync]|r Banque synchronisee.")
+                    WSLog("|cFF00FF00[WowSync]|r Banque synchronisee.")
                 end
             elseif event == "BANKFRAME_CLOSED" then
                 bankOpen = false
@@ -899,7 +949,7 @@ public sealed class WowSyncService : IWowSyncService
                     if WowSyncDB[key] then
                         WowSyncDB[key].mail = ScanMail()
                         TouchSync(key, "mail")
-                        print("|cFF00FF00[WowSync]|r Courrier synchronise.")
+                        WSLog("|cFF00FF00[WowSync]|r Courrier synchronise.")
                     end
                 end
             elseif event == "MAIL_CLOSED" then
@@ -945,7 +995,9 @@ public sealed class WowSyncService : IWowSyncService
         end)
 
         -- === Panneau WowSync (en jeu) ===
-        WowSyncDB.showPos = (WowSyncDB.showPos ~= false)
+        if WowSyncDB.showPos == nil then
+            WowSyncDB.showPos = false
+        end
 
         local function SyncMark(has)
             return has and "|cFF00FF00OK|r" or "|cFF666666--|r"
@@ -1040,15 +1092,19 @@ public sealed class WowSyncService : IWowSyncService
             UpdatePosHUD()
         end
 
-        if WowSyncDB.showPos then posFrame:Show() else posFrame:Hide() end
+        posFrame:Hide()
+        WowSyncDB.showPos = false
 
-        -- Bouton minimap
+        -- Bouton minimap (compact)
         local minimapBtn = CreateFrame("Button", "WowSyncMinimapButton", Minimap)
-        minimapBtn:SetSize(33, 33)
+        minimapBtn:SetSize(22, 22)
         minimapBtn:SetFrameStrata("MEDIUM")
         minimapBtn:SetFrameLevel(8)
         minimapBtn:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-        minimapBtn:SetNormalTexture("Interface\\Icons\\INV_Misc_Bag_08")
+        local minimapIcon = minimapBtn:CreateTexture(nil, "ARTWORK")
+        minimapIcon:SetSize(16, 16)
+        minimapIcon:SetPoint("CENTER")
+        minimapIcon:SetTexture("Interface\\Icons\\INV_Misc_Bag_08")
         minimapBtn:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 8, -8)
         minimapBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         minimapBtn:SetScript("OnEnter", function(self)
@@ -1071,12 +1127,12 @@ public sealed class WowSyncService : IWowSyncService
         local function PrintMapPOIs()
             local mapID = C_Map.GetBestMapForUnit("player")
             if not mapID then
-                print("|cFFFF0000[WowSync]|r Pas de carte.")
+                WSLog("|cFFFF0000[WowSync]|r Pas de carte.")
                 return
             end
             local info = C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
             local mapName = info and info.name or ("map " .. mapID)
-            print("|cFF00FF00[WowSync]|r POI / points sur |cFFFFFF00" .. mapName .. "|r (id " .. mapID .. "):")
+            WSLog("|cFF00FF00[WowSync]|r POI / points sur |cFFFFFF00" .. mapName .. "|r (id " .. mapID .. "):")
 
             local count = 0
             if C_AreaPoi and C_AreaPoi.GetQuestRelatedMapPOIs then
@@ -1086,7 +1142,7 @@ public sealed class WowSyncService : IWowSyncService
                         local poiInfo = C_AreaPoi.GetAreaPOIInfo and C_AreaPoi.GetAreaPOIInfo(mapID, poiID)
                         if poiInfo and poiInfo.name then
                             count = count + 1
-                            print(string.format("  [%d] %s", poiID, poiInfo.name))
+                            WSLog(string.format("  [%d] %s", poiID, poiInfo.name))
                         end
                     end
                 end
@@ -1098,14 +1154,14 @@ public sealed class WowSyncService : IWowSyncService
                     for _, node in ipairs(nodes) do
                         if node.name then
                             count = count + 1
-                            print("  [Vol] " .. node.name)
+                            WSLog("  [Vol] " .. node.name)
                         end
                     end
                 end
             end
 
             if count == 0 then
-                print("  (aucun POI via API — utilisez la carte monde du jeu)")
+                WSLog("  (aucun POI via API — utilisez la carte monde du jeu)")
             end
         end
 
@@ -1114,23 +1170,23 @@ public sealed class WowSyncService : IWowSyncService
             msg = string.lower(msg or "")
             if msg == "pos" or msg == "position" then
                 SetPosHUDVisible(not WowSyncDB.showPos)
-                print("|cFF00FF00[WowSync]|r Panneau position: " .. (WowSyncDB.showPos and "ON" or "OFF"))
+                WSLog("|cFF00FF00[WowSync]|r Panneau position: " .. (WowSyncDB.showPos and "ON" or "OFF"))
             elseif msg == "poi" then
                 PrintMapPOIs()
             elseif msg == "version" or msg == "ver" then
-                print("|cFF00FF00[WowSync]|r version " .. WOWSYNC_VERSION)
+                WSLog("|cFF00FF00[WowSync]|r version " .. WOWSYNC_VERSION)
             elseif msg == "or" or msg == "gold" then
                 SaveLiveSnapshot()
                 local money = GetPlayerMoney()
                 local g = math.floor(money / 10000)
                 local s = math.floor((money % 10000) / 100)
                 local c = money % 100
-                print(string.format("|cFF00FF00[WowSync]|r Or: %dg %ds %dc", g, s, c))
+                WSLog(string.format("|cFF00FF00[WowSync]|r Or: %dg %ds %dc", g, s, c))
                 UpdatePosHUD()
             else
                 SaveAll()
                 UpdatePosHUD()
-                print("|cFF00FF00[WowSync]|r Donnees sauvegardees. Deconnectez-vous pour ecrire le fichier. /wowsync pos | /wowsync or")
+                WSLog("|cFF00FF00[WowSync]|r Donnees sauvegardees. Deconnectez-vous pour ecrire le fichier. /wowsync pos | /wowsync or")
             end
         end
         """;

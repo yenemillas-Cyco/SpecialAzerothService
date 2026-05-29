@@ -54,13 +54,20 @@ public partial class WowItemSlot : UserControl
 
         if (LookupService != null && item.ItemId > 0)
         {
-            var iconTask = LookupService.GetIconAsync(item, cts.Token);
-            var detailsTask = LookupService.GetDetailsAsync(item, cts.Token);
-            await Task.WhenAll(iconTask, detailsTask).ConfigureAwait(false);
-            if (!cts.IsCancellationRequested)
+            try
             {
-                image = await iconTask.ConfigureAwait(false);
-                details = await detailsTask.ConfigureAwait(false);
+                var iconTask = LookupService.GetIconAsync(item, cts.Token);
+                var detailsTask = LookupService.GetDetailsAsync(item, cts.Token);
+                await Task.WhenAll(iconTask, detailsTask).ConfigureAwait(false);
+                if (!cts.IsCancellationRequested)
+                {
+                    image = await iconTask.ConfigureAwait(false);
+                    details = await detailsTask.ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                // Wowhead indisponible : icône / tooltip de secours
             }
         }
 
@@ -79,7 +86,7 @@ public partial class WowItemSlot : UserControl
 public class CountToVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        => value is int count && count > 1 ? Visibility.Visible : Visibility.Collapsed;
+        => value is int count && count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();

@@ -168,11 +168,14 @@ public sealed partial class ConsoViewModel : ObservableObject
 
     public ConsoViewModel()
     {
+        // Naxx / boss — masqué (UI retirée) ; données conservées dans NaxxData pour une phase ultérieure.
+        /*
         foreach (var boss in NaxxData.Bosses)
         {
             var sb = new SelectableBoss(boss, Recalculate);
             Bosses.Add(sb);
         }
+        */
 
         foreach (var cat in NaxxData.ExtraCategories)
         {

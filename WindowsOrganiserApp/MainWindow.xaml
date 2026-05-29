@@ -1,4 +1,4 @@
-<Window x:Class="WindowsOrganiserApp.MainWindow"
+﻿<Window x:Class="WindowsOrganiserApp.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -126,10 +126,8 @@
                                      IsChecked="{Binding IsCartoMode}" Margin="0,0,6,0"/>
                         <RadioButton Content="💰 Primes" Style="{DynamicResource WowPill}" FontSize="13" Height="34" Padding="14,4"
                                      IsChecked="{Binding IsBountyMode}" Margin="0,0,6,0"/>
-                        <RadioButton Content="🧪 Conso" Style="{DynamicResource WowPill}" FontSize="13" Height="34" Padding="14,4"
-                                     IsChecked="{Binding IsConsoMode}" Margin="0,0,6,0"/>
-                        <RadioButton Content="🔗 Wow Sync" Style="{DynamicResource WowPill}" FontSize="13" Height="34" Padding="14,4"
-                                     IsChecked="{Binding IsWowSyncMode}"/>
+                        <RadioButton Content="⚗ Craft" Style="{DynamicResource WowPill}" FontSize="13" Height="34" Padding="14,4"
+                                     IsChecked="{Binding IsCraftMode}"/>
                     </StackPanel>
 
                     <!-- Unified Organiser content -->
@@ -448,13 +446,9 @@
                     <views:BountyView Grid.Row="3" DataContext="{Binding BountyVm}"
                                       Visibility="{Binding DataContext.IsBountyMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
 
-                    <!-- Conso content -->
-                    <views:ConsoView Grid.Row="3" DataContext="{Binding ConsoVm}"
-                                     Visibility="{Binding DataContext.IsConsoMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
-
-                    <!-- WowSync content -->
-                    <views:WowSyncView Grid.Row="3" DataContext="{Binding WowSyncVm}"
-                                       Visibility="{Binding DataContext.IsWowSyncMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
+                    <!-- Craft : métiers + crafting -->
+                    <views:CraftView Grid.Row="3" DataContext="{Binding CraftVm}"
+                                     Visibility="{Binding DataContext.IsCraftMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
 
                             <!-- Status bar -->
                             <Border Grid.Row="4" Background="{DynamicResource PanelBg}" CornerRadius="4"

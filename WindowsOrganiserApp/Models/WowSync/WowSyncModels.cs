@@ -72,6 +72,7 @@ public sealed class WowItem
     public string Name { get; set; } = "";
     public int Count { get; set; } = 1;
     public int ItemId { get; set; }
+    public int SpellId { get; set; }
     public long Icon { get; set; }
     public int Quality { get; set; }
     public string Display => Count > 1 ? $"{Name} x{Count}" : Name;

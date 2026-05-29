@@ -138,6 +138,10 @@
                                       FontSize="10" Padding="10,4" Margin="4,0,0,0"
                                       Checked="PanelSettings_Checked" Unchecked="PanelSettings_Unchecked"
                                       ToolTip="Comptes WTF, utilisateurs et amis"/>
+                        <ToggleButton x:Name="BtnPanelAddon" Content="Addon" Style="{DynamicResource StoneToggle}"
+                                      FontSize="10" Padding="10,4" Margin="4,0,0,0"
+                                      Checked="PanelAddon_Checked" Unchecked="PanelAddon_Unchecked"
+                                      ToolTip="Chemin WoW et déploiement de l'addon WowSync"/>
                     </WrapPanel>
 
                     <WrapPanel VerticalAlignment="Center">
@@ -154,7 +158,7 @@
 
                     <Button Content="Actualiser" Style="{DynamicResource StoneButton}" FontSize="10" Padding="10,4" Margin="0,0,6,0"
                             Command="{Binding RefreshWowSyncCommand}"
-                            ToolTip="Relire les personnages (WowSync / WTF)"/>
+                            ToolTip="Relire les personnages depuis le WTF (addon)"/>
                     <CheckBox Content="Liste" IsChecked="{Binding ShowTableView}" FontSize="10" Margin="0,0,8,0"
                               Foreground="{DynamicResource GoldBrush}" VerticalAlignment="Center"
                               ToolTip="Vue liste à la place de la carte"/>
@@ -437,6 +441,7 @@
         <!-- Volets droite : pas de cadre global, un cadre par volet seulement -->
         <Grid x:Name="RightDockHost" Grid.Row="1" Grid.Column="2" Visibility="Collapsed">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
@@ -974,6 +979,63 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+
+                <!-- Volet addon WowSync -->
+                <Border x:Name="AddonPanelHost" Grid.Column="5" Width="340" Margin="0,0,0,0"
+                        Background="#18141008" BorderThickness="1" CornerRadius="6" ClipToBounds="True"
+                        BorderBrush="#55AA8833" Visibility="Collapsed">
+                    <DockPanel LastChildFill="True">
+                        <Border DockPanel.Dock="Top" Style="{StaticResource CartoSideHeaderBorder}">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource CartoThinClose}"
+                                        Click="CloseAddonPanel_Click"/>
+                                <TextBlock Text="Addon WowSync" Style="{StaticResource CartoSideTitle}"/>
+                            </DockPanel>
+                        </Border>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10,8,10,10">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
+                                           Margin="0,0,0,10">
+                                    Dossier racine du jeu (celui qui contient _classic_era_). L'addon est installé automatiquement dans Interface\AddOns.
+                                </TextBlock>
+                                <TextBlock Text="Dossier World of Warcraft" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
+                                <DockPanel Margin="0,0,0,8">
+                                    <Button DockPanel.Dock="Right" Content="📁" Style="{DynamicResource StoneButton}"
+                                            FontSize="12" Padding="8,4" Margin="6,0,0,0"
+                                            Command="{Binding BrowseWowPathCommand}"
+                                            ToolTip="Ex. C:\Jeux\World of Warcraft"/>
+                                    <TextBox Text="{Binding WowPath, UpdateSourceTrigger=PropertyChanged}"
+                                             FontFamily="Consolas" FontSize="11" Padding="6,4"
+                                             Background="{DynamicResource SelectionBgBrush}"
+                                             Foreground="{DynamicResource TextBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                             ToolTip="Racine du jeu uniquement — pas le dossier AddOns"/>
+                                </DockPanel>
+                                <TextBlock Text="{Binding AddonInstallPathHint}"
+                                           FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Button Content="Déployer l'addon" Style="{DynamicResource WowButton}"
+                                            FontSize="10" Padding="12,5" Margin="0,0,8,0"
+                                            Command="{Binding DeployAddonCommand}"
+                                            ToolTip="{Binding AddonVersion, StringFormat=Version addon : v{0}}"/>
+                                    <TextBlock Text="{Binding AddonVersion, StringFormat=v{0}}"
+                                               FontSize="11" Foreground="#88CCFF" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding AddonStatusText}" FontSize="10"
+                                           Foreground="#88CC88" TextWrapping="Wrap" MinHeight="32"
+                                           Margin="0,0,0,8"/>
+                                <TextBlock TextWrapping="Wrap" FontSize="9" Foreground="{DynamicResource SubtextBrush}">
+                                    1. Déployez l'addon puis /reload en jeu.
+                                    2. Connectez-vous, ouvrez banque/courrier si besoin.
+                                    3. Déconnectez-vous pour écrire WowSync.lua dans le WTF.
+                                    4. Utilisez « Actualiser » sur la barre Carto pour mettre à jour les personnages.
+                                </TextBlock>
                             </StackPanel>
                         </ScrollViewer>
                     </DockPanel>

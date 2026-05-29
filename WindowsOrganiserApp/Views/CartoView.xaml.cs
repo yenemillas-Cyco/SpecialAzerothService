@@ -769,7 +769,7 @@ public partial class CartoView : UserControl
             {
                 CharacterRosterRoot.Children.Add(new TextBlock
                 {
-                    Text = "Aucun personnage.\nOnglet Wow Sync : chemin WoW + actualiser,\nou Comptes → lier les comptes WTF.",
+                    Text = "Aucun personnage.\nPanneau Addon : chemin WoW + déployer + actualiser,\nou Paramètres → lier les comptes WTF.",
                     TextWrapping = TextWrapping.Wrap,
                     FontSize = 11,
                     Foreground = TryFindResource("SubtextBrush") as Brush ?? Brushes.Gray,
@@ -1151,7 +1151,7 @@ public partial class CartoView : UserControl
         }
 
         return vm.ShouldShowAccountNameForCharacter(ch)
-               && vm.Accounts.FirstOrDefault(a => a.Id == ch.AccountId)?.Name is { } accountName
+               && vm.GetCharacterAccountDisplayName(ch) is { } accountName
             ? $"{lockPrefix}{ch.Name} ({accountName})"
             : $"{lockPrefix}{ch.Name}";
     }
@@ -1970,6 +1970,18 @@ public partial class CartoView : UserControl
         SetPanelOpen(CartoPanel.Settings, false);
     }
 
+    private void PanelAddon_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressPanelToggleEvents) return;
+        SetPanelOpen(CartoPanel.Addon, true);
+    }
+
+    private void PanelAddon_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (_suppressPanelToggleEvents) return;
+        SetPanelOpen(CartoPanel.Addon, false);
+    }
+
     private void PanelZones_Checked(object sender, RoutedEventArgs e)
     {
         if (_suppressPanelToggleEvents) return;
@@ -1982,7 +1994,7 @@ public partial class CartoView : UserControl
         SetPanelOpen(CartoPanel.Zones, false);
     }
 
-    private enum CartoPanel { Roster, Search, Timers, Zones, Settings }
+    private enum CartoPanel { Roster, Search, Timers, Zones, Settings, Addon }
 
     private void SetPanelOpen(CartoPanel panel, bool open)
     {
@@ -1996,6 +2008,7 @@ public partial class CartoView : UserControl
             case CartoPanel.Timers: Vm.IsTimersPanelOpen = open; break;
             case CartoPanel.Zones: Vm.IsZonesPanelOpen = open; break;
             case CartoPanel.Settings: Vm.IsSettingsPanelOpen = open; break;
+            case CartoPanel.Addon: Vm.IsAddonPanelOpen = open; break;
         }
         ApplyRightPanelLayout();
     }
@@ -2070,6 +2083,13 @@ public partial class CartoView : UserControl
         SetPanelOpen(CartoPanel.Zones, false);
     }
 
+    private void CloseAddonPanel_Click(object sender, RoutedEventArgs e)
+    {
+        if (Vm == null) return;
+        e.Handled = true;
+        SetPanelOpen(CartoPanel.Addon, false);
+    }
+
     private void ZoneRectsListBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (Vm == null || sender is not ListBox listBox)
@@ -2135,6 +2155,8 @@ public partial class CartoView : UserControl
             TimersPanelHost.Visibility = Vm.IsTimersPanelOpen ? Visibility.Visible : Visibility.Collapsed;
         if (SettingsPanelHost != null)
             SettingsPanelHost.Visibility = Vm.IsSettingsPanelOpen ? Visibility.Visible : Visibility.Collapsed;
+        if (AddonPanelHost != null)
+            AddonPanelHost.Visibility = Vm.IsAddonPanelOpen ? Visibility.Visible : Visibility.Collapsed;
         if (ZonesPanelHost != null)
             ZonesPanelHost.Visibility = Vm.IsZonesPanelOpen ? Visibility.Visible : Visibility.Collapsed;
 
@@ -2156,7 +2178,7 @@ public partial class CartoView : UserControl
         SyncPanelToolbarToggles();
 
         var anyPanelOpen = Vm.IsRosterOpen || Vm.IsItemSearchOpen || Vm.IsTimersPanelOpen
-                           || Vm.IsZonesPanelOpen || Vm.IsSettingsPanelOpen;
+                           || Vm.IsZonesPanelOpen || Vm.IsSettingsPanelOpen || Vm.IsAddonPanelOpen;
 
         if (RightDockHost != null)
             RightDockHost.Visibility = anyPanelOpen ? Visibility.Visible : Visibility.Collapsed;
@@ -2181,6 +2203,7 @@ public partial class CartoView : UserControl
             if (BtnPanelTimers != null) BtnPanelTimers.IsChecked = Vm.IsTimersPanelOpen;
             if (BtnPanelZones != null) BtnPanelZones.IsChecked = Vm.IsZonesPanelOpen;
             if (BtnPanelSettings != null) BtnPanelSettings.IsChecked = Vm.IsSettingsPanelOpen;
+            if (BtnPanelAddon != null) BtnPanelAddon.IsChecked = Vm.IsAddonPanelOpen;
         }
         finally
         {
@@ -2495,7 +2518,7 @@ public partial class CartoView : UserControl
     {
         var classBrush = CartoCharacterPresentation.GetClassBrush(ch.Class);
         var nameBrush = CartoCharacterPresentation.GetCharacterNameBrush(ch, Vm);
-        var accountName = Vm.Accounts.FirstOrDefault(a => a.Id == ch.AccountId)?.Name;
+        var accountName = Vm.GetCharacterAccountDisplayName(ch);
 
         var shell = new Border
         {
@@ -2871,8 +2894,12 @@ public partial class CartoView : UserControl
         var profs = ch.Professions.Select(p => p.Type).ToHashSet();
         var result = new List<CooldownType>();
 
-        if (profs.Contains(ProfessionType.Alchimie))
-            result.AddRange([CooldownType.Arcanite, CooldownType.Transmute_Elementaire]);
+        if (profs.Contains(ProfessionType.Alchimie)
+            && !ch.Cooldowns.Any(c => CooldownGroups.IsAlchemyTransmute(c.Type)))
+        {
+            result.Add(CooldownType.Arcanite);
+            result.Add(CooldownType.Transmute_Elementaire);
+        }
         if (profs.Contains(ProfessionType.Couture))
             result.Add(CooldownType.Mooncloth);
         if (profs.Contains(ProfessionType.Travail_du_cuir))

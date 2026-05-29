@@ -54,10 +54,7 @@ public partial class MainViewModel : ObservableObject
     private bool _isBountyMode;
 
     [ObservableProperty]
-    private bool _isConsoMode;
-
-    [ObservableProperty]
-    private bool _isWowSyncMode;
+    private bool _isCraftMode;
 
     partial void OnIsOrganiserModeChanged(bool value)
     {
@@ -65,8 +62,7 @@ public partial class MainViewModel : ObservableObject
         {
             IsCartoMode = false;
             IsBountyMode = false;
-            IsConsoMode = false;
-            IsWowSyncMode = false;
+            IsCraftMode = false;
             AdvancedVm?.RefreshFromMain();
         }
     }
@@ -77,24 +73,18 @@ public partial class MainViewModel : ObservableObject
         {
             IsOrganiserMode = false;
             IsBountyMode = false;
-            IsConsoMode = false;
-            IsWowSyncMode = false;
+            IsCraftMode = false;
         }
     }
 
     partial void OnIsBountyModeChanged(bool value)
     {
-        if (value) { IsOrganiserMode = false; IsCartoMode = false; IsConsoMode = false; IsWowSyncMode = false; }
+        if (value) { IsOrganiserMode = false; IsCartoMode = false; IsCraftMode = false; }
     }
 
-    partial void OnIsConsoModeChanged(bool value)
+    partial void OnIsCraftModeChanged(bool value)
     {
-        if (value) { IsOrganiserMode = false; IsCartoMode = false; IsBountyMode = false; IsWowSyncMode = false; }
-    }
-
-    partial void OnIsWowSyncModeChanged(bool value)
-    {
-        if (value) { IsOrganiserMode = false; IsCartoMode = false; IsBountyMode = false; IsConsoMode = false; }
+        if (value) { IsOrganiserMode = false; IsCartoMode = false; IsBountyMode = false; }
     }
 
     // ─── Toast notifications ─────────────────────────────────
@@ -145,8 +135,7 @@ public partial class MainViewModel : ObservableObject
 
     public AdvancedViewModel? AdvancedVm { get; set; }
     public BountyViewModel? BountyVm { get; set; }
-    public ConsoViewModel? ConsoVm { get; set; }
-    public WowSyncViewModel? WowSyncVm { get; set; }
+    public CraftShellViewModel? CraftVm { get; set; }
 
     [ObservableProperty]
     private CartoViewModel? _cartoVm;
