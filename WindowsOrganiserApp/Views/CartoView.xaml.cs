@@ -1320,14 +1320,38 @@ public partial class CartoView : UserControl
         return row;
     }
 
-    /// <summary>Position fixe au-dessus de la pastille (sans calcul anti-chevauchement).</summary>
-    private static void PlaceMapCharacterLabel(
-        Border label, double pixX, double pixY, double dotSize, double labelW, double mapW, double mapH)
+    private static int MapLabelPriority(WowCharacter ch, bool isSelected, bool isTpBoy) =>
+        isSelected ? 1000 : isTpBoy ? 200 : ch.IsExternal ? 80 : 0;
+
+    private static void AddMapLabelLeaderLine(
+        Canvas canvas,
+        WowCharacter ch,
+        double anchorX,
+        double anchorY,
+        double dotRadius,
+        double labelLeft,
+        double labelTop,
+        double labelWidth,
+        Brush stroke)
     {
-        var left = pixX - labelW / 2;
-        var top = pixY - dotSize / 2 - MapLabelHeight - 2;
-        Canvas.SetLeft(label, Math.Clamp(left, 0, Math.Max(0, mapW - labelW)));
-        Canvas.SetTop(label, Math.Clamp(top, 0, Math.Max(0, mapH - MapLabelHeight)));
+        var (x1, y1, x2, y2) = CartoMapLabelLayout.GetLeaderSegment(
+            anchorX, anchorY, dotRadius, labelLeft, labelTop, labelWidth, MapLabelHeight);
+
+        var line = new Line
+        {
+            X1 = x1,
+            Y1 = y1,
+            X2 = x2,
+            Y2 = y2,
+            Stroke = stroke,
+            StrokeThickness = 0.9,
+            Opacity = 0.65,
+            IsHitTestVisible = false,
+            Tag = ch,
+            SnapsToDevicePixels = true
+        };
+        Panel.SetZIndex(line, 12);
+        canvas.Children.Add(line);
     }
 
     private void RedrawMarkers()
@@ -1338,6 +1362,7 @@ public partial class CartoView : UserControl
         {
             if (MapCanvas.Children[i] is Ellipse { Tag: WowCharacter }
                 || MapCanvas.Children[i] is Border { Tag: WowCharacter }
+                || MapCanvas.Children[i] is Line { Tag: WowCharacter }
                 || MapCanvas.Children[i] is Border { Tag: "shard-label" }
                 || MapCanvas.Children[i] is Border { Tag: "quest-icons" })
                 MapCanvas.Children.RemoveAt(i);
@@ -1346,14 +1371,18 @@ public partial class CartoView : UserControl
         var mapW = MapWidth;
         var mapH = MapHeight;
 
-        foreach (var ch in Vm.FilteredCharacters
-                     .Where(c => Vm.TryGetMarkerPosition(c, out _, out _))
-                     .OrderBy(c => c.Status == CharacterStatus.TpBoy ? 1 : 0)
-                     .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
-        {
-            if (CartoRuntimeOptions.ShowCapitalMaps && TryGetCharacterCapitalMapId(ch, Vm, out _))
-                continue;
+        var toDraw = Vm.FilteredCharacters
+            .Where(c => !CartoRuntimeOptions.ShowCapitalMaps || !TryGetCharacterCapitalMapId(c, Vm, out _))
+            .Where(c => Vm.TryGetMarkerPosition(c, out _, out _))
+            .OrderBy(c => c.Status == CharacterStatus.TpBoy ? 1 : 0)
+            .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
+        var labelRequests = new List<CartoMapLabelLayout.LabelRequest>();
+        var drawItems = new List<(WowCharacter Ch, double PixX, double PixY, double Size, double LabelW, bool IsTpBoy, bool IsSelected, SolidColorBrush Brush)>();
+
+        foreach (var ch in toDraw)
+        {
             if (!Vm.TryGetMarkerPosition(ch, out var mapX, out var mapY))
                 continue;
 
@@ -1361,36 +1390,73 @@ public partial class CartoView : UserControl
             var isSelected = ch == Vm.SelectedCharacter;
             var brush = GetClassBrush(WowClassColors.GetHexColor(ch.Class));
             var size = GetMapMarkerDotSize(isSelected, isTpBoy);
+            var pixX = mapX * mapW;
+            var pixY = mapY * mapH;
+            var inlineShard = isTpBoy && ch.Class == WowClass.Demoniste && ch.ShardCount > 0;
+            var labelW = EstimateLabelWidth(GetMapLabelText(ch, Vm), inlineShard);
 
-            Brush strokeBrush = isSelected ? Brushes.White
-                : isTpBoy ? TpBoyStrokeBrush
+            labelRequests.Add(new CartoMapLabelLayout.LabelRequest
+            {
+                Key = ch.Id,
+                AnchorX = pixX,
+                AnchorY = pixY,
+                Width = labelW,
+                Height = MapLabelHeight,
+                DotRadius = size / 2,
+                Priority = MapLabelPriority(ch, isSelected, isTpBoy)
+            });
+            drawItems.Add((ch, pixX, pixY, size, labelW, isTpBoy, isSelected, brush));
+        }
+
+        var labelPositions = CartoMapLabelLayout.Resolve(labelRequests, mapW, mapH)
+            .ToDictionary(p => p.Key, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in drawItems)
+        {
+            var ch = item.Ch;
+            Brush strokeBrush = item.IsSelected ? Brushes.White
+                : item.IsTpBoy ? TpBoyStrokeBrush
                 : ch.IsExternal ? Brushes.CornflowerBlue
                 : DefaultStrokeBrush;
 
             var marker = new Ellipse
             {
-                Width = size, Height = size,
-                Fill = brush,
+                Width = item.Size,
+                Height = item.Size,
+                Fill = item.Brush,
                 Stroke = strokeBrush,
-                StrokeThickness = isTpBoy ? 1.5 : (ch.IsExternal ? 1.5 : (isSelected ? 1.5 : 1)),
+                StrokeThickness = item.IsTpBoy ? 1.5 : (ch.IsExternal ? 1.5 : (item.IsSelected ? 1.5 : 1)),
                 Cursor = Cursors.Hand,
                 Tag = ch,
                 ToolTip = ch.Name
             };
-            Panel.SetZIndex(marker, isTpBoy ? 14 : 10);
-
-            var pixX = mapX * mapW;
-            var pixY = mapY * mapH;
-
-            Canvas.SetLeft(marker, pixX - size / 2);
-            Canvas.SetTop(marker, pixY - size / 2);
+            Panel.SetZIndex(marker, item.IsTpBoy ? 14 : 10);
+            Canvas.SetLeft(marker, item.PixX - item.Size / 2);
+            Canvas.SetTop(marker, item.PixY - item.Size / 2);
             MapCanvas.Children.Add(marker);
 
-            var label = BuildMapCharacterLabel(ch, Vm, brush, isSelected, isTpBoy, out var inlineShard);
-            var labelW = EstimateLabelWidth(GetMapLabelText(ch, Vm), inlineShard);
+            double labelLeft, labelTop;
+            if (labelPositions.TryGetValue(ch.Id, out var pos))
+            {
+                labelLeft = pos.Left;
+                labelTop = pos.Top;
+            }
+            else
+            {
+                labelTop = item.PixY - item.Size / 2 - MapLabelHeight - CartoMapLabelLayout.GapAboveDot;
+                labelLeft = Math.Clamp(item.PixX - item.LabelW / 2, 0, Math.Max(0, mapW - item.LabelW));
+                labelTop = Math.Clamp(labelTop, 0, Math.Max(0, mapH - MapLabelHeight));
+            }
+
+            AddMapLabelLeaderLine(
+                MapCanvas, ch, item.PixX, item.PixY, item.Size / 2,
+                labelLeft, labelTop, item.LabelW, item.Brush);
+
+            var label = BuildMapCharacterLabel(ch, Vm, item.Brush, item.IsSelected, item.IsTpBoy, out _);
+            Canvas.SetLeft(label, labelLeft);
+            Canvas.SetTop(label, labelTop);
             MapCanvas.Children.Add(label);
-            Panel.SetZIndex(label, isTpBoy ? 18 : 15);
-            PlaceMapCharacterLabel(label, pixX, pixY, size, labelW, mapW, mapH);
+            Panel.SetZIndex(label, item.IsTpBoy ? 18 : 15);
         }
     }
 

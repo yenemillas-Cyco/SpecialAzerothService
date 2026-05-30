@@ -312,6 +312,7 @@ public partial class CartoView
         {
             if (slot.Canvas.Children[i] is Ellipse { Tag: WowCharacter }
                 || slot.Canvas.Children[i] is Border { Tag: WowCharacter }
+                || slot.Canvas.Children[i] is Line { Tag: WowCharacter }
                 || slot.Canvas.Children[i] is Border { Tag: "shard-label" })
                 slot.Canvas.Children.RemoveAt(i);
         }
@@ -322,15 +323,45 @@ public partial class CartoView
 
         var mapId = slot.Definition.MapId;
 
-        foreach (var ch in Vm.FilteredCharacters
-                     .Where(c => c.IsPlacedOnMap && !c.IsExternal)
-                     .Where(c => TryGetCapitalLocalPosition(c, Vm, mapId, out _, out _)))
+        var chars = Vm.FilteredCharacters
+            .Where(c => c.IsPlacedOnMap && !c.IsExternal)
+            .Where(c => TryGetCapitalLocalPosition(c, Vm, mapId, out _, out _))
+            .ToList();
+
+        var labelRequests = new List<CartoMapLabelLayout.LabelRequest>();
+        var drawItems = new List<(WowCharacter Ch, double MapX, double MapY)>();
+
+        foreach (var ch in chars)
         {
             if (!TryGetCapitalLocalPosition(ch, Vm, mapId, out var mapX, out var mapY))
                 continue;
 
-            AddCapitalCharacterMarker(slot.Canvas, ch, w, h, mapX, mapY);
+            var isTpBoy = ch.Status == CharacterStatus.TpBoy;
+            var isSelected = ch == Vm.SelectedCharacter;
+            var size = GetMapMarkerDotSize(isSelected, isTpBoy);
+            var pixX = mapX * w;
+            var pixY = mapY * h;
+            var inlineShard = isTpBoy && ch.Class == WowClass.Demoniste && ch.ShardCount > 0;
+            var labelW = EstimateLabelWidth(GetMapLabelText(ch, Vm), inlineShard);
+
+            labelRequests.Add(new CartoMapLabelLayout.LabelRequest
+            {
+                Key = ch.Id,
+                AnchorX = pixX,
+                AnchorY = pixY,
+                Width = labelW,
+                Height = MapLabelHeight,
+                DotRadius = size / 2,
+                Priority = MapLabelPriority(ch, isSelected, isTpBoy)
+            });
+            drawItems.Add((ch, mapX, mapY));
         }
+
+        var labelPositions = CartoMapLabelLayout.Resolve(labelRequests, w, h)
+            .ToDictionary(p => p.Key, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (ch, mapX, mapY) in drawItems)
+            AddCapitalCharacterMarker(slot.Canvas, ch, w, h, mapX, mapY, labelPositions);
     }
 
     private void AddCapitalCharacterMarker(
@@ -339,7 +370,8 @@ public partial class CartoView
         double mapW,
         double mapH,
         double mapX,
-        double mapY)
+        double mapY,
+        IReadOnlyDictionary<string, CartoMapLabelLayout.LabelPosition> labelPositions)
     {
         var isTpBoy = ch.Status == CharacterStatus.TpBoy;
         var brush = GetClassBrush(WowClassColors.GetHexColor(ch.Class));
@@ -372,11 +404,29 @@ public partial class CartoView
 
         if (Vm == null) return;
 
-        var label = BuildMapCharacterLabel(ch, Vm, brush, isSelected, isTpBoy, out var inlineShard);
+        var inlineShard = isTpBoy && ch.Class == WowClass.Demoniste && ch.ShardCount > 0;
         var labelW = EstimateLabelWidth(GetMapLabelText(ch, Vm), inlineShard);
+
+        double labelLeft, labelTop;
+        if (labelPositions.TryGetValue(ch.Id, out var pos))
+        {
+            labelLeft = pos.Left;
+            labelTop = pos.Top;
+        }
+        else
+        {
+            labelTop = pixY - size / 2 - MapLabelHeight - CartoMapLabelLayout.GapAboveDot;
+            labelLeft = Math.Clamp(pixX - labelW / 2, 0, Math.Max(0, mapW - labelW));
+            labelTop = Math.Clamp(labelTop, 0, Math.Max(0, mapH - MapLabelHeight));
+        }
+
+        AddMapLabelLeaderLine(canvas, ch, pixX, pixY, size / 2, labelLeft, labelTop, labelW, brush);
+
+        var label = BuildMapCharacterLabel(ch, Vm, brush, isSelected, isTpBoy, out _);
+        Canvas.SetLeft(label, labelLeft);
+        Canvas.SetTop(label, labelTop);
         canvas.Children.Add(label);
         Panel.SetZIndex(label, isTpBoy ? 18 : 15);
-        PlaceMapCharacterLabel(label, pixX, pixY, size, labelW, mapW, mapH);
     }
 
     private bool TryHitZoneOnCanvas(
