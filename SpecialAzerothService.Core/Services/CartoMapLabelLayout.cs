@@ -5,9 +5,6 @@ public static class CartoMapLabelLayout
 {
     public const double GapAboveDot = 2;
 
-    /// <summary>Deux pastilles à cette distance (px) ou moins → répartition circulaire commune.</summary>
-    private const double ClusterRadiusPx = 12;
-
     public sealed class LabelRequest
     {
         public required string Key { get; init; }
@@ -38,158 +35,22 @@ public static class CartoMapLabelLayout
         if (mapWidth < 1 || mapHeight < 1)
             return requests.Select(r => DefaultPosition(r)).ToList();
 
-        var clusters = BuildClusters(requests);
-        var placed = new List<Box>();
-        var byKey = new Dictionary<string, LabelPosition>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var cluster in clusters.OrderByDescending(c => c.MaxPriority))
-        {
-            if (cluster.Items.Count >= 2)
-                PlaceClusterCircular(cluster, placed, mapWidth, mapHeight, padding, byKey);
-            else
-                PlaceSingle(cluster.Items[0], placed, mapWidth, mapHeight, padding, byKey);
-        }
-
-        return requests.Select(r => byKey[r.Key]).ToList();
-    }
-
-    private static void PlaceSingle(
-        LabelRequest req,
-        List<Box> placed,
-        double mapW,
-        double mapH,
-        double padding,
-        Dictionary<string, LabelPosition> byKey)
-    {
-        var (left, top) = FindBestPosition(req, placed, mapW, mapH, padding, circularHint: null);
-        Commit(req, left, top, placed, byKey);
-    }
-
-    private static void PlaceClusterCircular(
-        Cluster cluster,
-        List<Box> placed,
-        double mapW,
-        double mapH,
-        double padding,
-        Dictionary<string, LabelPosition> byKey)
-    {
-        var ordered = cluster.Items
-            .OrderByDescending(i => i.Priority)
-            .ThenBy(i => i.Key, StringComparer.OrdinalIgnoreCase)
+        var sorted = requests
+            .OrderByDescending(r => r.Priority)
+            .ThenBy(r => r.Key, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var maxDot = ordered.Max(i => i.DotRadius);
-        var maxH = ordered.Max(i => i.Height);
-        var maxW = ordered.Max(i => i.Width);
-        var baseRadius = maxDot + maxH * 0.32 + GapAboveDot + maxW * 0.08;
+        var placed = new List<Box>();
+        var results = new List<LabelPosition>(sorted.Count);
 
-        for (var ring = 0; ring < 5; ring++)
+        foreach (var req in sorted)
         {
-            var radius = baseRadius + ring * (maxH * 0.2 + 3);
-            var tentative = new List<(LabelRequest Req, double Left, double Top)>();
-            var tempBoxes = new List<Box>();
-            var ok = true;
-
-            for (var i = 0; i < ordered.Count; i++)
-            {
-                var req = ordered[i];
-                var (left, top) = CircularSlot(cluster.CenterX, cluster.CenterY, radius, i, ordered.Count, req);
-                (left, top) = Clamp(left, top, req.Width, req.Height, mapW, mapH);
-                var box = new Box(left, top, req.Width, req.Height);
-
-                if (Overlaps(placed, box, padding) || Overlaps(tempBoxes, box, padding))
-                {
-                    ok = false;
-                    break;
-                }
-
-                tentative.Add((req, left, top));
-                tempBoxes.Add(box);
-            }
-
-            if (!ok)
-                continue;
-
-            foreach (var (req, left, top) in tentative)
-                Commit(req, left, top, placed, byKey);
-            return;
+            var (left, top) = FindBestPosition(req, placed, mapWidth, mapHeight, padding);
+            placed.Add(new Box(left, top, req.Width, req.Height));
+            results.Add(new LabelPosition { Key = req.Key, Left = left, Top = top });
         }
 
-        foreach (var req in ordered)
-            PlaceSingle(req, placed, mapW, mapH, padding, byKey);
-    }
-
-    private static (double Left, double Top) CircularSlot(
-        double cx, double cy, double radius, int index, int count, LabelRequest req)
-    {
-        var angle = -Math.PI / 2 + (2 * Math.PI * index / count);
-        var labelCx = cx + Math.Cos(angle) * radius;
-        var labelCy = cy + Math.Sin(angle) * radius;
-        return (labelCx - req.Width / 2, labelCy - req.Height / 2);
-    }
-
-    private static void Commit(
-        LabelRequest req,
-        double left,
-        double top,
-        List<Box> placed,
-        Dictionary<string, LabelPosition> byKey)
-    {
-        placed.Add(new Box(left, top, req.Width, req.Height));
-        byKey[req.Key] = new LabelPosition { Key = req.Key, Left = left, Top = top };
-    }
-
-    private static List<Cluster> BuildClusters(IReadOnlyList<LabelRequest> requests)
-    {
-        var remaining = requests.ToList();
-        var clusters = new List<Cluster>();
-
-        while (remaining.Count > 0)
-        {
-            var seed = remaining[0];
-            remaining.RemoveAt(0);
-            var cluster = new Cluster();
-            cluster.Items.Add(seed);
-            cluster.CenterX = seed.AnchorX;
-            cluster.CenterY = seed.AnchorY;
-
-            for (var i = remaining.Count - 1; i >= 0; i--)
-            {
-                var other = remaining[i];
-                if (!BelongsToCluster(other, cluster))
-                    continue;
-
-                remaining.RemoveAt(i);
-                cluster.Items.Add(other);
-                cluster.CenterX = cluster.Items.Average(x => x.AnchorX);
-                cluster.CenterY = cluster.Items.Average(y => y.AnchorY);
-            }
-
-            clusters.Add(cluster);
-        }
-
-        return clusters;
-    }
-
-    private static bool BelongsToCluster(LabelRequest req, Cluster cluster)
-    {
-        foreach (var member in cluster.Items)
-        {
-            var dx = req.AnchorX - member.AnchorX;
-            var dy = req.AnchorY - member.AnchorY;
-            if (dx * dx + dy * dy <= ClusterRadiusPx * ClusterRadiusPx)
-                return true;
-        }
-
-        return false;
-    }
-
-    private sealed class Cluster
-    {
-        public List<LabelRequest> Items { get; } = [];
-        public double CenterX { get; set; }
-        public double CenterY { get; set; }
-        public int MaxPriority => Items.Count == 0 ? 0 : Items.Max(i => i.Priority);
+        return results;
     }
 
     private static LabelPosition DefaultPosition(LabelRequest req)
@@ -209,18 +70,12 @@ public static class CartoMapLabelLayout
         List<Box> placed,
         double mapW,
         double mapH,
-        double padding,
-        (double Cx, double Cy, int Count)? circularHint)
+        double padding)
     {
         (double Left, double Top)? best = null;
         var bestScore = double.MaxValue;
 
-        IEnumerable<(double Left, double Top)> candidates = circularHint is { } hint
-            ? EnumerateCircularCandidates(hint.Cx, hint.Cy, hint.Count, req)
-                .Concat(EnumerateCandidates(req))
-            : EnumerateCandidates(req);
-
-        foreach (var candidate in candidates)
+        foreach (var candidate in EnumerateCandidates(req))
         {
             var (left, top) = Clamp(candidate.Left, candidate.Top, req.Width, req.Height, mapW, mapH);
             var box = new Box(left, top, req.Width, req.Height);
@@ -240,19 +95,6 @@ public static class CartoMapLabelLayout
 
         var fallback = DefaultPosition(req);
         return (fallback.Left, fallback.Top);
-    }
-
-    private static IEnumerable<(double Left, double Top)> EnumerateCircularCandidates(
-        double cx, double cy, int count, LabelRequest req)
-    {
-        var maxDot = req.DotRadius;
-        var baseRadius = maxDot + req.Height * 0.32 + GapAboveDot;
-        for (var ring = 0; ring < 4; ring++)
-        {
-            var radius = baseRadius + ring * (req.Height * 0.2 + 2);
-            for (var i = 0; i < Math.Max(count, 6); i++)
-                yield return CircularSlot(cx, cy, radius, i, Math.Max(count, 6), req);
-        }
     }
 
     private static double DistanceScore(LabelRequest req, double left, double top)
@@ -291,53 +133,32 @@ public static class CartoMapLabelLayout
         var uy = dy / len;
         var x1 = anchorX + ux * dotRadius;
         var y1 = anchorY + uy * dotRadius;
-        var (x2, y2) = RayRectIntersection(anchorX, anchorY, ux, uy, labelLeft, labelTop, labelWidth, labelHeight);
+        var (x2, y2) = LabelEdgeMidpointToward(anchorX, anchorY, labelLeft, labelTop, labelWidth, labelHeight);
         return (x1, y1, x2, y2);
     }
 
-    private static (double X, double Y) RayRectIntersection(
-        double ox, double oy, double ux, double uy,
-        double left, double top, double width, double height)
+    /// <summary>Milieu du côté de l'étiquette orienté vers la pastille (le trait ne traverse pas le fond).</summary>
+    private static (double X, double Y) LabelEdgeMidpointToward(
+        double anchorX,
+        double anchorY,
+        double left,
+        double top,
+        double width,
+        double height)
     {
-        var right = left + width;
-        var bottom = top + height;
-        var bestT = double.MaxValue;
-        var hitX = ox + ux;
-        var hitY = oy + uy;
+        var cx = left + width / 2;
+        var cy = top + height / 2;
+        var dx = anchorX - cx;
+        var dy = anchorY - cy;
 
-        void TryVertical(double xEdge)
+        if (Math.Abs(dx) * height > Math.Abs(dy) * width)
         {
-            if (Math.Abs(ux) < 1e-9) return;
-            var t = (xEdge - ox) / ux;
-            if (t < 1e-6) return;
-            var y = oy + uy * t;
-            if (y >= top - 0.5 && y <= bottom + 0.5 && t < bestT)
-            {
-                bestT = t;
-                hitX = xEdge;
-                hitY = y;
-            }
+            var x = dx > 0 ? left + width : left;
+            return (x, cy);
         }
 
-        void TryHorizontal(double yEdge)
-        {
-            if (Math.Abs(uy) < 1e-9) return;
-            var t = (yEdge - oy) / uy;
-            if (t < 1e-6) return;
-            var x = ox + ux * t;
-            if (x >= left - 0.5 && x <= right + 0.5 && t < bestT)
-            {
-                bestT = t;
-                hitX = x;
-                hitY = yEdge;
-            }
-        }
-
-        TryVertical(left);
-        TryVertical(right);
-        TryHorizontal(top);
-        TryHorizontal(bottom);
-        return (hitX, hitY);
+        var y = dy > 0 ? top + height : top;
+        return (cx, y);
     }
 
     private static IEnumerable<(double Left, double Top)> EnumerateCandidates(LabelRequest req)
@@ -350,20 +171,32 @@ public static class CartoMapLabelLayout
 
         yield return (centerLeft, aboveTop);
 
-        for (var tier = 1; tier <= 4; tier++)
+        for (var tier = 1; tier <= 5; tier++)
         {
             yield return (centerLeft, aboveTop - tier * stepY);
             yield return (centerLeft + tier * stepX, aboveTop);
             yield return (centerLeft - tier * stepX, aboveTop);
+            yield return (centerLeft + tier * stepX, aboveTop - tier * stepY * 0.35);
+            yield return (centerLeft - tier * stepX, aboveTop - tier * stepY * 0.35);
         }
 
         yield return (centerLeft, belowTop);
-        for (var tier = 1; tier <= 2; tier++)
+        for (var tier = 1; tier <= 3; tier++)
             yield return (centerLeft, belowTop + tier * stepY);
-    }
 
-    private static bool Overlaps(List<Box> placed, Box candidate, double padding) =>
-        OverlapArea(candidate, placed, padding) > 0;
+        for (var ring = 1; ring <= 3; ring++)
+        {
+            var dist = req.DotRadius + req.Height * 0.4 + ring * (req.Height * 0.22);
+            const int steps = 7;
+            for (var s = 0; s < steps; s++)
+            {
+                var angle = -Math.PI / 2 + (s / (double)(steps - 1)) * Math.PI;
+                var cx = req.AnchorX + Math.Cos(angle) * dist;
+                var cy = req.AnchorY + Math.Sin(angle) * dist;
+                yield return (cx - req.Width / 2, cy - req.Height / 2);
+            }
+        }
+    }
 
     private static double OverlapArea(Box candidate, List<Box> placed, double padding)
     {
