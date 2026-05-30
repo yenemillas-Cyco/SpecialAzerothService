@@ -33,6 +33,10 @@ public static class ZoneMapCalibration
     }
 
     /// <summary>Built-in + JSON embarqué + fichier utilisateur (priorité croissante).</summary>
+    /// <summary>Rectangles définis uniquement dans zone-calibration.json (vos réglages).</summary>
+    public static Dictionary<int, ClassicEraMapProjection.CartoMapRect> LoadUserOverrides() =>
+        LoadUserFile();
+
     public static Dictionary<int, ClassicEraMapProjection.CartoMapRect> LoadAllRaw()
     {
         var result = new Dictionary<int, ClassicEraMapProjection.CartoMapRect>(

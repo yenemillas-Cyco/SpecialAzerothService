@@ -5,7 +5,10 @@ public enum CartoUnplacedReason
     NoSync,
     CoordsZero,
     ZoneNotCalibrated,
-    InInstance
+    InInstance,
+    SuspiciousContinentCoords,
+    SuspiciousOceanProjection,
+    SuspiciousOutsideZone
 }
 
 public sealed class CartoUnplacedCharacterItem
@@ -18,7 +21,12 @@ public sealed class CartoUnplacedCharacterItem
     public int MapId { get; init; }
     public string CoordsDisplay { get; init; } = "";
     public CartoUnplacedReason Reason { get; init; }
+    public string? WarningDetail { get; init; }
     public bool IsOnStack { get; init; }
+
+    public bool IsSuspicious => Reason is CartoUnplacedReason.SuspiciousContinentCoords
+        or CartoUnplacedReason.SuspiciousOceanProjection
+        or CartoUnplacedReason.SuspiciousOutsideZone;
 
     public string ZoneDisplay =>
         string.IsNullOrWhiteSpace(SubZone)
@@ -32,10 +40,15 @@ public sealed class CartoUnplacedCharacterItem
         CartoUnplacedReason.NoSync => "WowSync introuvable",
         CartoUnplacedReason.CoordsZero => "Coords à 0 (addon)",
         CartoUnplacedReason.ZoneNotCalibrated => "Zone non calibrée",
-        CartoUnplacedReason.InInstance => "Instance — repère donjon ?",
+        CartoUnplacedReason.InInstance => "Instance — repère lieu-dit ?",
+        CartoUnplacedReason.SuspiciousContinentCoords => "Coords continent (souvent en mer)",
+        CartoUnplacedReason.SuspiciousOceanProjection => "Projeté sur carte continent",
+        CartoUnplacedReason.SuspiciousOutsideZone => "Hors zone calibrée",
         _ => "Non placé"
     };
 
     public string SummaryLine =>
-        $"{Name} · {AccountName} · {ZoneDisplay} (map {MapId}) · {ReasonDisplay}";
+        string.IsNullOrWhiteSpace(WarningDetail)
+            ? $"{Name} · {AccountName} · {ZoneDisplay} (map {MapId}) · {ReasonDisplay}"
+            : $"{Name} · {AccountName} · {ZoneDisplay} (map {MapId}) · {ReasonDisplay} — {WarningDetail}";
 }

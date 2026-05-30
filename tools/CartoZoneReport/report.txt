@@ -1,0 +1,98 @@
+﻿=== RAPPORT ZONES CARTO (donn├®es locales) ===
+WoW: D:\Programmes\World of Warcraft
+Personnages WowSync: 189
+Rectangles calibr├®s (tous): 46
+  dont vos r├®glages (zone-calibration.json): 46
+
+--- ZONES MANQUANTES (0) ---
+--- PERSONNAGES NON PLA├çABLES (0) ---
+--- PLACEMENT SUSPECT (mer / pile / ├®cart cache) ---
+ÔÇó Aqiraj (YENEMILLAS) ÔÇö MER (0,458,0,318) | attendu (0,458,0,318) | Orgrimmar
+ÔÇó Bankick (MAT67750) ÔÇö MER (0,460,0,324) | attendu (0,460,0,324) | Orgrimmar
+ÔÇó Clicfleur (101236000#2) ÔÇö PILE (0,084,0,351) | zone ┬½ Gangrebois (Felwood) /  ┬╗
+ÔÇó Clicfleura (HARRYKENLER) ÔÇö PILE (0,084,0,351) | zone ┬½ Gangrebois (Felwood) /  ┬╗
+ÔÇó Clicfleurb (101236000#3) ÔÇö PILE (0,084,0,351) | zone ┬½ Gangrebois (Felwood) /  ┬╗
+ÔÇó Clicfleurr (101236000#1) ÔÇö PILE (0,084,0,351) | zone ┬½ Gangrebois (Felwood) /  ┬╗
+ÔÇó Couturekick (MAT67750) ÔÇö MER (0,457,0,318) | attendu (0,457,0,318) | Orgrimmar
+ÔÇó Cuiro (YENEMILLAS) ÔÇö MER (0,457,0,321) | attendu (0,457,0,321) | Orgrimmar
+ÔÇó Cyco (YENEMILLAS) ÔÇö PILE (0,124,0,218) | zone ┬½ Berceau-de-l'Hiver (Winterspring) / Long-guet ┬╗
+ÔÇó Donpapate (YENEMILLAS) ÔÇö MER (0,457,0,318) | attendu (0,457,0,318) | Orgrimmar
+ÔÇó El├©├» (101236000#2) ÔÇö MER (0,453,0,316) | attendu (0,453,0,316) | Orgrimmar
+ÔÇó El├©├« (101236000#3) ÔÇö MER (0,434,0,391) | attendu (0,434,0,391) | Orgrimmar
+ÔÇó Enchantecyco (YENEMILLAS) ÔÇö MER (0,460,0,324) | attendu (0,460,0,324) | Orgrimmar
+ÔÇó Evlimecae (MAT67750) ÔÇö PILE (0,066,0,382) | zone ┬½ Ashenvale / Astranaar ┬╗
+ÔÇó Fleurcyco (YENEMILLAS) ÔÇö MER (0,458,0,319) | attendu (0,458,0,319) | Orgrimmar
+ÔÇó Grognon (YENEMILLAS) ÔÇö MER (0,457,0,318) | attendu (0,457,0,318) | Orgrimmar
+ÔÇó Hachette (YENEMILLAS) ÔÇö MER (0,457,0,318) | attendu (0,457,0,318) | Orgrimmar
+ÔÇó Hoo (YENEMILLAS) ÔÇö MER (0,458,0,319) | attendu (0,458,0,319) | Orgrimmar
+ÔÇó Kicck (MAT67750) ÔÇö MER (0,460,0,324) | attendu (0,460,0,324) | Orgrimmar
+ÔÇó Kickk (MAT67750) ÔÇö MER (0,457,0,320) | attendu (0,457,0,320) | Orgrimmar
+ÔÇó Knock (YENEMILLAS) ÔÇö MER (0,434,0,391) | attendu (0,434,0,391) | Orgrimmar
+ÔÇó Luckyllias (409878243#1) ÔÇö MER (0,434,0,391) | attendu (0,434,0,391) | Orgrimmar
+ÔÇó Minekick (MAT67750) ÔÇö MER (0,457,0,318) | attendu (0,457,0,318) | Orgrimmar
+ÔÇó Minout (414197529#1) ÔÇö MER (0,457,0,319) | attendu (0,457,0,319) | Orgrimmar
+ÔÇó Plantkick (MAT67750) ÔÇö MER (0,457,0,318) | attendu (0,457,0,318) | Orgrimmar
+ÔÇó P├©l├╝x (101236000#1) ÔÇö MER (0,460,0,324) | attendu (0,460,0,324) | Orgrimmar
+ÔÇó P├©lux (HARRYKENLER) ÔÇö MER (0,434,0,391) | attendu (0,434,0,391) | Orgrimmar
+ÔÇó Ptikepon (YENEMILLAS) ÔÇö MER (0,457,0,319) | attendu (0,457,0,319) | Orgrimmar
+ÔÇó Ptitagit├® (YENEMILLAS) ÔÇö MER (0,457,0,319) | attendu (0,457,0,319) | Orgrimmar
+ÔÇó Shomy (YENEMILLAS) ÔÇö MER (0,460,0,323) | attendu (0,460,0,323) | Orgrimmar
+ÔÇó Survipoupee (MAT67750) ÔÇö MER (0,457,0,318) | attendu (0,457,0,318) | Orgrimmar
+ÔÇó Tisse (YENEMILLAS) ÔÇö MER (0,460,0,324) | attendu (0,460,0,324) | Orgrimmar
+ÔÇó Tp (101236000#2) ÔÇö PILE (0,084,0,351) | zone ┬½ Gangrebois (Felwood) /  ┬╗
+ÔÇó Tpdixneuf (101236000#3) ÔÇö PILE (0,104,0,525) | zone ┬½ Les Tarides (the Barrens) / Ratchet ┬╗
+ÔÇó Tpquinze (HARRYKENLER) ÔÇö PILE (0,104,0,525) | zone ┬½ Les Tarides (the Barrens) / Ratchet ┬╗
+ÔÇó Tptrenteun (101236000#3) ÔÇö PILE (0,104,0,525) | zone ┬½ Les Tarides (the Barrens) / Ratchet ┬╗
+ÔÇó Tpvingtsept (101236000#3) ÔÇö PILE (0,104,0,525) | zone ┬½ Les Tarides (the Barrens) / Ratchet ┬╗
+ÔÇó Tpvingttrois (101236000#3) ÔÇö PILE (0,104,0,524) | zone ┬½ Les Tarides (the Barrens) / Ratchet ┬╗
+ÔÇó Undout (414197529#1) ÔÇö PILE (0,104,0,521) | zone ┬½ Les Tarides (the Barrens) / Ratchet ┬╗
+ÔÇó Worcoutmule (414197529#1) ÔÇö MER (0,457,0,319) | attendu (0,457,0,319) | Orgrimmar
+ÔÇó Z├®dg├® (YENEMILLAS) ÔÇö MER (0,457,0,320) | attendu (0,457,0,320) | Orgrimmar
+
+--- VOS RECTANGLES (zone-calibration.json) ---
+  map 1447 ÔÇö Azshara
+  map 1452 ÔÇö Berceau-de-l'Hiver
+  map 1431 ÔÇö Bois de la P├®nombre
+  map 1420 ÔÇö Clairi├¿res de Tirisfal
+  map 1424 ÔÇö Contreforts de Hillsbrad
+  map 1449 ÔÇö Crat├¿re d'Un'Goro
+  map 1457 ÔÇö Darnassus
+  map 1430 ÔÇö D├®fil├® de Deuillevent
+  map 1443 ÔÇö D├®solace
+  map 1426 ÔÇö Dun Morogh
+  map 1411 ÔÇö Durotar
+  map 1444 ÔÇö F├®ralas
+  map 1429 ÔÇö For├¬t d'Elwynn
+  map 1421 ÔÇö For├¬t des Pins Argent├®s
+  map 1448 ÔÇö Gangrebois
+  map 1427 ÔÇö Gorge des Vents Br├╗lants
+  map 1417 ÔÇö Hautes-terres d'Arathi
+  map 1455 ÔÇö Ironforge
+  map 1433 ÔÇö Les Carmines
+  map 1425 ÔÇö Les Hinterlands
+  map 1437 ÔÇö Les Paluns
+  map 1413 ÔÇö Les Tarides
+  map 1432 ÔÇö Loch Modan
+  map 1423 ÔÇö Maleterres de l'Est
+  map 1422 ÔÇö Maleterres de l'Ouest
+  map 1435 ÔÇö Marais des Chagrins
+  map 1436 ÔÇö Marche de l'Ouest
+  map 1445 ÔÇö Mar├®cage d'├éprefange
+  map 1441 ÔÇö Mille Pointes
+  map 1416 ÔÇö Montagnes d'Alterac
+  map 1412 ÔÇö Mulgore
+  map 1454 ÔÇö Orgrimmar
+  map 1440 ÔÇö Orneval
+  map 1450 ÔÇö Reflet-de-Lune
+  map 1442 ÔÇö Serres-Rocheuses
+  map 1451 ÔÇö Silithus
+  map 1439 ÔÇö Sombrivage
+  map 1428 ÔÇö Steppes Ardentes
+  map 1453 ÔÇö Stormwind
+  map 1446 ÔÇö Tanaris
+  map 1438 ÔÇö Teldrassil
+  map 1419 ÔÇö Terres Foudroy├®es
+  map 1418 ÔÇö Terres Ingrates
+  map 1456 ÔÇö Thunder Bluff
+  map 1458 ÔÇö Undercity
+  map 1434 ÔÇö Vall├®e de Strangleronce

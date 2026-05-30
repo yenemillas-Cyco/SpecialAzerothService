@@ -36,6 +36,9 @@ public sealed class WowCharacterData
     public WowSyncMeta Sync { get; set; } = new();
     public List<WowProfessionCooldown> Cooldowns { get; set; } = [];
 
+    /// <summary>CD métiers dont le personnage possède la recette / sort (addon WowSync).</summary>
+    public List<string> KnownCooldownKeys { get; set; } = [];
+
     public string GoldDisplay
     {
         get

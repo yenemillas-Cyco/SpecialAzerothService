@@ -105,10 +105,13 @@ public static class ClassicEraMapProjection
         ["serres rocheuses"] = 1442,
         ["reflet de lune"] = 1450,
         ["berceau de l hiver"] = 1452,
-        // Mont Rochenoire / donjons BR
-        ["mont rochenoire"] = 1427,
-        ["blackrock mountain"] = 1427,
-        ["blackrock"] = 1427,
+        // Mont Rochenoire / donjons BR (entrée côté Steppes Ardentes)
+        ["mont rochenoire"] = 1428,
+        ["mont blackrock"] = 1428,
+        ["blackrock mountain"] = 1428,
+        ["blackrock"] = 1428,
+        ["le viaduc du magma"] = 1428,
+        ["viaduc du magma"] = 1428,
         ["gorge des vents brulants"] = 1427,
         ["searing gorge"] = 1427,
         ["steppes ardentes"] = 1428,
@@ -155,6 +158,8 @@ public static class ClassicEraMapProjection
         ["onyxia"] = 1445,
         ["ruines d ahn qiraj"] = 1451,
         ["temple d ahn qiraj"] = 1451,
+        ["portes d ahn qiraj"] = 1451,
+        ["gates of ahn qiraj"] = 1451,
         ["naxxramas"] = 1423,
     };
 
@@ -359,6 +364,15 @@ public static class ClassicEraMapProjection
         if (mapId > 0 && CapitalMapIds.Contains(mapId))
             return mapId;
 
+        // WowSync renvoie souvent 1414/1415 (tout le continent) : ne pas projeter avec le rectangle continent.
+        if (IsContinentMap(mapId))
+        {
+            if (TryResolveMapIdFromAlias(subZone, out var aliasFromSub))
+                return aliasFromSub;
+            if (TryResolveMapIdFromAlias(zone, out var aliasFromZone))
+                return aliasFromZone;
+        }
+
         if (TryResolveMapIdFromZoneText(zone, subZone, out var fromText))
         {
             if (CapitalMapIds.Contains(fromText) && CapitalMapIds.Contains(mapId))
@@ -366,7 +380,8 @@ public static class ClassicEraMapProjection
             // Ex. zone « Orgrimmar » mais mapId Durotar (1411) : coords sur la carte parente.
             if (CapitalMapIds.Contains(fromText) && mapId > 0 && !IsContinentMap(mapId))
                 return mapId;
-            return fromText;
+            if (!IsContinentMap(fromText))
+                return fromText;
         }
 
         if (mapId > 0 && !IsContinentMap(mapId))

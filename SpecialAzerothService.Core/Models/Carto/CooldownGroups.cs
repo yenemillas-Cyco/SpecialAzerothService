@@ -20,6 +20,26 @@ public static class CooldownGroups
     return k is "arcanite" or "elemental" or "element" or "alchemy" or "alchimie";
   }
 
+  /// <summary>Clé/nom renvoyés par l'addon WowSync.</summary>
+  public static CooldownType? MapSyncCooldownKey(string key, string? syncName = null)
+  {
+    if (MapAlchemySyncKey(key, syncName) is { } alchemy)
+      return alchemy;
+
+    var k = key.Trim().ToLowerInvariant();
+    var label = syncName?.Trim().ToLowerInvariant() ?? "";
+
+    if (k.Contains("lunaire") || k.Contains("mooncloth") || k == "moon"
+        || label.Contains("lunaire") || label.Contains("mooncloth"))
+      return CooldownType.Mooncloth;
+
+    if (k.Contains("salt") || k.Contains("sel") || k.Contains("raffine")
+        || label.Contains("sel") || label.Contains("salt"))
+      return CooldownType.Sel_raffine;
+
+    return null;
+  }
+
   public static CooldownType? MapAlchemySyncKey(string key, string? syncName = null)
   {
     var k = key.Trim().ToLowerInvariant();

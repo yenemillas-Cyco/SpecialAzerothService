@@ -102,9 +102,32 @@ public sealed class CooldownEntry
 
     public DateTime? ReadyAt => EffectiveReadyAt;
 
-    public bool IsReady => ReadyAt == null || DateTime.Now >= ReadyAt;
+    /// <summary>WowSync fournit <see cref="ReadyAtOverride"/> en UTC.</summary>
+    private bool UsesUtcClock => ReadyAtOverride.HasValue;
 
-    public TimeSpan? TimeRemaining => IsReady ? null : ReadyAt - DateTime.Now;
+    private DateTime ClockNow => UsesUtcClock ? DateTime.UtcNow : DateTime.Now;
+
+    public bool IsReady
+    {
+        get
+        {
+            if (ReadyAt == null)
+                return true;
+            return ClockNow >= ReadyAt.Value;
+        }
+    }
+
+    public TimeSpan? TimeRemaining
+    {
+        get
+        {
+            if (IsReady || ReadyAt == null)
+                return null;
+
+            var remaining = ReadyAt.Value - ClockNow;
+            return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+        }
+    }
 
     /// <summary>Avancement du CD (0 = début, 1 = prêt).</summary>
     public double ElapsedFraction

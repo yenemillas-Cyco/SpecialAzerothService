@@ -7,7 +7,7 @@ using SpecialAzerothService.Core.Models.Carto;
 
 namespace WindowsOrganiserApp.Controls;
 
-/// <summary>Boutons roster : visibilité carte / sync / sous-arbre.</summary>
+/// <summary>Boutons roster : visibilité carte / sous-arbre.</summary>
 public static class CartoRosterIcons
 {
     private const int ToggleSize = 22;
@@ -68,26 +68,6 @@ public static class CartoRosterIcons
             toggle.ToolTip = visible
                 ? "Visible sur la carte — masquer"
                 : "Masqué sur la carte — afficher";
-        }
-
-        Refresh();
-        WirePreviewActivate(toggle, () =>
-        {
-            onToggled(ch);
-            Refresh();
-        });
-        return toggle;
-    }
-
-    public static ToggleButton CreateSyncToggle(WowCharacter ch, Action<WowCharacter> onToggled)
-    {
-        var toggle = CreateShellBase();
-        void Refresh()
-        {
-            var syncOn = !ch.ExcludeFromSync;
-            toggle.SetCurrentValue(ToggleButton.IsCheckedProperty, syncOn);
-            toggle.Content = PlugIcon(syncOn);
-            toggle.ToolTip = syncOn ? "Sync active — désactiver" : "Sync désactivée — activer";
         }
 
         Refresh();
@@ -220,22 +200,6 @@ public static class CartoRosterIcons
 
         layer.Children.Add(eye);
         return layer;
-    }
-
-    private static UIElement PlugIcon(bool active)
-    {
-        var brush = active ? GoldDisc : new SolidColorBrush(Color.FromRgb(100, 95, 85));
-        return new Viewbox
-        {
-            Width = 12,
-            Height = 12,
-            Stretch = Stretch.Uniform,
-            Child = new Path
-            {
-                Data = Geometry.Parse("M5,1 H11 V4.5 H13 V6 H11 V6 H11 V12 H9 V12 H9 V6 H7 V6 H7 V12 H5 V12 H5 V6 H3 V6 H3 V4.5 H5 Z"),
-                Fill = brush
-            }
-        };
     }
 
     private static IEnumerable<T> EnumerateVisualChildren<T>(DependencyObject parent)

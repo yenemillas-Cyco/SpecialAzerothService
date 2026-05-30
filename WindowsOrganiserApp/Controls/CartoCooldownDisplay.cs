@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using SpecialAzerothService.Core.Models.Carto;
 using SpecialAzerothService.Core.Models.WowSync;
+using SpecialAzerothService.Core.Services;
 
 namespace WindowsOrganiserApp.Controls;
 
@@ -11,32 +12,40 @@ public static class CartoCooldownDisplay
 {
     public const string PanelTag = "carto-cd-panel";
 
-    private static readonly SolidColorBrush TrackBrush = new(Color.FromArgb(200, 12, 14, 20));
-    private static readonly SolidColorBrush TrackEdgeBrush = new(Color.FromArgb(120, 60, 70, 90));
-    private static readonly SolidColorBrush FillReadyBrush = new(Color.FromRgb(72, 190, 108));
+    private static readonly SolidColorBrush TrackBrush = new(Color.FromArgb(220, 18, 20, 28));
+    private static readonly SolidColorBrush TrackEdgeBrush = new(Color.FromArgb(100, 70, 80, 100));
+    private static readonly SolidColorBrush FillReadyBrush = new(Color.FromRgb(56, 168, 98));
     private static readonly SolidColorBrush LabelBrush = new(Color.FromRgb(200, 215, 235));
     private static readonly SolidColorBrush ReadyBrush = new(Color.FromRgb(120, 230, 140));
-    private static readonly SolidColorBrush RemainingBrush = new(Color.FromRgb(140, 200, 255));
-    private static readonly SolidColorBrush CompactTimeBrush = new(Color.FromRgb(220, 230, 245));
+    private static readonly SolidColorBrush RemainingBrush = new(Color.FromRgb(190, 220, 255));
+    private static readonly SolidColorBrush SubtextBrush = new(Color.FromRgb(150, 165, 185));
 
-    private const int MaxPortraitBars = 3;
+    private const double RosterLabelWidth = 72;
+    private const double RosterStatusWidth = 88;
+    private const double RosterTrackHeight = 13;
 
     private sealed class CooldownRowState(
         CooldownEntry entry,
         ColumnDefinition fillColumn,
         ColumnDefinition emptyColumn,
         Border fillBorder,
+        Grid trackGrid,
         TextBlock? remainingBlock,
         TextBlock? compactTimeBlock,
-        bool showProgressRatio = false)
+        TextBlock? timeBlock = null,
+        TextBlock? percentBlock = null,
+        UIElement? readyBadge = null)
     {
         public CooldownEntry Entry { get; } = entry;
         public ColumnDefinition FillColumn { get; } = fillColumn;
         public ColumnDefinition EmptyColumn { get; } = emptyColumn;
         public Border FillBorder { get; } = fillBorder;
+        public Grid TrackGrid { get; } = trackGrid;
         public TextBlock? RemainingBlock { get; } = remainingBlock;
         public TextBlock? CompactTimeBlock { get; } = compactTimeBlock;
-        public bool ShowProgressRatio { get; } = showProgressRatio;
+        public TextBlock? TimeBlock { get; } = timeBlock;
+        public TextBlock? PercentBlock { get; } = percentBlock;
+        public UIElement? ReadyBadge { get; } = readyBadge;
     }
 
     public static StackPanel? BuildPanel(WowCharacter ch, double labelFontSize = 10, WowCharacterData? sync = null)
@@ -47,15 +56,14 @@ public static class CartoCooldownDisplay
 
         var panel = new StackPanel { Tag = PanelTag };
         foreach (var cd in cds)
-            panel.Children.Add(BuildRow(cd, labelFontSize, compact: false));
+            panel.Children.Add(BuildDetailRow(cd, labelFontSize));
 
         return panel;
     }
 
-    /// <summary>Bandeau CD pleine largeur sur la carte roster.</summary>
     public static UIElement? BuildRosterCardStrip(WowCharacter ch, WowCharacterData? sync = null)
     {
-        var cds = ResolveDisplayCooldowns(ch, sync).Take(MaxPortraitBars).ToList();
+        var cds = ResolveDisplayCooldowns(ch, sync);
         if (cds.Count == 0)
             return null;
 
@@ -63,29 +71,28 @@ public static class CartoCooldownDisplay
         {
             Tag = PanelTag,
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            Margin = new Thickness(0, 2, 0, 8)
+            Margin = new Thickness(0, 4, 0, 4)
         };
         foreach (var cd in cds)
-            stack.Children.Add(BuildRow(cd, 10, compact: true, rosterList: true));
+            stack.Children.Add(BuildRosterCooldownRow(cd));
 
         return stack;
     }
 
-    /// <summary>CD configurés + CD WowSync en cours (sans exiger LastUsed sur la fiche).</summary>
     public static List<CooldownEntry> ResolveDisplayCooldowns(WowCharacter ch, WowCharacterData? sync = null)
     {
         var byType = new Dictionary<CooldownType, CooldownEntry>();
         foreach (var cd in ch.Cooldowns)
-            byType[cd.Type] = cd;
+        {
+            if (CartoProfessionCooldowns.IsCooldownEntryVisible(cd, ch, sync))
+                byType[cd.Type] = cd;
+        }
 
         if (sync != null)
         {
             foreach (var syncCd in sync.Cooldowns)
             {
-                if (syncCd.IsReady)
-                    continue;
-
-                var type = MapSyncCooldownKey(syncCd.Key, syncCd.Name);
+                var type = CooldownGroups.MapSyncCooldownKey(syncCd.Key, syncCd.Name);
                 if (type == null)
                     continue;
 
@@ -107,10 +114,18 @@ public static class CartoCooldownDisplay
                     byType[type.Value] = entry;
                 }
 
-                if (syncCd.ReadyAtUtc is { } readyAt)
+                if (syncCd.IsReady)
                 {
-                    entry.ReadyAtOverride = readyAt;
-                    var remaining = readyAt - DateTime.UtcNow;
+                    entry.ReadyAtOverride = null;
+                    if (syncCd.ReadyAtUtc is { } readyAt)
+                        entry.LastUsed = readyAt - entry.Duration;
+                    continue;
+                }
+
+                if (syncCd.ReadyAtUtc is { } runningReadyAt)
+                {
+                    entry.ReadyAtOverride = runningReadyAt;
+                    var remaining = runningReadyAt - DateTime.UtcNow;
                     if (remaining > TimeSpan.Zero)
                     {
                         var total = entry.Duration;
@@ -119,63 +134,49 @@ public static class CartoCooldownDisplay
                         else if (remaining > total)
                             total = remaining;
 
-                        entry.LastUsed = readyAt - total;
+                        entry.LastUsed = runningReadyAt - total;
                     }
                     else if (entry.LastUsed == null)
-                        entry.LastUsed = readyAt - entry.Duration;
+                        entry.LastUsed = runningReadyAt - entry.Duration;
                 }
             }
         }
+
+        CartoProfessionCooldowns.EnsureProfessionSlots(byType, ch, sync);
 
         var merged = byType.Values.ToList();
         CooldownGroups.NormalizeAlchemyCooldowns(merged);
 
         return merged
+            .Where(cd => CartoProfessionCooldowns.IsCooldownEntryVisible(cd, ch, sync))
             .OrderBy(c => c.IsReady ? 1 : 0)
             .ThenBy(c => c.TimeRemaining ?? TimeSpan.Zero)
             .ToList();
     }
 
-    private static CooldownType? MapSyncCooldownKey(string key, string? syncName = null)
-    {
-        if (CooldownGroups.MapAlchemySyncKey(key, syncName) is { } alchemy)
-            return alchemy;
+    public static bool HasDisplayableCooldowns(WowCharacter ch, WowCharacterData? sync = null) =>
+        ResolveDisplayCooldowns(ch, sync).Count > 0;
 
-        return key.ToLowerInvariant() switch
+    public static (int InProgress, int Ready) CountCooldownStatuses(
+        IEnumerable<WowCharacter> characters,
+        Func<WowCharacter, WowCharacterData?> getSync)
+    {
+        var inProgress = 0;
+        var ready = 0;
+        foreach (var ch in characters)
         {
-            "mooncloth" => CooldownType.Mooncloth,
-            "salt" => CooldownType.Sel_raffine,
-            _ => null
-        };
+            var sync = getSync(ch);
+            foreach (var cd in ResolveDisplayCooldowns(ch, sync))
+            {
+                if (cd.IsReady)
+                    ready++;
+                else
+                    inProgress++;
+            }
+        }
+
+        return (inProgress, ready);
     }
-
-    private static SolidColorBrush AccentBrushFor(CooldownType type) => type switch
-    {
-        CooldownType.Sel_raffine => new SolidColorBrush(Color.FromRgb(210, 185, 90)),
-        CooldownType.Mooncloth or CooldownType.Etoffe_lunaire => new SolidColorBrush(Color.FromRgb(175, 130, 220)),
-        CooldownType.Arcanite => new SolidColorBrush(Color.FromRgb(110, 165, 230)),
-        CooldownType.Transmute_Elementaire => new SolidColorBrush(Color.FromRgb(230, 130, 75)),
-        _ => new SolidColorBrush(Color.FromRgb(100, 170, 230))
-    };
-
-    private static SolidColorBrush FillBrushFor(CooldownType type, bool ready) => type switch
-    {
-        CooldownType.Sel_raffine => ready
-            ? FillReadyBrush
-            : new SolidColorBrush(Color.FromRgb(200, 175, 85)),
-        CooldownType.Mooncloth or CooldownType.Etoffe_lunaire => ready
-            ? FillReadyBrush
-            : new SolidColorBrush(Color.FromRgb(150, 110, 195)),
-        CooldownType.Arcanite => ready
-            ? FillReadyBrush
-            : new SolidColorBrush(Color.FromRgb(95, 145, 215)),
-        CooldownType.Transmute_Elementaire => ready
-            ? FillReadyBrush
-            : new SolidColorBrush(Color.FromRgb(215, 115, 70)),
-        _ => ready
-            ? FillReadyBrush
-            : new SolidColorBrush(Color.FromRgb(70, 150, 230))
-    };
 
     public static void UpdateAll(DependencyObject? root)
     {
@@ -190,15 +191,6 @@ public static class CartoCooldownDisplay
     {
         foreach (var child in panel.Children)
         {
-            if (child is Grid grid)
-            {
-                foreach (var row in grid.Children.OfType<FrameworkElement>())
-                {
-                    if (row.Tag is CooldownRowState nested)
-                        ApplyState(nested);
-                }
-            }
-
             if (child is FrameworkElement { Tag: CooldownRowState state })
                 ApplyState(state);
         }
@@ -207,25 +199,69 @@ public static class CartoCooldownDisplay
     private static void ApplyState(CooldownRowState state)
     {
         var cd = state.Entry;
-        var fraction = cd.IsReady ? 1.0 : cd.ElapsedFraction;
-        SetBarWidths(state.FillColumn, state.EmptyColumn, fraction);
-        state.FillBorder.Background = FillBrushFor(cd.Type, cd.IsReady);
+        ApplyBarLayout(cd, state.FillBorder, state.FillColumn, state.EmptyColumn, state.TrackGrid);
 
+        if (state.TimeBlock != null)
+        {
+            state.TimeBlock.Text = cd.IsReady ? "" : FormatTimeRemaining(cd.TimeRemaining);
+            state.TimeBlock.Visibility = cd.IsReady ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        if (state.PercentBlock != null)
+        {
+            state.PercentBlock.Text = cd.IsReady ? "" : $"{GetRemainingPercent(cd)} % restant";
+            state.PercentBlock.Visibility = cd.IsReady ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        if (state.ReadyBadge != null)
+            state.ReadyBadge.Visibility = cd.IsReady ? Visibility.Visible : Visibility.Collapsed;
+
+        var summary = FormatStatusSummary(cd);
         if (state.RemainingBlock != null)
         {
-            state.RemainingBlock.Text = cd.IsReady ? "Prêt" : FormatProgressRatio(cd);
+            state.RemainingBlock.Text = summary;
             state.RemainingBlock.Foreground = cd.IsReady ? ReadyBrush : RemainingBrush;
         }
 
         if (state.CompactTimeBlock != null)
         {
-            state.CompactTimeBlock.Text = cd.IsReady
-                ? "Prêt"
-                : state.ShowProgressRatio
-                    ? FormatProgressRatio(cd, compact: true)
-                    : FormatTimeRemaining(cd.TimeRemaining, compact: true);
-            state.CompactTimeBlock.Foreground = cd.IsReady ? ReadyBrush : CompactTimeBrush;
+            state.CompactTimeBlock.Text = summary;
+            state.CompactTimeBlock.Foreground = cd.IsReady ? ReadyBrush : RemainingBrush;
         }
+    }
+
+    private static void ApplyBarLayout(
+        CooldownEntry cd,
+        Border fill,
+        ColumnDefinition fillColumn,
+        ColumnDefinition emptyColumn,
+        Grid trackGrid)
+    {
+        var trackHeight = trackGrid.Height > 0 ? trackGrid.Height : RosterTrackHeight;
+        var outerRadius = trackHeight / 2;
+        var innerRadius = Math.Max(1, outerRadius - 1);
+        var elapsed = cd.IsReady ? 1.0 : cd.ElapsedFraction;
+        var full = cd.IsReady || elapsed >= 0.995;
+
+        fill.Background = cd.IsReady ? FillReadyBrush : FillBrushFor(cd.Type);
+
+        if (full)
+        {
+            fillColumn.Width = new GridLength(1, GridUnitType.Star);
+            emptyColumn.Width = new GridLength(0);
+            Grid.SetColumn(fill, 0);
+            Grid.SetColumnSpan(fill, 2);
+            fill.CornerRadius = new CornerRadius(innerRadius);
+            return;
+        }
+
+        Grid.SetColumnSpan(fill, 1);
+        fill.CornerRadius = new CornerRadius(innerRadius, 0, 0, innerRadius);
+
+        const double min = 0.001;
+        var fillWeight = Math.Clamp(elapsed, min, 1);
+        fillColumn.Width = new GridLength(fillWeight, GridUnitType.Star);
+        emptyColumn.Width = new GridLength(Math.Max(min, 1 - fillWeight), GridUnitType.Star);
     }
 
     private static void SetBarWidths(ColumnDefinition fillColumn, ColumnDefinition emptyColumn, double elapsedFraction)
@@ -237,201 +273,247 @@ public static class CartoCooldownDisplay
         emptyColumn.Width = new GridLength(empty, GridUnitType.Star);
     }
 
-    private static UIElement BuildRow(
-        CooldownEntry cd,
-        double labelFontSize,
-        bool compact,
-        bool portraitInset = false,
-        bool rosterList = false)
+    private static UIElement BuildRosterCooldownRow(CooldownEntry cd)
     {
         var fillColumn = new ColumnDefinition();
         var emptyColumn = new ColumnDefinition();
-        SetBarWidths(fillColumn, emptyColumn, cd.IsReady ? 1 : cd.ElapsedFraction);
 
-        var trackHeight = portraitInset ? 3.5 : rosterList ? 11 : compact ? 5 : 8;
-        var trackGrid = new Grid
-        {
-            Height = trackHeight,
-            ClipToBounds = true
-        };
+        var fill = new Border { HorizontalAlignment = HorizontalAlignment.Stretch };
+
+        var trackGrid = new Grid { Height = RosterTrackHeight, ClipToBounds = true };
         trackGrid.ColumnDefinitions.Add(fillColumn);
         trackGrid.ColumnDefinitions.Add(emptyColumn);
-
-        var fill = new Border
-        {
-            Background = FillBrushFor(cd.Type, cd.IsReady),
-            CornerRadius = new CornerRadius(trackHeight / 2, 0, 0, trackHeight / 2),
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
-        Grid.SetColumn(fill, 0);
         trackGrid.Children.Add(fill);
+        ApplyBarLayout(cd, fill, fillColumn, emptyColumn, trackGrid);
 
-        var trackShell = new Border
+        var track = new Border
         {
             Background = TrackBrush,
             BorderBrush = TrackEdgeBrush,
-            BorderThickness = portraitInset ? new Thickness(0) : new Thickness(1),
-            CornerRadius = new CornerRadius(trackHeight / 2),
-            Padding = new Thickness(0),
-            Child = trackGrid
-        };
-
-        TextBlock? remaining = null;
-        TextBlock? compactTime = null;
-
-        if (!compact)
-        {
-            remaining = new TextBlock
-            {
-                FontSize = labelFontSize,
-                Foreground = cd.IsReady ? ReadyBrush : RemainingBrush,
-                VerticalAlignment = VerticalAlignment.Center,
-                Text = cd.IsReady ? "Prêt" : FormatProgressRatio(cd)
-            };
-
-            var header = new Grid { Margin = new Thickness(0, 0, 0, 3) };
-            header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var name = new TextBlock
-            {
-                Text = CdShortLabel(cd.Type),
-                FontSize = labelFontSize,
-                Foreground = LabelBrush,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                VerticalAlignment = VerticalAlignment.Center,
-                ToolTip = cd.Type.DisplayName()
-            };
-            Grid.SetColumn(name, 0);
-            Grid.SetColumn(remaining, 1);
-            header.Children.Add(name);
-            header.Children.Add(remaining);
-
-            var row = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
-            row.Children.Add(header);
-            row.Children.Add(trackShell);
-            row.Tag = new CooldownRowState(cd, fillColumn, emptyColumn, fill, remaining, null);
-            return row;
-        }
-
-        compactTime = new TextBlock
-        {
-            Text = cd.IsReady
-                ? "Prêt"
-                : rosterList
-                    ? FormatProgressRatio(cd, compact: true)
-                    : FormatTimeRemaining(cd.TimeRemaining, compact: true),
-            FontSize = rosterList ? 10 : portraitInset ? 7 : 8,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = cd.IsReady ? ReadyBrush : CompactTimeBrush,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(RosterTrackHeight / 2),
+            Child = trackGrid,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(rosterList ? 6 : portraitInset ? 3 : 4, 0, 0, 0),
-            TextAlignment = TextAlignment.Right,
-            MinWidth = rosterList ? 72 : portraitInset ? 28 : 34
+            MinHeight = RosterTrackHeight
         };
+
+        var timeBlock = new TextBlock
+        {
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = RemainingBrush,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Text = FormatTimeRemaining(cd.TimeRemaining)
+        };
+
+        var percentBlock = new TextBlock
+        {
+            FontSize = 9,
+            Foreground = SubtextBrush,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 1, 0, 0),
+            Text = $"{GetRemainingPercent(cd)} % restant"
+        };
+
+        var runningStatus = new StackPanel
+        {
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Visibility = cd.IsReady ? Visibility.Collapsed : Visibility.Visible
+        };
+        runningStatus.Children.Add(timeBlock);
+        runningStatus.Children.Add(percentBlock);
+
+        var readyBadge = BuildReadyBadge();
+        readyBadge.Visibility = cd.IsReady ? Visibility.Visible : Visibility.Collapsed;
+
+        var statusHost = new Grid { Width = RosterStatusWidth, MinWidth = RosterStatusWidth };
+        statusHost.Children.Add(runningStatus);
+        statusHost.Children.Add(readyBadge);
 
         var typeLabel = new TextBlock
         {
-            Text = rosterList ? CdRosterLabel(cd.Type) : CdTinyLabel(cd.Type),
-            FontSize = rosterList ? 10 : 7,
-            FontWeight = rosterList ? FontWeights.SemiBold : FontWeights.Bold,
+            Text = CdRosterLabel(cd.Type),
+            FontSize = 10,
+            FontWeight = FontWeights.SemiBold,
             Foreground = AccentBrushFor(cd.Type),
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = rosterList ? new Thickness(0, 0, 6, 0) : new Thickness(0),
-            TextAlignment = rosterList ? TextAlignment.Left : TextAlignment.Center,
+            Width = RosterLabelWidth,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            MaxWidth = rosterList ? 88 : double.PositiveInfinity,
             ToolTip = cd.Type.DisplayName()
         };
 
-        var barRow = new Grid
+        var row = new Grid
         {
-            Margin = portraitInset
-                ? new Thickness(2, 1, 2, 1)
-                : new Thickness(0, 0, 0, rosterList ? 5 : 2),
-            ToolTip = $"{cd.Type.DisplayName()} — {(cd.IsReady ? "Prêt" : FormatProgressRatio(cd))}"
+            Margin = new Thickness(0, 0, 0, 6),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            ToolTip = $"{cd.Type.DisplayName()} — {FormatStatusSummary(cd, longForm: true)}"
+        };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(RosterLabelWidth) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 48 });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(RosterStatusWidth) });
+        Grid.SetColumn(typeLabel, 0);
+        Grid.SetColumn(track, 1);
+        Grid.SetColumn(statusHost, 2);
+        row.Children.Add(typeLabel);
+        row.Children.Add(track);
+        row.Children.Add(statusHost);
+
+        row.Tag = new CooldownRowState(cd, fillColumn, emptyColumn, fill, trackGrid, null, null, timeBlock, percentBlock, readyBadge);
+        return row;
+    }
+
+    private static Border BuildReadyBadge()
+    {
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center
         };
 
-        if (rosterList)
+        row.Children.Add(new Border
         {
-            barRow.HorizontalAlignment = HorizontalAlignment.Stretch;
-            barRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            barRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            barRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            trackShell.HorizontalAlignment = HorizontalAlignment.Stretch;
-            trackShell.MinHeight = trackHeight;
-            trackShell.CornerRadius = new CornerRadius(trackHeight / 2);
-            Grid.SetColumn(typeLabel, 0);
-            Grid.SetColumn(trackShell, 1);
-            Grid.SetColumn(compactTime, 2);
-            barRow.Children.Add(typeLabel);
-            barRow.Children.Add(trackShell);
-            barRow.Children.Add(compactTime);
-        }
-        else
-        {
-            var accent = new Border
+            Width = 16,
+            Height = 16,
+            CornerRadius = new CornerRadius(8),
+            Background = new SolidColorBrush(Color.FromArgb(56, 72, 190, 108)),
+            BorderBrush = ReadyBrush,
+            BorderThickness = new Thickness(1),
+            Margin = new Thickness(0, 0, 4, 0),
+            Child = new TextBlock
             {
-                Width = portraitInset ? 2 : 3,
-                Background = AccentBrushFor(cd.Type),
-                CornerRadius = new CornerRadius(1),
-                Margin = new Thickness(0, 0, portraitInset ? 2 : 3, 0),
+                Text = "✓",
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                Foreground = ReadyBrush,
+                HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
-            };
-            barRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            barRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            barRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            barRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            Grid.SetColumn(typeLabel, 0);
-            Grid.SetColumn(accent, 1);
-            Grid.SetColumn(trackShell, 2);
-            Grid.SetColumn(compactTime, 3);
-            barRow.Children.Add(typeLabel);
-            barRow.Children.Add(accent);
-            barRow.Children.Add(trackShell);
-            barRow.Children.Add(compactTime);
-        }
+            }
+        });
 
-        barRow.Tag = new CooldownRowState(cd, fillColumn, emptyColumn, fill, null, compactTime, rosterList);
-        return barRow;
-    }
-
-    private static string CdRosterLabel(CooldownType type)
-    {
-        if (CooldownGroups.IsAlchemyTransmute(type) && type != CooldownType.Arcanite)
-            return CdShortLabel(type);
-
-        return type switch
+        row.Children.Add(new TextBlock
         {
-            CooldownType.Arcanite => "Arcanite",
-            CooldownType.Transmute_Elementaire => "Élémentaire",
-            CooldownType.Mooncloth or CooldownType.Etoffe_lunaire => "Étoffe lunaire",
-            CooldownType.Sel_raffine => "Sel raffiné",
-            _ => CdShortLabel(type)
-        };
+            Text = "Prêt",
+            FontSize = 11,
+            FontWeight = FontWeights.Bold,
+            Foreground = ReadyBrush,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+
+        return new Border { Child = row, HorizontalAlignment = HorizontalAlignment.Right };
     }
 
-    private static string CdTinyLabel(CooldownType type) => type switch
+    private static UIElement BuildDetailRow(CooldownEntry cd, double labelFontSize)
     {
-        CooldownType.Arcanite => "Arc",
-        CooldownType.Transmute_Elementaire => "Él",
-        CooldownType.Mooncloth => "Lun",
+        const double detailHeight = 8;
+        var outerRadius = detailHeight / 2;
+
+        var fillColumn = new ColumnDefinition();
+        var emptyColumn = new ColumnDefinition();
+        var fill = new Border { HorizontalAlignment = HorizontalAlignment.Stretch };
+
+        var detailGrid = new Grid { Height = detailHeight, ClipToBounds = true };
+        detailGrid.ColumnDefinitions.Add(fillColumn);
+        detailGrid.ColumnDefinitions.Add(emptyColumn);
+        detailGrid.Children.Add(fill);
+        ApplyBarLayout(cd, fill, fillColumn, emptyColumn, detailGrid);
+
+        var remaining = new TextBlock
+        {
+            FontSize = labelFontSize,
+            Foreground = cd.IsReady ? ReadyBrush : RemainingBrush,
+            VerticalAlignment = VerticalAlignment.Center,
+            Text = FormatStatusSummary(cd, longForm: true)
+        };
+
+        var header = new Grid { Margin = new Thickness(0, 0, 0, 3) };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var name = new TextBlock
+        {
+            Text = CdShortLabel(cd.Type),
+            FontSize = labelFontSize,
+            Foreground = LabelBrush,
+            ToolTip = cd.Type.DisplayName()
+        };
+        Grid.SetColumn(name, 0);
+        Grid.SetColumn(remaining, 1);
+        header.Children.Add(name);
+        header.Children.Add(remaining);
+
+        var row = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
+        row.Children.Add(header);
+        row.Children.Add(new Border
+        {
+            Background = TrackBrush,
+            BorderBrush = TrackEdgeBrush,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(outerRadius),
+            Child = detailGrid
+        });
+        row.Tag = new CooldownRowState(cd, fillColumn, emptyColumn, fill, detailGrid, remaining, null);
+        return row;
+    }
+
+    private static int GetRemainingPercent(CooldownEntry cd)
+    {
+        if (cd.IsReady)
+            return 0;
+
+        var total = cd.EffectiveDuration.TotalSeconds;
+        if (total <= 0)
+            return 0;
+
+        var remaining = cd.TimeRemaining?.TotalSeconds ?? 0;
+        return (int)Math.Clamp(Math.Round(remaining / total * 100), 0, 100);
+    }
+
+    private static int GetElapsedPercent(CooldownEntry cd) =>
+        cd.IsReady ? 100 : (int)Math.Clamp(Math.Round(cd.ElapsedFraction * 100), 0, 100);
+
+    private static string FormatStatusSummary(CooldownEntry cd, bool longForm = false)
+    {
+        if (cd.IsReady)
+            return "Prêt";
+
+        var time = FormatTimeRemaining(cd.TimeRemaining, compact: !longForm);
+        var pct = GetRemainingPercent(cd);
+        return longForm
+            ? $"{time} restant ({pct} % · {GetElapsedPercent(cd)} % écoulé)"
+            : $"{time} · {pct}%";
+    }
+
+    private static SolidColorBrush AccentBrushFor(CooldownType type) => type switch
+    {
+        CooldownType.Sel_raffine => new SolidColorBrush(Color.FromRgb(210, 185, 90)),
+        CooldownType.Mooncloth or CooldownType.Etoffe_lunaire => new SolidColorBrush(Color.FromRgb(175, 130, 220)),
+        CooldownType.Arcanite => new SolidColorBrush(Color.FromRgb(110, 165, 230)),
+        CooldownType.Transmute_Elementaire => new SolidColorBrush(Color.FromRgb(230, 130, 75)),
+        _ => new SolidColorBrush(Color.FromRgb(100, 170, 230))
+    };
+
+    private static SolidColorBrush FillBrushFor(CooldownType type) => type switch
+    {
+        CooldownType.Sel_raffine => new SolidColorBrush(Color.FromRgb(185, 155, 70)),
+        CooldownType.Mooncloth or CooldownType.Etoffe_lunaire => new SolidColorBrush(Color.FromRgb(130, 95, 175)),
+        CooldownType.Arcanite => new SolidColorBrush(Color.FromRgb(80, 130, 200)),
+        CooldownType.Transmute_Elementaire => new SolidColorBrush(Color.FromRgb(200, 105, 60)),
+        _ => new SolidColorBrush(Color.FromRgb(70, 140, 220))
+    };
+
+    private static string CdRosterLabel(CooldownType type) => type switch
+    {
+        CooldownType.Arcanite => "Arcanite",
+        CooldownType.Transmute_Elementaire => "Élémentaire",
+        CooldownType.Mooncloth or CooldownType.Etoffe_lunaire => "Lunaire",
         CooldownType.Sel_raffine => "Sel",
-        _ => "CD"
+        _ => CdShortLabel(type)
     };
 
     private static string CdShortLabel(CooldownType type) => type switch
     {
         CooldownType.Arcanite => "Arcanite",
         CooldownType.Transmute_Elementaire => "Élémentaire",
-        CooldownType.Air_to_Fire => "Air → Feu",
-        CooldownType.Fire_to_Earth => "Feu → Terre",
-        CooldownType.Earth_to_Water => "Terre → Eau",
-        CooldownType.Water_to_Air => "Eau → Air",
-        CooldownType.Undeath_to_Water => "Mort → Eau",
-        CooldownType.Water_to_Undeath => "Eau → Mort",
-        CooldownType.Life_to_Earth => "Vie → Terre",
-        CooldownType.Earth_to_Life => "Terre → Vie",
         CooldownType.Mooncloth => "Lunaire",
         CooldownType.Sel_raffine => "Sel",
         _ => type.ToString().Replace('_', ' ')
@@ -452,49 +534,34 @@ public static class CartoCooldownDisplay
         }
     }
 
-    private static string FormatProgressRatio(CooldownEntry cd, bool compact = false)
-    {
-        if (cd.IsReady)
-            return "Prêt";
-
-        var remaining = cd.TimeRemaining ?? TimeSpan.Zero;
-        var elapsed = cd.Duration - remaining;
-        if (elapsed < TimeSpan.Zero)
-            elapsed = TimeSpan.Zero;
-
-        return $"{FormatDuration(elapsed, compact)} / {FormatDuration(cd.EffectiveDuration, compact)}";
-    }
-
     private static string FormatDuration(TimeSpan span, bool compact = false)
     {
         if (span.TotalDays >= 1)
         {
             var days = (int)span.TotalDays;
-            if (compact && span - TimeSpan.FromDays(days) < TimeSpan.FromHours(1))
-                return $"{days}j";
-
+            var hours = span.Hours;
             return compact
-                ? $"{days}j{span.Hours:D2}"
-                : $"{days} j {span.Hours:D2} h";
+                ? (hours > 0 ? $"{days}j {hours}h" : $"{days}j")
+                : $"{days} j {hours:D2} h";
         }
 
         if (span.TotalHours >= 1)
             return compact
-                ? $"{(int)span.TotalHours}h{span.Minutes:D2}"
+                ? $"{(int)span.TotalHours}h {span.Minutes:D2}m"
                 : $"{(int)span.TotalHours} h {span.Minutes:D2} min";
 
         if (span.TotalSeconds < 60)
             return compact ? $"{span.Seconds}s" : $"{span.Seconds} s";
 
         return compact
-            ? $"{(int)span.TotalMinutes}m"
-            : $"{(int)span.TotalMinutes} min {span.Seconds:D2} s";
+            ? $"{(int)span.TotalMinutes} min"
+            : $"{(int)span.TotalMinutes} min";
     }
 
     private static string FormatTimeRemaining(TimeSpan? ts, bool compact = false)
     {
         if (ts == null)
-            return compact ? "—" : "—";
+            return "—";
 
         return FormatDuration(ts.Value, compact);
     }

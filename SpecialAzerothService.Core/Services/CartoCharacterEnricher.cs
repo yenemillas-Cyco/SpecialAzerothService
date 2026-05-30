@@ -78,7 +78,12 @@ public static class CartoCharacterEnricher
         ["Herboristerie"] = ProfessionType.Herboristerie,
         ["Herbalism"] = ProfessionType.Herboristerie,
         ["Couture"] = ProfessionType.Couture,
+        ["Couturier"] = ProfessionType.Couture,
         ["Tailoring"] = ProfessionType.Couture,
+        ["Tailor"] = ProfessionType.Couture,
+        ["Alchimiste"] = ProfessionType.Alchimie,
+        ["Travailleur du cuir"] = ProfessionType.Travail_du_cuir,
+        ["Leatherworker"] = ProfessionType.Travail_du_cuir,
         ["Travail du cuir"] = ProfessionType.Travail_du_cuir,
         ["Leatherworking"] = ProfessionType.Travail_du_cuir,
         ["Exploitation"] = ProfessionType.Exploitation_miniere,
@@ -134,6 +139,9 @@ public static class CartoCharacterEnricher
         if (mapped.Count > 0)
             carto.Professions = mapped;
     }
+
+    public static bool TryMapProfessionName(string? name, out ProfessionType type) =>
+        TryMapProfession(name, out type);
 
     private static bool TryMapProfession(string? name, out ProfessionType type)
     {

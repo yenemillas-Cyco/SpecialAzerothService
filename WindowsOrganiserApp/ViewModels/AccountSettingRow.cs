@@ -13,6 +13,9 @@ public partial class AccountSettingRow : ObservableObject
     [ObservableProperty]
     private string? _userId;
 
+    [ObservableProperty]
+    private string _ownerDisplayName = "Non assigné";
+
     public int CharacterCount { get; init; }
 
     public long GoldCopper { get; init; }
@@ -36,16 +39,33 @@ public partial class AccountSettingRow : ObservableObject
         string sourceFolder,
         CartoAccountConfig? config,
         int characterCount,
-        long goldCopper = 0)
+        long goldCopper = 0,
+        IEnumerable<CartoUser>? users = null)
     {
         config ??= new CartoAccountConfig { DisplayName = sourceFolder };
+        var userId = config.UserId;
         return new AccountSettingRow
         {
             SourceFolder = sourceFolder,
             DisplayName = string.IsNullOrWhiteSpace(config.DisplayName) ? sourceFolder : config.DisplayName,
-            UserId = config.UserId,
+            UserId = userId,
+            OwnerDisplayName = ResolveOwnerDisplayName(userId, users),
             CharacterCount = characterCount,
             GoldCopper = goldCopper
         };
+    }
+
+    public void RefreshOwnerDisplayName(IEnumerable<CartoUser> users) =>
+        OwnerDisplayName = ResolveOwnerDisplayName(UserId, users);
+
+    public static string ResolveOwnerDisplayName(string? userId, IEnumerable<CartoUser>? users)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            return "Non assigné";
+
+        if (users == null)
+            return "—";
+
+        return users.FirstOrDefault(u => u.Id == userId)?.Name ?? "Utilisateur inconnu";
     }
 }

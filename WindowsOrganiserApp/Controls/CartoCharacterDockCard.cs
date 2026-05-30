@@ -9,10 +9,14 @@ using WindowsOrganiserApp.ViewModels;
 
 namespace WindowsOrganiserApp.Controls;
 
+public sealed class CartoDockCardOptions
+{
+    public bool CooldownRosterOnly { get; init; }
+}
+
 public sealed class CartoDockCardCallbacks
 {
     public Action<WowCharacter>? ToggleMapVisibility { get; init; }
-    public Action<WowCharacter>? ToggleSync { get; init; }
     public Action<WowCharacter>? OpenDetails { get; init; }
     public Action<WowCharacter, Border, MouseButtonEventArgs>? DragStart { get; init; }
     public Action<WowCharacter, Border, MouseEventArgs>? DragMove { get; init; }
@@ -27,20 +31,18 @@ public static class CartoCharacterDockCard
 
     private const double RowGap = 4;
 
-    public static Border Build(WowCharacter ch, CartoViewModel vm, CartoDockCardCallbacks? callbacks = null)
+    public static Border Build(
+        WowCharacter ch,
+        CartoViewModel vm,
+        CartoDockCardCallbacks? callbacks = null,
+        CartoDockCardOptions? options = null)
     {
+        options ??= new CartoDockCardOptions();
         vm.ApplySyncEnrichment(ch);
         var classBrush = CartoCharacterPresentation.GetClassBrush(ch.Class);
         var sync = vm.FindWowSyncCharacter(ch);
 
         var root = new StackPanel();
-
-        UIElement? actions = null;
-        if (!ch.IsExternal && callbacks?.ToggleMapVisibility != null)
-        {
-            actions = CartoRosterPanelUi.BuildCharacterCardActionsRail(
-                CartoRosterIcons.CreateMapVisibilityToggle(ch, callbacks.ToggleMapVisibility));
-        }
 
         var header = CartoRosterPanelUi.StretchWidth(CartoCharacterPresentation.BuildCharacterHeaderGrid(
             ch,
@@ -53,21 +55,24 @@ public static class CartoCharacterDockCard
                 ShowZone = false,
                 ShowSyncDate = false,
                 ShowCooldownBarsOnPortrait = false,
-                ShowQuestIcons = CartoCharacterPresentation.ShowQuestBody(ch),
+                ShowQuestIcons = !options.CooldownRosterOnly && CartoCharacterPresentation.ShowQuestBody(ch),
                 QuestIconSize = 22
             },
-            actions,
+            null,
             sync));
-        header.Margin = new Thickness(0, 0, 0, 4);
+        header.Margin = new Thickness(0, 0, 0, options.CooldownRosterOnly ? 2 : 4);
         root.Children.Add(header);
 
-        if (CartoCharacterPresentation.ShowCooldownsBody(ch)
-            || ch.Cooldowns.Count > 0
-            || sync is { Cooldowns.Count: > 0 })
+        if (CartoCooldownDisplay.HasDisplayableCooldowns(ch, sync))
         {
             var cdStrip = CartoCooldownDisplay.BuildRosterCardStrip(ch, sync);
             if (cdStrip is FrameworkElement cdFe)
                 root.Children.Add(CartoRosterPanelUi.StretchWidth(cdFe));
+        }
+
+        if (options.CooldownRosterOnly)
+        {
+            return WrapCard(root, classBrush);
         }
 
         var body = new StackPanel();
@@ -111,7 +116,11 @@ public static class CartoCharacterDockCard
         if (body.Children.Count > 0)
             root.Children.Add(body);
 
-        var card = CartoRosterPanelUi.StretchWidth(new Border
+        return WrapCard(root, classBrush);
+    }
+
+    private static Border WrapCard(StackPanel root, Brush classBrush) =>
+        CartoRosterPanelUi.StretchWidth(new Border
         {
             Background = RowBg,
             BorderBrush = classBrush,
@@ -123,16 +132,6 @@ public static class CartoCharacterDockCard
             Cursor = Cursors.Hand,
             ToolTip = "Glisser vers la carte ou un autre cadre · clic pour le détail"
         });
-
-        if (callbacks != null)
-        {
-            card.MouseLeftButtonDown += (s, e) => callbacks.DragStart?.Invoke(ch, card, e);
-            card.MouseMove += (s, e) => callbacks.DragMove?.Invoke(ch, card, e);
-            card.MouseLeftButtonUp += (s, e) => callbacks.DragEnd?.Invoke(ch, card, e);
-        }
-
-        return card;
-    }
 
     private static Border BuildInlineChip(UIElement icon, string text, Brush textBrush)
     {

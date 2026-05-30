@@ -12,6 +12,7 @@ using SpecialAzerothService.Core.Models;
 using SpecialAzerothService.Core.Services;
 using SpecialAzerothService.Core.Models.Carto;
 using WindowsOrganiserApp.ViewModels;
+using WindowsOrganiserApp.Views;
 
 namespace WindowsOrganiserApp;
 
@@ -44,6 +45,9 @@ public partial class MainWindow : Window
         {
             if (e.PropertyName == nameof(MainViewModel.IsOrganiserMode) && viewModel.IsOrganiserMode)
                 Dispatcher.InvokeAsync(RedrawAdvancedCanvas, DispatcherPriority.Render);
+
+            if (e.PropertyName == nameof(MainViewModel.IsCartoMode) && viewModel.IsCartoMode)
+                Dispatcher.BeginInvoke(() => CartoViewHost.ActivateCartoTab(), DispatcherPriority.Loaded);
         };
 
         if (viewModel.AdvancedVm is not null)

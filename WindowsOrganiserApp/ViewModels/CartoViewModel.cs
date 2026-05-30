@@ -83,7 +83,8 @@ public partial class CartoViewModel : ObservableObject
         _syncService.PushRequested += () =>
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
             {
-                PersistDataForSync();
+                if (CharactersLoaded)
+                    PersistDataForSync();
                 _ = _syncService.PushUpdateAsync(_data);
             });
         _syncService.ConnectionStateChanged += s =>
@@ -93,7 +94,8 @@ public partial class CartoViewModel : ObservableObject
                 OnPropertyChanged(nameof(FriendsSummary));
                 if (s == "Connecté")
                 {
-                    PersistDataForSync();
+                    if (CharactersLoaded)
+                        PersistDataForSync();
                     _ = _syncService.PushUpdateAsync(_data);
 
                     var onlineGuids = await _syncService.GetOnlineFriendsAsync();
@@ -128,10 +130,6 @@ public partial class CartoViewModel : ObservableObject
 
     [ObservableProperty]
     private string _addonStatusText = "";
-
-    /// <summary>Volet configuration addon WowSync (chemin WoW, déploiement).</summary>
-    [ObservableProperty]
-    private bool _isAddonPanelOpen;
 
     partial void OnWowPathChanged(string value)
     {
@@ -359,6 +357,7 @@ public partial class CartoViewModel : ObservableObject
         }, DispatcherPriority.Background);
 
         Report(90, "Préparation de l'interface Carto…");
+        await uiDispatcher.InvokeAsync(PrepareMapDisplay, DispatcherPriority.Background);
     }
 
     public ObservableCollection<WowAccount> Accounts { get; }
@@ -426,7 +425,14 @@ public partial class CartoViewModel : ObservableObject
     [ObservableProperty]
     private bool _isRosterOpen;
 
-    /// <summary>Volet paramètres (comptes WTF, utilisateurs, amis).</summary>
+    [ObservableProperty]
+    private bool _isCooldownRosterOpen = true;
+
+    /// <summary>Volet détail personnage (remplace la popup).</summary>
+    [ObservableProperty]
+    private bool _isCharacterDetailOpen;
+
+    /// <summary>Volet paramètres (comptes WoW, utilisateurs locaux).</summary>
     [ObservableProperty]
     private bool _isSettingsPanelOpen;
 
@@ -468,9 +474,6 @@ public partial class CartoViewModel : ObservableObject
 
     [RelayCommand]
     private void ToggleRosterPanel() => IsRosterOpen = !IsRosterOpen;
-
-    [RelayCommand]
-    private void ToggleAddonPanel() => IsAddonPanelOpen = !IsAddonPanelOpen;
 
     [RelayCommand]
     private void BrowseWowPath()
@@ -558,9 +561,6 @@ public partial class CartoViewModel : ObservableObject
 
     [ObservableProperty]
     private string? _editNote = string.Empty;
-
-    [ObservableProperty]
-    private bool _showTableView;
 
     // Map overlay toggles (vols uniquement)
     [ObservableProperty]
@@ -690,6 +690,16 @@ public partial class CartoViewModel : ObservableObject
     {
         if (ApplyFiltersChanged())
             OnPropertyChanged(nameof(FilteredCharacters));
+    }
+
+    /// <summary>Placement + filtres carte (appel à l'ouverture de l'onglet Carto).</summary>
+    public void PrepareMapDisplay()
+    {
+        if (!CharactersLoaded)
+            return;
+
+        EnsureCharactersVisibleOnMap(force: true);
+        ApplyFilters();
     }
 
     private static bool FilteredListsEqual(
@@ -967,12 +977,11 @@ public partial class CartoViewModel : ObservableObject
                 ? "Tous les personnages visibles sont placés sur la carte."
                 : $"{n} personnage(s) non placés (zone / instance / coords) — voir liste ci-dessous.";
         }
-
     }
 
     private static bool UnplacedListsEqual(
         IReadOnlyList<CartoUnplacedCharacterItem> current,
-        List<CartoUnplacedCharacterItem> next)
+        IReadOnlyList<CartoUnplacedCharacterItem> next)
     {
         if (current.Count != next.Count)
             return false;
@@ -1276,14 +1285,14 @@ public partial class CartoViewModel : ObservableObject
 
         EnsureZoneCalibrationLoaded();
 
-        if (!ClassicEraMapProjection.TryConvert(sync, out var mapX, out var mapY)
-            && !CartoDungeonMarkerResolver.TryResolve(sync.Zone, sync.SubZone, out mapX, out mapY))
+        if (!CartoDungeonMarkerResolver.TryResolve(sync.Zone, sync.SubZone, out var mapX, out var mapY)
+            && !ClassicEraMapProjection.TryConvert(sync, out mapX, out mapY))
         {
             var zoneLabel = string.IsNullOrWhiteSpace(sync.Zone) ? "?" : sync.Zone;
             if (!string.IsNullOrWhiteSpace(sync.SubZone))
                 zoneLabel += $" — {sync.SubZone}";
             return $"Zone non calibrée : « {zoneLabel} » (map {sync.MapId}).\n"
-                   + "Calibrez le rectangle (volet Zones) ou placez un repère donjon, puis réessayez.";
+                   + "Calibrez le rectangle (volet Zones) ou placez un repère lieu-dit, puis réessayez.";
         }
 
         ApplySyncPosition(character, mapX, mapY);
@@ -1347,8 +1356,8 @@ public partial class CartoViewModel : ObservableObject
         if (sync == null || (sync.X <= 0 && sync.Y <= 0))
             return false;
 
-        if (!ClassicEraMapProjection.TryConvert(sync, out var mapX, out var mapY)
-            && !CartoDungeonMarkerResolver.TryResolve(sync.Zone, sync.SubZone, out mapX, out mapY))
+        if (!CartoDungeonMarkerResolver.TryResolve(sync.Zone, sync.SubZone, out var mapX, out var mapY)
+            && !ClassicEraMapProjection.TryConvert(sync, out mapX, out mapY))
             return false;
 
         ApplySyncPosition(ch, mapX, mapY);
@@ -1413,14 +1422,13 @@ public partial class CartoViewModel : ObservableObject
             Save();
             OnPropertyChanged(nameof(OverlayChanged));
             OnPropertyChanged(CharactersLoadedPropertyName);
-
             var localCount = Characters.Count(c => !c.IsExternal);
             if (!wtfExists)
-                AddonStatusText = $"❌ Dossier WTF introuvable : {wtfPath}";
+                AddonStatusText = $"❌ Dossier de comptes WoW introuvable : {wtfPath}";
             else if (localCount == 0)
-                AddonStatusText = $"⚠ WTF OK mais aucun WowSync.lua — déployez l'addon, jouez, déconnectez-vous.";
+                AddonStatusText = "⚠ Dossier WoW OK mais aucun WowSync.lua — déployez l'addon, jouez, déconnectez-vous.";
             else
-                AddonStatusText = $"✅ {localCount} personnage(s) relu(s) depuis le WTF.";
+                AddonStatusText = $"✅ {localCount} personnage(s) relu(s) depuis les comptes locaux.";
         }
         catch (Exception ex)
         {
@@ -2073,7 +2081,7 @@ public partial class CartoViewModel : ObservableObject
     [ObservableProperty]
     private string _friendUserStatusMessage = string.Empty;
 
-    /// <summary>Utilisateurs « ami » locaux (tous sauf Moi) — regroupement des comptes WTF.</summary>
+    /// <summary>Utilisateurs locaux (tous sauf Moi) — regroupement des comptes WoW.</summary>
     public void RefreshFriendCartoUsers()
     {
         FriendCartoUsers = new ObservableCollection<CartoUser>(
@@ -2086,7 +2094,7 @@ public partial class CartoViewModel : ObservableObject
         var name = NewFriendUserName.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
-            FriendUserStatusMessage = "Indiquez un nom d'ami.";
+            FriendUserStatusMessage = "Indiquez un nom d'utilisateur.";
             return;
         }
 
@@ -2098,14 +2106,14 @@ public partial class CartoViewModel : ObservableObject
 
         if (_data.Users.Any(u => u.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
         {
-            FriendUserStatusMessage = $"L'ami « {name} » existe déjà.";
+            FriendUserStatusMessage = $"L'utilisateur « {name} » existe déjà.";
             return;
         }
 
         var maxOrder = _data.Users.Count > 0 ? _data.Users.Max(u => u.SortOrder) : 0;
         _data.Users.Add(new CartoUser { Name = name, SortOrder = maxOrder + 1 });
         NewFriendUserName = string.Empty;
-        FriendUserStatusMessage = $"Ami « {name} » ajouté.";
+        FriendUserStatusMessage = $"Utilisateur « {name} » ajouté.";
         FinishFriendUserChange();
     }
 
@@ -2139,7 +2147,7 @@ public partial class CartoViewModel : ObservableObject
         }
 
         _data.Users.RemoveAll(u => u.Id == user.Id);
-        FriendUserStatusMessage = $"Ami « {user.Name} » retiré — ses comptes sont passés sous Moi.";
+        FriendUserStatusMessage = $"Utilisateur « {user.Name} » retiré — ses comptes sont passés sous Moi.";
         FinishFriendUserChange();
     }
 
@@ -2184,6 +2192,7 @@ public partial class CartoViewModel : ObservableObject
 
         var syncAccounts = TryReadWowSyncAccounts();
         var rows = new List<AccountSettingRow>();
+        var users = GetOrderedUsers().ToList();
 
         foreach (var sync in syncAccounts.OrderBy(a => a.SourceAccountName, StringComparer.OrdinalIgnoreCase))
         {
@@ -2192,11 +2201,13 @@ public partial class CartoViewModel : ObservableObject
                 sync.SourceAccountName,
                 cfg,
                 sync.Characters.Count,
-                GetAccountGoldCopper(sync.SourceAccountName));
+                GetAccountGoldCopper(sync.SourceAccountName),
+                users);
             if (pendingEdits.TryGetValue(sync.SourceAccountName, out var edit))
             {
                 row.DisplayName = edit.DisplayName;
                 row.UserId = edit.UserId;
+                row.RefreshOwnerDisplayName(users);
             }
 
             rows.Add(row);
@@ -2210,11 +2221,12 @@ public partial class CartoViewModel : ObservableObject
             if (CartoUserMigration.GhostAccountFolders.Contains(folder))
                 continue;
 
-            var orphan = AccountSettingRow.From(folder, cfg, 0, GetAccountGoldCopper(folder));
+            var orphan = AccountSettingRow.From(folder, cfg, 0, GetAccountGoldCopper(folder), users);
             if (pendingEdits.TryGetValue(folder, out var edit))
             {
                 orphan.DisplayName = edit.DisplayName;
                 orphan.UserId = edit.UserId;
+                orphan.RefreshOwnerDisplayName(users);
             }
 
             rows.Add(orphan);
@@ -2293,20 +2305,45 @@ public partial class CartoViewModel : ObservableObject
     {
         _data.Accounts = [.. Accounts];
         _data.Timers = [.. Timers];
-        _data.CharacterProfiles = Characters
-            .Where(c => !c.IsExternal && !string.IsNullOrEmpty(c.SyncKey))
-            .Select(CartoSyncMapper.ToProfile)
-            .ToList();
-        _data.CharacterExtras = Characters
-            .Where(c => !c.IsExternal && !string.IsNullOrEmpty(c.SyncKey))
-            .Select(CartoSyncMapper.ToExtras)
-            .ToList();
+        MergeCharacterProfilesFromMemory();
+        MergeCharacterExtrasFromMemory();
         _data.ExternalCharacters = Characters.Where(c => c.IsExternal).ToList();
         _data.Characters = [.. Characters];
     }
 
-    public const double MinMapZoom = 0.2;
-    public const double MaxMapZoom = 5.0;
+    /// <summary>Fusionne les catégories en mémoire — ne vide pas le fichier si la liste UI n'est pas encore chargée.</summary>
+    private void MergeCharacterProfilesFromMemory()
+    {
+        _data.CharacterProfiles ??= [];
+        var byKey = _data.CharacterProfiles
+            .Where(p => !string.IsNullOrWhiteSpace(p.SyncKey))
+            .ToDictionary(p => p.SyncKey, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var ch in Characters.Where(c => !c.IsExternal && !string.IsNullOrWhiteSpace(c.SyncKey)))
+            byKey[ch.SyncKey] = CartoSyncMapper.ToProfile(ch);
+
+        _data.CharacterProfiles = byKey.Values.ToList();
+    }
+
+    private void MergeCharacterExtrasFromMemory()
+    {
+        _data.CharacterExtras ??= [];
+        var byKey = _data.CharacterExtras
+            .Where(e => !string.IsNullOrWhiteSpace(e.SyncKey))
+            .ToDictionary(e => e.SyncKey, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var ch in Characters.Where(c => !c.IsExternal && !string.IsNullOrWhiteSpace(c.SyncKey)))
+            byKey[ch.SyncKey] = CartoSyncMapper.ToExtras(ch);
+
+        _data.CharacterExtras = byKey.Values.ToList();
+    }
+
+    public const double MinMapZoom = 0.15;
+    public const double MaxMapZoom = 8.0;
+
+    /// <summary>Facteur multiplicatif pour une cran de molette (120 = 1 cran Windows).</summary>
+    public static double WheelZoomFactorFromDelta(int delta) =>
+        Math.Pow(1.12, delta / 120.0);
 
     /// <summary>Zoom ancré sur un point du viewport (coordonnées MapBorder).</summary>
     public void ApplyZoomAt(double viewportX, double viewportY, double factor)
@@ -2321,6 +2358,27 @@ public partial class CartoViewModel : ObservableObject
         MapZoom = newZoom;
         MapOffsetX = viewportX - contentX * newZoom;
         MapOffsetY = viewportY - contentY * newZoom;
+    }
+
+    /// <summary>Empêche de perdre la carte hors écran ; centre si la carte est plus petite que la zone visible.</summary>
+    public void ClampMapPan(double viewportW, double viewportH, double mapPixelW, double mapPixelH)
+    {
+        if (viewportW < 1 || viewportH < 1 || mapPixelW < 1 || mapPixelH < 1)
+            return;
+
+        var scaledW = mapPixelW * MapZoom;
+        var scaledH = mapPixelH * MapZoom;
+        const double edgePad = 24;
+
+        if (scaledW <= viewportW)
+            MapOffsetX = (viewportW - scaledW) / 2;
+        else
+            MapOffsetX = Math.Clamp(MapOffsetX, viewportW - scaledW - edgePad, edgePad);
+
+        if (scaledH <= viewportH)
+            MapOffsetY = (viewportH - scaledH) / 2;
+        else
+            MapOffsetY = Math.Clamp(MapOffsetY, viewportH - scaledH - edgePad, edgePad);
     }
 
     [RelayCommand]
@@ -2494,6 +2552,9 @@ public partial class CartoViewModel : ObservableObject
     [ObservableProperty]
     private string _friendNameInput = string.Empty;
 
+    [ObservableProperty]
+    private string _networkFriendStatusMessage = string.Empty;
+
     partial void OnSyncStatusChanged(string value) => OnPropertyChanged(nameof(FriendsSummary));
 
     public string FriendsSummary
@@ -2504,7 +2565,7 @@ public partial class CartoViewModel : ObservableObject
             if (total == 0)
                 return $"🔄 {SyncStatus}";
             var online = _syncService.Friends.Count(f => f.IsOnline);
-            return $"🔄 {SyncStatus} · {online}/{total} ami(s)";
+            return $"🔄 {SyncStatus} · {online}/{total} ami(s) en ligne";
         }
     }
 
@@ -2527,11 +2588,40 @@ public partial class CartoViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void CopyMyGuid()
+    {
+        try
+        {
+            System.Windows.Clipboard.SetText(MyGuid);
+            NetworkFriendStatusMessage = "Identifiant copié dans le presse-papiers.";
+        }
+        catch
+        {
+            NetworkFriendStatusMessage = "Impossible de copier l'identifiant.";
+        }
+    }
+
+    [RelayCommand]
     private async Task AddFriend()
     {
         var guid = FriendGuidInput.Trim();
-        if (string.IsNullOrWhiteSpace(guid) || guid == MyGuid)
+        if (string.IsNullOrWhiteSpace(guid))
+        {
+            NetworkFriendStatusMessage = "Collez l'identifiant de votre ami.";
             return;
+        }
+
+        if (guid.Equals(MyGuid, StringComparison.OrdinalIgnoreCase))
+        {
+            NetworkFriendStatusMessage = "Vous ne pouvez pas vous ajouter vous-même.";
+            return;
+        }
+
+        if (_syncService.Friends.Any(f => f.Guid.Equals(guid, StringComparison.OrdinalIgnoreCase)))
+        {
+            NetworkFriendStatusMessage = "Cet ami est déjà dans la liste.";
+            return;
+        }
 
         var name = string.IsNullOrWhiteSpace(FriendNameInput)
             ? guid[..Math.Min(8, guid.Length)]
@@ -2540,6 +2630,7 @@ public partial class CartoViewModel : ObservableObject
         await _syncService.SubscribeToFriend(guid, name);
         FriendGuidInput = string.Empty;
         FriendNameInput = string.Empty;
+        NetworkFriendStatusMessage = $"« {name} » ajouté — échange WowSync actif.";
         RefreshFriends();
         SaveSettings();
     }
@@ -2636,13 +2727,6 @@ public partial class CartoViewModel : ObservableObject
         Save();
     }
 
-    [RelayCommand]
-    private void ToggleCharacterSync(WowCharacter character)
-    {
-        character.ExcludeFromSync = !character.ExcludeFromSync;
-        Save();
-    }
-
     // —— Gestionnaire de zones (rectangles sur la carte) ——
 
     public ObservableCollection<CartoZoneRectItem> ZoneRects { get; } = [];
@@ -2686,6 +2770,21 @@ public partial class CartoViewModel : ObservableObject
     [ObservableProperty]
     private string? _zonePanelStatusMessage;
 
+    [ObservableProperty]
+    private bool _showWorldZoneRectOverlays = CartoRuntimeOptions.ShowWorldZoneRectOverlays;
+
+    partial void OnShowWorldZoneRectOverlaysChanged(bool value)
+    {
+        CartoRuntimeOptions.ShowWorldZoneRectOverlays = value;
+        if (!value)
+            SelectedZoneRect = null;
+        if (IsZonesPanelOpen)
+            ZonePanelStatusMessage = value
+                ? "Rectangles de zones affichés sur la carte."
+                : "Rectangles masqués — pastilles lieux-dits visibles.";
+        OnPropertyChanged(nameof(OverlayChanged));
+    }
+
     partial void OnIsZonesPanelOpenChanged(bool value)
     {
         IsZoneEditMode = value;
@@ -2697,6 +2796,10 @@ public partial class CartoViewModel : ObservableObject
             LoadDungeonMarkers();
             RefreshZoneCatalogItems();
             SyncSelectedZoneFromCombo();
+            ShowWorldZoneRectOverlays = CartoRuntimeOptions.ShowWorldZoneRectOverlays;
+            ZonePanelStatusMessage = ShowWorldZoneRectOverlays
+                ? "Rectangles de zones affichés sur la carte."
+                : "Rectangles masqués — cochez « Afficher les zones » pour calibrer.";
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(
                 RefreshUnplacedCharacters,
                 System.Windows.Threading.DispatcherPriority.Background);
@@ -2742,10 +2845,10 @@ public partial class CartoViewModel : ObservableObject
         if (value != null)
         {
             SelectedZoneRect = null;
-            ZonePanelStatusMessage = $"Donjon : {value.DisplayName} — les autres repères sont masqués";
+            ZonePanelStatusMessage = $"Lieu-dit : {value.DisplayName} — les autres repères sont masqués";
         }
         else if (IsZonesPanelOpen && SelectedZoneRect == null)
-            ZonePanelStatusMessage = "Tous les repères donjons visibles";
+            ZonePanelStatusMessage = "Tous les repères lieux-dits visibles";
 
         OnPropertyChanged(nameof(OverlayChanged));
     }
@@ -2769,7 +2872,7 @@ public partial class CartoViewModel : ObservableObject
         {
             IsPlacingCharacter = false;
             IsPlacingTimer = false;
-            ZonePanelStatusMessage = "Clic sur la carte = placer le repère donjon";
+            ZonePanelStatusMessage = "Clic sur la carte = placer le repère lieu-dit";
         }
 
         OnPropertyChanged(nameof(OverlayChanged));
@@ -2853,13 +2956,16 @@ public partial class CartoViewModel : ObservableObject
         }
 
         DungeonCatalogItems.Clear();
-        foreach (var d in DungeonCatalog)
+        foreach (var d in DungeonCatalog
+                     .OrderBy(d => d.IsLieuDit ? 0 : 1)
+                     .ThenBy(d => d.NameFr, StringComparer.OrdinalIgnoreCase))
         {
             DungeonCatalogItems.Add(new DungeonCatalogListItem
             {
                 Key = d.Key,
                 NameFr = d.NameFr,
-                ParentZoneFr = d.ParentZoneFr
+                ParentZoneFr = d.ParentZoneFr,
+                IsLieuDit = d.IsLieuDit
             });
         }
     }
@@ -2910,7 +3016,7 @@ public partial class CartoViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(DungeonToPlaceKey))
         {
-            ZonePanelStatusMessage = "Choisissez un donjon dans la liste, puis cliquez ＋.";
+            ZonePanelStatusMessage = "Choisissez un lieu-dit dans la liste, puis cliquez ＋.";
             return;
         }
 
@@ -2938,6 +3044,7 @@ public partial class CartoViewModel : ObservableObject
         SelectedDungeonMarker = marker;
         IsPlacingDungeonMarker = false;
         PersistDungeonMarkers();
+        ApplyDungeonMarkersChanged();
         ZonePanelStatusMessage = $"Repère placé : {marker.DisplayName}";
         OnPropertyChanged(nameof(OverlayChanged));
         return true;
@@ -2945,6 +3052,13 @@ public partial class CartoViewModel : ObservableObject
 
     public void PersistDungeonMarkers() =>
         DungeonMarkerStore.SaveAll(DungeonMarkers.Where(m => m.MapX > 0 || m.MapY > 0));
+
+    private void ApplyDungeonMarkersChanged()
+    {
+        BumpMapPlacementStamp();
+        RebuildPrecomputedMapPositions();
+        FinishMapPlacementForDisplay();
+    }
 
     private void SortDungeonMarkers()
     {
@@ -2962,6 +3076,7 @@ public partial class CartoViewModel : ObservableObject
         SelectedDungeonMarker.MapX = Math.Clamp(mapX, 0, 1);
         SelectedDungeonMarker.MapY = Math.Clamp(mapY, 0, 1);
         PersistDungeonMarkers();
+        ApplyDungeonMarkersChanged();
         OnPropertyChanged(nameof(OverlayChanged));
     }
 
@@ -3088,6 +3203,7 @@ public partial class CartoViewModel : ObservableObject
             SelectedDungeonMarker = null;
 
         PersistDungeonMarkers();
+        ApplyDungeonMarkersChanged();
         ZonePanelStatusMessage = $"{name} : repère supprimé de la liste.";
         OnPropertyChanged(nameof(OverlayChanged));
     }
@@ -3107,5 +3223,7 @@ public partial class CartoViewModel : ObservableObject
         RebuildPrecomputedMapPositions();
         FinishMapPlacementForDisplay();
         OnPropertyChanged(nameof(OverlayChanged));
+        if (IsZonesPanelOpen)
+            RefreshUnplacedCharacters();
     }
 }

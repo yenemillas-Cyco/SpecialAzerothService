@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -5,6 +6,7 @@ using System.Windows.Media;
 using SpecialAzerothService.Core.Models.Carto;
 using SpecialAzerothService.Core.Models.WowSync;
 using SpecialAzerothService.Core.Services;
+using CartoProfessionCooldownsService = SpecialAzerothService.Core.Services.CartoProfessionCooldowns;
 using WindowsOrganiserApp.ViewModels;
 
 namespace WindowsOrganiserApp.Controls;
@@ -36,6 +38,10 @@ public static class CartoCharacterPresentation
     public static bool ShowProfessionsBody(WowCharacter ch) => IsPersonnages(ch);
 
     public static bool ShowCooldownsBody(WowCharacter ch) => IsPersonnages(ch);
+
+    /// <summary>Métier CD éligible (≥ 250) ou cooldown déjà actif/suivi.</summary>
+    public static bool HasTrackedProfession(WowCharacter ch, WowCharacterData? sync = null) =>
+        CartoProfessionCooldowns.QualifiesForCooldownRoster(ch, sync);
 
     /// <summary>Or du personnage (toutes catégories locales, dont Banque).</summary>
     public static bool ShowGoldBody(WowCharacter ch) => !ch.IsExternal;
@@ -334,17 +340,71 @@ public static class CartoCharacterPresentation
         return frame;
     }
 
-    public static TextBlock? BuildSyncDateLabel(string? lastUpdate, double fontSize = 9)
+    public static string? FormatSyncDateDisplay(string? lastUpdate)
     {
         if (string.IsNullOrWhiteSpace(lastUpdate))
             return null;
 
+        var raw = lastUpdate.Trim();
+        if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out var utc)
+            || DateTime.TryParse(raw, out utc))
+        {
+            return utc.ToString("dddd d MMMM yyyy · HH:mm", CultureInfo.GetCultureInfo("fr-FR"));
+        }
+
+        return raw;
+    }
+
+    public static TextBlock? BuildSyncDateLabel(string? lastUpdate, double fontSize = 9)
+    {
+        var formatted = FormatSyncDateDisplay(lastUpdate);
+        if (string.IsNullOrWhiteSpace(formatted))
+            return null;
+
         return new TextBlock
         {
-            Text = $"Sync {lastUpdate.Trim()}",
+            Text = $"Sync {formatted}",
             FontSize = fontSize,
             Foreground = SyncDateBrush,
-            TextTrimming = TextTrimming.CharacterEllipsis
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            ToolTip = formatted
+        };
+    }
+
+    public static Border? BuildProminentSyncBanner(string? lastUpdate)
+    {
+        var formatted = FormatSyncDateDisplay(lastUpdate);
+        if (string.IsNullOrWhiteSpace(formatted))
+            return null;
+
+        var panel = new StackPanel();
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Dernière synchronisation WoW",
+            FontSize = 10,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = DimBrush,
+            Margin = new Thickness(0, 0, 0, 4)
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = formatted,
+            FontSize = 13,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(150, 215, 255)),
+            TextWrapping = TextWrapping.Wrap,
+            ToolTip = lastUpdate?.Trim()
+        });
+
+        return new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(48, 40, 90, 140)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(120, 80, 150, 210)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(10, 8, 10, 8),
+            Margin = new Thickness(0, 0, 0, 10),
+            Child = panel
         };
     }
 

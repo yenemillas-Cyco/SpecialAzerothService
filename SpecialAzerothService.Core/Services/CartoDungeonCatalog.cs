@@ -1,12 +1,13 @@
 namespace SpecialAzerothService.Core.Services;
 
-/// <summary>Catalogue des instances Classic Era (repères carte monde).</summary>
+/// <summary>Catalogue des repères carte monde : instances + lieux-dits.</summary>
 public static class CartoDungeonCatalog
 {
-    public readonly record struct DungeonEntry(string Key, string NameFr, string ParentZoneFr);
+    public readonly record struct DungeonEntry(string Key, string NameFr, string ParentZoneFr, bool IsLieuDit = false);
 
     public static IReadOnlyList<DungeonEntry> All { get; } =
     [
+        new("lights_hope_chapel", "Chapelle de l'Espoir de Lumière", "Maleterres de l'Est", IsLieuDit: true),
         new("ragefire", "Gouffre de Ragefeu", "Durotar / Orgrimmar"),
         new("deadmines", "Mortemines", "Marche de l'Ouest"),
         new("wailing_caverns", "Cavernes des Lamentations", "Les Tarides"),
@@ -21,15 +22,14 @@ public static class CartoDungeonCatalog
         new("zul_farrak", "Zul'Farrak", "Tanaris"),
         new("maraudon", "Maraudon", "Désolace"),
         new("sunken_temple", "Temple d'Atal'Hakkar", "Marais des Chagrins"),
-        new("blackrock_depths", "Profondeurs de Rochenoire", "Mont Rochenoire"),
+        new("mont_blackrock", "Mont Blackrock", "Steppes Ardentes / BRD / Pic"),
         new("dire_maul", "Haches-Tripes", "Féralas"),
-        new("blackrock_spire_lower", "Pic de Rochenoire inférieur", "Mont Rochenoire"),
-        new("blackrock_spire_upper", "Pic de Rochenoire supérieur", "Mont Rochenoire"),
         new("stratholme", "Stratholme", "Maleterres de l'Est"),
         new("scholomance", "Scholomance", "Maleterres de l'Ouest"),
         new("zul_gurub", "Zul'Gurub", "Vallée de Strangleronce"),
         new("onyxia", "Repaire d'Onyxia", "Marécage d'Âprefange"),
         new("molten_core", "Cœur du Magma", "Mont Rochenoire"),
+        new("gates_aq", "Portes d'Ahn'Qiraj", "Silithus"),
         new("ruins_aq", "Ruines d'Ahn'Qiraj", "Silithus"),
         new("temple_aq", "Temple d'Ahn'Qiraj", "Silithus"),
         new("blackwing_lair", "Repaire de l'Aile noire", "Mont Rochenoire"),

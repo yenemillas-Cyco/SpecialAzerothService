@@ -15,7 +15,7 @@ public interface IWowSyncService
 
 public sealed class WowSyncService : IWowSyncService
 {
-    public const string AddonVersionValue = "1.3.6";
+    public const string AddonVersionValue = "1.4.0";
     public string AddonVersion => AddonVersionValue;
 
     private readonly ISettingsService _settingsService;
@@ -140,6 +140,7 @@ public sealed class WowSyncService : IWowSyncService
         ch.Mail = ParseMail(LuaTableParser.GetTable(d, "mail"));
         ch.Sync = ParseSyncMeta(LuaTableParser.GetTable(d, "syncMeta"));
         ch.Cooldowns = ParseCooldowns(LuaTableParser.GetTable(d, "cooldowns"));
+        ch.KnownCooldownKeys = ParseKnownCooldownKeys(LuaTableParser.GetTable(d, "knownCooldowns"));
 
         return ch;
     }
@@ -155,6 +156,29 @@ public sealed class WowSyncService : IWowSyncService
             Professions = LuaTableParser.GetString(table, "professions"),
             Cooldowns = LuaTableParser.GetString(table, "cooldowns")
         };
+    }
+
+    private static List<string> ParseKnownCooldownKeys(Dictionary<string, object?>? table)
+    {
+        var keys = new List<string>();
+        if (table == null)
+            return keys;
+
+        foreach (var (_, value) in table)
+        {
+            if (value is Dictionary<string, object?> row)
+            {
+                var key = LuaTableParser.GetString(row, "key");
+                if (!string.IsNullOrWhiteSpace(key))
+                    keys.Add(key.Trim());
+            }
+            else if (value is string s && !string.IsNullOrWhiteSpace(s))
+                keys.Add(s.Trim());
+        }
+
+        return keys
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static List<WowProfessionCooldown> ParseCooldowns(Dictionary<string, object?>? table)
@@ -269,7 +293,7 @@ public sealed class WowSyncService : IWowSyncService
 
     private const string LuaContent =
         """
-        local WOWSYNC_VERSION = "1.3.6"
+        local WOWSYNC_VERSION = "1.4.0"
         local WOWSYNC_DEBUG = false
         local function WSLog(msg)
             if WOWSYNC_DEBUG then print(msg) end
@@ -445,6 +469,93 @@ public sealed class WowSyncService : IWowSyncService
                 end
             end
             return 0, 0
+        end
+
+        local function SpellIsKnown(spellId)
+            if not spellId or spellId <= 0 then return false end
+            if IsSpellKnown then
+                if IsSpellKnown(spellId, false) then return true end
+                if IsSpellKnown(spellId) then return true end
+            end
+            if IsPlayerSpell and IsPlayerSpell(spellId) then return true end
+            return false
+        end
+
+        local function PlayerHasItemId(itemId)
+            if not itemId or itemId <= 0 then return false end
+            for bag = 0, 4 do
+                local slots = _GetNumSlots(bag) or 0
+                for slot = 1, slots do
+                    local slotId = nil
+                    if C_Container and C_Container.GetContainerItemInfo then
+                        local info = C_Container.GetContainerItemInfo(bag, slot)
+                        slotId = info and (info.itemID or info.itemId)
+                    else
+                        local link = _GetItemLink(bag, slot)
+                        if link then slotId = tonumber(link:match("item:(%d+)")) end
+                    end
+                    if slotId == itemId then return true end
+                end
+            end
+            return false
+        end
+
+        local function AddKnownKey(keys, seen, key)
+            if not key or seen[key] then return end
+            seen[key] = true
+            table.insert(keys, { key = key })
+        end
+
+        local function ScanKnownProfessionCooldowns()
+            local keys = {}
+            local seen = {}
+            if SpellIsKnown(18560) then AddKnownKey(keys, seen, "mooncloth") end
+            if SpellIsKnown(17187) then AddKnownKey(keys, seen, "arcanite") end
+            for _, spellId in ipairs({ 17559, 17560, 17561, 17562, 17563, 17564, 17565, 17566 }) do
+                if SpellIsKnown(spellId) then AddKnownKey(keys, seen, "elemental") end
+            end
+            if PlayerHasItemId(15846) then AddKnownKey(keys, seen, "salt") end
+            if TradeSkillFrame and TradeSkillFrame:IsShown() and GetNumTradeSkills then
+                for i = 1, GetNumTradeSkills() do
+                    local skillName, skillType = GetTradeSkillInfo(i)
+                    if skillType ~= "header" then
+                        local lname = string.lower(skillName or "")
+                        if lname:find("lunaire") or lname:find("mooncloth") then
+                            AddKnownKey(keys, seen, "mooncloth")
+                        elseif lname:find("arcanite") then
+                            AddKnownKey(keys, seen, "arcanite")
+                        elseif lname:find("element") or lname:find("elementaire") then
+                            AddKnownKey(keys, seen, "elemental")
+                        elseif lname:find("sel") and (lname:find("rafin") or lname:find("tamis") or lname:find("shaker")) then
+                            AddKnownKey(keys, seen, "salt")
+                        end
+                    end
+                end
+            end
+            return keys
+        end
+
+        local function MergeKnownCooldowns(prev, fresh)
+            local seen = {}
+            local out = {}
+            local function ingest(list)
+                if not list then return end
+                for _, item in ipairs(list) do
+                    local k = type(item) == "table" and item.key or item
+                    AddKnownKey(out, seen, k)
+                end
+            end
+            ingest(prev)
+            ingest(fresh)
+            return out
+        end
+
+        local function RefreshKnownCooldowns(entry)
+            if not entry then return end
+            entry.knownCooldowns = MergeKnownCooldowns(entry.knownCooldowns, ScanKnownProfessionCooldowns())
+            if entry.knownCooldowns and #entry.knownCooldowns > 0 then
+                TouchSync(GetCharKey(), "knownCooldowns")
+            end
         end
 
         local function ScanCooldowns()
@@ -686,6 +797,7 @@ public sealed class WowSyncService : IWowSyncService
                     bank = prev.bank or {},
                     mail = prev.mail or {},
                     professions = prev.professions or {},
+                    knownCooldowns = prev.knownCooldowns or {},
                     syncMeta = prev.syncMeta or {},
                 }
                 WowSyncDB[key] = entry
@@ -848,6 +960,7 @@ public sealed class WowSyncService : IWowSyncService
                 mail = prev.mail or {},
                 syncMeta = prev.syncMeta or {},
                 cooldowns = prev.cooldowns or {},
+                knownCooldowns = prev.knownCooldowns or {},
                 lastUpdate = date("%Y-%m-%d %H:%M:%S"),
                 xpPercent = (function()
                     local xp, maxXp = UnitXP("player"), UnitXPMax("player")
@@ -868,6 +981,11 @@ public sealed class WowSyncService : IWowSyncService
                 end
             end)
             if not ok1 then WSLog("|cFFFF0000[WowSync]|r Err metiers: " .. tostring(e1)) end
+
+            local okKnown, eKnown = pcall(function()
+                RefreshKnownCooldowns(entry)
+            end)
+            if not okKnown then WSLog("|cFFFF0000[WowSync]|r Err CD connus: " .. tostring(eKnown)) end
 
             local ok3, e3 = pcall(function()
                 local cds = ScanCooldowns()
@@ -958,6 +1076,7 @@ public sealed class WowSyncService : IWowSyncService
                 or event == "SPELL_UPDATE_COOLDOWN" then
                 local key = GetCharKey()
                 if WowSyncDB[key] then
+                    RefreshKnownCooldowns(WowSyncDB[key])
                     local cds = ScanCooldowns()
                     WowSyncDB[key].cooldowns = cds
                     if #cds > 0 then TouchSync(key, "cooldowns") end

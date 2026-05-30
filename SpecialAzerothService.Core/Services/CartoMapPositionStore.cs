@@ -11,6 +11,9 @@ namespace SpecialAzerothService.Core.Services;
 /// </summary>
 public static class CartoMapPositionStore
 {
+    /// <summary>Incrémenter quand la logique de projection zone change (invalide le cache positions).</summary>
+    public const string ProjectionLogicVersion = "12";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -29,17 +32,25 @@ public static class CartoMapPositionStore
     {
         try
         {
-            if (!File.Exists(ZoneMapCalibration.FilePath))
-                return "builtin";
-
-            var bytes = File.ReadAllBytes(ZoneMapCalibration.FilePath);
-            var hash = SHA256.HashData(bytes);
-            return Convert.ToHexString(hash.AsSpan(0, 8));
+            var zoneHash = File.Exists(ZoneMapCalibration.FilePath)
+                ? HashFilePrefix(ZoneMapCalibration.FilePath)
+                : "nozone";
+            var dungeonHash = File.Exists(DungeonMarkerStore.FilePath)
+                ? HashFilePrefix(DungeonMarkerStore.FilePath)
+                : "nodungeon";
+            return $"{ProjectionLogicVersion}-{zoneHash}-{dungeonHash}";
         }
         catch
         {
-            return "builtin";
+            return $"{ProjectionLogicVersion}-builtin";
         }
+    }
+
+    private static string HashFilePrefix(string path)
+    {
+        var bytes = File.ReadAllBytes(path);
+        var hash = SHA256.HashData(bytes);
+        return Convert.ToHexString(hash.AsSpan(0, 8));
     }
 
     public static CacheFile? TryLoad(string zoneStamp)

@@ -46,8 +46,9 @@ public static class CartoMapPositionPrecompute
 
                 if (sync.X > 0 || sync.Y > 0)
                 {
-                    placed = ClassicEraMapProjection.TryConvert(sync, out mapX, out mapY)
-                             || CartoDungeonMarkerResolver.TryResolve(sync.Zone, sync.SubZone, out mapX, out mapY);
+                    // Repère donjon avant projection zone (ex. Portes AQ : mapId 1414 + coords continent).
+                    placed = CartoDungeonMarkerResolver.TryResolve(sync.Zone, sync.SubZone, out mapX, out mapY)
+                             || ClassicEraMapProjection.TryConvert(sync, out mapX, out mapY);
                 }
 
                 results.Add(new CharacterPlacement(sync.Key, mapX, mapY, placed));

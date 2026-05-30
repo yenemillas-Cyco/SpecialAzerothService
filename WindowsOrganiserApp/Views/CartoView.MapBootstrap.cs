@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using WindowsOrganiserApp;
+using WindowsOrganiserApp.Services;
 using SpecialAzerothService.Core.Services;
 using WindowsOrganiserApp.ViewModels;
 
@@ -20,10 +21,14 @@ public partial class CartoView
     private bool _cartoUiLive;
     private bool _pendingInitialMapFit;
     private bool _mapFitLayoutHooked;
+    private bool _deferFinishCartoInitPending;
 
-    private void StartCartoSession()
+    private void StartCartoSession(bool ignoreVisibility = false)
     {
-        if (!IsVisible || Vm == null)
+        if (Vm == null)
+            return;
+
+        if (!ignoreVisibility && !IsVisible)
             return;
 
         if (_cartoInit.IsComplete)
@@ -31,7 +36,9 @@ public partial class CartoView
             HideMapLoadingOverlay();
             EnsureMapImageOnUi();
             TryApplyInitialMapFit();
+            _cartoUiLive = true;
             RefreshMapCharactersWhenReady();
+            PaintMapMarkers();
             return;
         }
 
@@ -62,7 +69,7 @@ public partial class CartoView
 
             await Dispatcher.InvokeAsync(() =>
             {
-                if (!IsVisible || Vm == null)
+                if (Vm == null)
                     return;
 
                 ApplyWorldMapToUi(pixelW, pixelH);
@@ -159,6 +166,9 @@ public partial class CartoView
             return;
 
         TryApplyInitialMapFit();
+        SyncMapViewportConstraints();
+        if (_cartoUiLive || _cartoInit.IsComplete)
+            RequestMapMarkersRefresh();
         if (Vm?.IsZoneEditMode == true)
             RedrawZoneEditor();
     }
@@ -188,23 +198,33 @@ public partial class CartoView
             fitZoom = 0.45;
 
         Vm.MapZoom = Math.Clamp(fitZoom, CartoViewModel.MinMapZoom, CartoViewModel.MaxMapZoom);
-        Vm.MapOffsetX = 0;
-        Vm.MapOffsetY = 0;
+        Vm.MapOffsetX = (viewportW - mapW * Vm.MapZoom) / 2;
+        Vm.MapOffsetY = (viewportH - mapH * Vm.MapZoom) / 2;
+        Vm.ClampMapPan(viewportW, viewportH, mapW, mapH);
         MapScroll?.ScrollToHorizontalOffset(0);
         MapScroll?.ScrollToVerticalOffset(0);
     }
 
     private void FinishCartoInitOnUi()
     {
-        if (Vm == null || !IsVisible)
+        if (Vm == null)
         {
             _cartoInit.Reset();
             return;
         }
 
+        if (!IsVisible)
+        {
+            _deferFinishCartoInitPending = true;
+            return;
+        }
+
+        _deferFinishCartoInitPending = false;
+        _cartoUiLive = true;
+
         TryApplyInitialMapFit();
 
-        if (Vm.CharactersLoaded && Vm.Characters.Count > 0)
+        if (Vm.CharactersLoaded)
             RefreshMapCharactersWhenReady();
         RedrawTimerMarkers();
         PreloadCharacterRoster();
@@ -213,9 +233,28 @@ public partial class CartoView
         HideMapLoadingOverlay();
 
         _cartoInit.Complete();
-        _cartoUiLive = true;
+        PaintMapMarkers();
         if (Vm.IsZoneEditMode)
             RedrawZoneEditor();
+    }
+
+    private void ResumeDeferredCartoInitIfNeeded()
+    {
+        if (!IsVisible || Vm == null)
+            return;
+
+        if (_deferFinishCartoInitPending && _cartoInit.Phase == CartoInitPhase.Running)
+        {
+            FinishCartoInitOnUi();
+            return;
+        }
+
+        if (_cartoInit.IsComplete)
+        {
+            _cartoUiLive = true;
+            RefreshMapCharactersWhenReady();
+            PaintMapMarkers();
+        }
     }
 
     /// <summary>Construit le roster en mémoire (volet fermé) pour ouverture instantanée.</summary>
@@ -233,8 +272,12 @@ public partial class CartoView
             return;
 
         RebuildCharacterRoster();
-        if (_cartoInit.IsComplete)
-            RequestMapMarkersRefresh();
+        if (!_cartoInit.IsComplete)
+            return;
+
+        _cartoUiLive = true;
+        RefreshMapCharactersWhenReady();
+        PaintMapMarkers();
     }
 
     /// <summary>Carte prête (splash ou retour onglet) : placement WowSync (une fois) + marqueurs.</summary>
@@ -247,6 +290,8 @@ public partial class CartoView
             Vm.EnsureCharactersVisibleOnMap();
         else
             Vm.RefreshMapDisplayPlacement();
-        RequestMapMarkersRefresh();
+
+        if (_cartoUiLive)
+            PaintMapMarkers();
     }
 }

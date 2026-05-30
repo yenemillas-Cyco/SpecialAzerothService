@@ -73,36 +73,6 @@
         </Setter>
     </Style>
 
-    <Style x:Key="CartoSyncGearToggle" TargetType="ToggleButton">
-        <Setter Property="Width" Value="28"/>
-        <Setter Property="Height" Value="28"/>
-        <Setter Property="Cursor" Value="Hand"/>
-        <Setter Property="ToolTip" Value="Réglages de synchronisation"/>
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="ToggleButton">
-                    <Border x:Name="Bd" Width="28" Height="28" CornerRadius="4"
-                            BorderThickness="1.5" BorderBrush="{DynamicResource BorderBrush}"
-                            Background="{DynamicResource SelectionBgBrush}">
-                        <TextBlock x:Name="Gear" Text="⚙" FontSize="15"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource SubtextBrush}"/>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectionActiveBgBrush}"/>
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource GoldBrush}"/>
-                            <Setter TargetName="Gear" Property="Foreground" Value="{DynamicResource BrightGoldBrush}"/>
-                        </Trigger>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BrightGoldBrush}"/>
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
     <Style x:Key="CartoCategoryExpander" TargetType="Expander">
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>

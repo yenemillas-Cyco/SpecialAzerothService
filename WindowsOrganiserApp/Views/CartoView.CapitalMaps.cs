@@ -222,7 +222,7 @@ public partial class CartoView
                 slot.Canvas.Children.RemoveAt(i);
         }
 
-        if (!Vm.IsZoneEditMode) return;
+        if (!Vm.IsZoneEditMode || !CartoRuntimeOptions.ShowWorldZoneRectOverlays) return;
 
         var w = slot.Canvas.ActualWidth;
         var h = slot.Canvas.ActualHeight;
@@ -389,7 +389,8 @@ public partial class CartoView
     {
         zone = null;
         isResizeHandle = false;
-        if (Vm == null || !Vm.IsZoneEditMode) return false;
+        if (Vm == null || !Vm.IsZoneEditMode || !CartoRuntimeOptions.ShowWorldZoneRectOverlays)
+            return false;
 
         var nx = mapPos.X / mapW;
         var ny = mapPos.Y / mapH;

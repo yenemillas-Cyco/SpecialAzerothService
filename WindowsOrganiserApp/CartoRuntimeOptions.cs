@@ -8,4 +8,7 @@ public static class CartoRuntimeOptions
 
     /// <summary>Liste plate XAML (secours perf). False = roster groupé utilisateur / catégorie.</summary>
     public static bool UseSimpleCharacterList { get; set; } = false;
+
+    /// <summary>Rectangles zones open world sur WowMap (désactivé le temps du calibrage donjons).</summary>
+    public static bool ShowWorldZoneRectOverlays { get; set; } = false;
 }

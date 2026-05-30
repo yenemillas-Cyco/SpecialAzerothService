@@ -105,8 +105,7 @@ public static class CartoSyncMapper
     {
         foreach (var cd in sync.Cooldowns)
         {
-            if (cd.IsReady) continue;
-            var type = MapCooldownKey(cd.Key, cd.Name);
+            var type = CooldownGroups.MapSyncCooldownKey(cd.Key, cd.Name);
             if (type == null) continue;
 
             var entry = carto.Cooldowns.FirstOrDefault(c => c.Type == type)
@@ -122,10 +121,18 @@ public static class CartoSyncMapper
             else if (CooldownGroups.IsAlchemyTransmute(type.Value))
                 entry.Type = type.Value;
 
-            if (cd.ReadyAtUtc is { } readyAt)
+            if (cd.IsReady)
             {
-                entry.ReadyAtOverride = readyAt;
-                var remaining = readyAt - DateTime.UtcNow;
+                entry.ReadyAtOverride = null;
+                if (cd.ReadyAtUtc is { } readyAt)
+                    entry.LastUsed = readyAt - entry.Duration;
+                continue;
+            }
+
+            if (cd.ReadyAtUtc is { } runningReadyAt)
+            {
+                entry.ReadyAtOverride = runningReadyAt;
+                var remaining = runningReadyAt - DateTime.UtcNow;
                 if (remaining > TimeSpan.Zero)
                 {
                     var total = entry.Duration;
@@ -134,25 +141,14 @@ public static class CartoSyncMapper
                     else if (remaining > total)
                         total = remaining;
 
-                    entry.LastUsed = readyAt - total;
+                    entry.LastUsed = runningReadyAt - total;
                 }
+                else if (entry.LastUsed == null)
+                    entry.LastUsed = runningReadyAt - entry.Duration;
             }
         }
 
         CooldownGroups.NormalizeAlchemyCooldowns(carto.Cooldowns);
-    }
-
-    private static CooldownType? MapCooldownKey(string key, string? syncName = null)
-    {
-        if (CooldownGroups.MapAlchemySyncKey(key, syncName) is { } alchemy)
-            return alchemy;
-
-        return key.ToLowerInvariant() switch
-        {
-            "mooncloth" => CooldownType.Mooncloth,
-            "salt" => CooldownType.Sel_raffine,
-            _ => null
-        };
     }
 
     public static CartoCharacterProfile MigrateLegacyProfile(WowCharacter ch) => new()

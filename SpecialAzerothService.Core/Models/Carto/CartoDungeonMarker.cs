@@ -2,7 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace SpecialAzerothService.Core.Models.Carto;
 
-/// <summary>Repère donjon / instance sur WowMap.png (coords 0–1).</summary>
+/// <summary>Repère lieu-dit / instance sur WowMap.png (coords 0–1).</summary>
 public partial class CartoDungeonMarker : ObservableObject
 {
     public string Id { get; init; } = Guid.NewGuid().ToString("N");
