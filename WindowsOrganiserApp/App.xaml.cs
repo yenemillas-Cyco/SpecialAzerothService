@@ -254,6 +254,10 @@ public partial class App : Application
     {
         try
         {
+            var cartoVm = _serviceProvider?.GetService<CartoViewModel>();
+            if (cartoVm != null && cartoVm.CharactersLoaded)
+                cartoVm.RunNetworkSyncAsync(SyncRunTrigger.Shutdown).Wait(TimeSpan.FromSeconds(8));
+
             var sync = _serviceProvider?.GetService<SyncService>();
             sync?.DisconnectAsync().Wait(TimeSpan.FromSeconds(3));
         }

@@ -61,4 +61,7 @@ public sealed class WowCharacter
     public bool ExcludeFromSync { get; set; }
     public bool IsExternal { get; set; }
     public string? ExternalSource { get; set; }
+
+    /// <summary>Flux TP public : nom de compte renommé par le propriétaire (ex. Eloi).</summary>
+    public string? ExternalAccountDisplayName { get; set; }
 }

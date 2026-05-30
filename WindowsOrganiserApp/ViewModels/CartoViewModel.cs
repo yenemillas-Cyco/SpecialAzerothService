@@ -65,14 +65,18 @@ public partial class CartoViewModel : ObservableObject
         foreach (var ext in _data.ExternalCharacters)
             Characters.Add(ext);
 
-        var friendGuids = _syncService.Friends.Select(f => f.Guid).ToHashSet();
-        var orphanedExternal = Characters
-            .Where(c => c.IsExternal && (c.ExternalSource == null || !friendGuids.Contains(c.ExternalSource)))
-            .ToList();
-        foreach (var ch in orphanedExternal)
-            Characters.Remove(ch);
+        PruneOrphanedExternalCharacters();
 
         _syncService.FriendDataReceived += OnFriendDataReceived;
+        _syncService.TpBoyPublicReceived += OnTpBoyPublicReceived;
+        _syncService.FriendLinkStateChanged += (guid, state) =>
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+            {
+                var friend = _syncService.GetFriend(guid);
+                if (friend != null)
+                    friend.LinkState = state;
+                RefreshFriends();
+            });
         _syncService.FriendOnlineChanged += (guid, online) =>
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
             {
@@ -84,8 +88,7 @@ public partial class CartoViewModel : ObservableObject
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
             {
                 if (CharactersLoaded)
-                    PersistDataForSync();
-                _ = _syncService.PushUpdateAsync(_data);
+                    _ = RunNetworkSyncAsync(SyncRunTrigger.RemoteRequest);
             });
         _syncService.ConnectionStateChanged += s =>
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(async () =>
@@ -94,10 +97,6 @@ public partial class CartoViewModel : ObservableObject
                 OnPropertyChanged(nameof(FriendsSummary));
                 if (s == "Connecté")
                 {
-                    if (CharactersLoaded)
-                        PersistDataForSync();
-                    _ = _syncService.PushUpdateAsync(_data);
-
                     var onlineGuids = await _syncService.GetOnlineFriendsAsync();
                     foreach (var f in _syncService.Friends)
                         f.IsOnline = onlineGuids.Contains(f.Guid);
@@ -297,7 +296,9 @@ public partial class CartoViewModel : ObservableObject
         var filtered = Characters.AsEnumerable()
             .Where(c => !c.IsHidden)
             .Where(IsCharacterInVisibleRosterSubtree)
-            .Where(c => !c.IsExternal || (c.ExternalSource != null && !hiddenFriends.Contains(c.ExternalSource)));
+            .Where(c => CartoExternalSource.IsTpBoyPublic(c.ExternalSource)
+                        || !c.IsExternal
+                        || (c.ExternalSource != null && !hiddenFriends.Contains(c.ExternalSource)));
 
         if (FilterClass.HasValue)
             filtered = filtered.Where(c => c.Class == FilterClass.Value);
@@ -358,6 +359,9 @@ public partial class CartoViewModel : ObservableObject
 
         Report(90, "Préparation de l'interface Carto…");
         await uiDispatcher.InvokeAsync(PrepareMapDisplay, DispatcherPriority.Background);
+
+        Report(96, "Synchronisation réseau…");
+        await RunNetworkSyncAsync(SyncRunTrigger.Startup).ConfigureAwait(false);
     }
 
     public ObservableCollection<WowAccount> Accounts { get; }
@@ -633,6 +637,9 @@ public partial class CartoViewModel : ObservableObject
 
     private bool PassesRosterFilters(WowCharacter c)
     {
+        if (CartoExternalSource.IsTpBoyPublic(c.ExternalSource))
+            return false;
+
         if (c.IsExternal)
         {
             var hiddenFriends = _syncService.Friends
@@ -1251,7 +1258,10 @@ public partial class CartoViewModel : ObservableObject
         OnPropertyChanged(nameof(OverlayChanged));
 
         if (saveAfter)
+        {
             Save();
+            _ = RunNetworkSyncAsync(SyncRunTrigger.Manual);
+        }
 
         return stackIndex;
     }
@@ -2048,6 +2058,9 @@ public partial class CartoViewModel : ObservableObject
 
     public string GetCharacterFriendGroup(WowCharacter ch)
     {
+        if (CartoExternalSource.IsTpBoyPublic(ch.ExternalSource))
+            return "TP communauté";
+
         if (ch.IsExternal)
         {
             if (!string.IsNullOrEmpty(ch.ExternalSource))
@@ -2519,7 +2532,6 @@ public partial class CartoViewModel : ObservableObject
         AccountIdToNameConverter.Accounts = [.. Accounts];
         CharacterSyncGoldConverter.Vm = this;
         _cartoService.Save(BuildDiskSnapshot());
-        _ = _syncService.PushUpdateAsync(_data);
     }
 
     private CartoData BuildDiskSnapshot() => new()
@@ -2579,12 +2591,63 @@ public partial class CartoViewModel : ObservableObject
 
     public string? GetFriendName(string guid) => _syncService.GetFriend(guid)?.Name;
 
+    [ObservableProperty]
+    private string _lastSyncMessage = string.Empty;
+
     [RelayCommand]
     private async Task ConnectSync()
     {
         SyncStatus = "Connexion...";
         OnPropertyChanged(nameof(FriendsSummary));
         await _syncService.ConnectAsync();
+    }
+
+    [RelayCommand]
+    private async Task SyncNow()
+    {
+        LastSyncMessage = "Synchronisation…";
+        var result = await RunNetworkSyncAsync(SyncRunTrigger.Manual, force: true).ConfigureAwait(true);
+        LastSyncMessage = result.Message;
+        NetworkFriendStatusMessage = result.Message;
+    }
+
+    /// <summary>Sync réseau : envoi si données plus récentes, réception via le serveur.</summary>
+    public async Task<SyncRunResult> RunNetworkSyncAsync(SyncRunTrigger trigger, bool force = false)
+    {
+        if (!CharactersLoaded)
+            return new SyncRunResult { Message = "Personnages non chargés." };
+
+        PersistDataForSync();
+        var input = CreateSyncBuildInput();
+        var result = await _syncService.RunSyncAsync(input, trigger, force).ConfigureAwait(false);
+        SaveSettings();
+        return result;
+    }
+
+    private CartoSyncBuildInput CreateSyncBuildInput() => new()
+    {
+        OwnerGuid = MyGuid,
+        Accounts = [.. Accounts],
+        LocalCharacters = Characters.Where(c => !c.IsExternal).ToList(),
+        ResolveAccountDisplayName = GetCharacterAccountDisplayName,
+        FindWowSyncCharacter = FindWowSyncCharacter
+    };
+
+    private void PruneOrphanedExternalCharacters()
+    {
+        var friendGuids = _syncService.Friends.Select(f => f.Guid).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var orphaned = Characters
+            .Where(c => c.IsExternal && c.ExternalSource != null)
+            .Where(c =>
+            {
+                if (CartoExternalSource.IsTpBoyPublic(c.ExternalSource))
+                    return false;
+                return !friendGuids.Contains(c.ExternalSource!);
+            })
+            .ToList();
+
+        foreach (var ch in orphaned)
+            Characters.Remove(ch);
     }
 
     [RelayCommand]
@@ -2627,12 +2690,15 @@ public partial class CartoViewModel : ObservableObject
             ? guid[..Math.Min(8, guid.Length)]
             : FriendNameInput.Trim();
 
-        await _syncService.SubscribeToFriend(guid, name);
+        await _syncService.SubscribeToFriendAsync(guid, name);
         FriendGuidInput = string.Empty;
         FriendNameInput = string.Empty;
-        NetworkFriendStatusMessage = $"« {name} » ajouté — échange WowSync actif.";
+        NetworkFriendStatusMessage =
+            $"« {name} » ajouté — partage complet quand il vous ajoute aussi (TP Boy public sans amitié).";
         RefreshFriends();
         SaveSettings();
+        if (CharactersLoaded)
+            _ = RunNetworkSyncAsync(SyncRunTrigger.Manual);
     }
 
     [RelayCommand]
@@ -2640,7 +2706,7 @@ public partial class CartoViewModel : ObservableObject
     {
         var toRemove = Characters.Where(c => c.IsExternal && c.ExternalSource == friend.Guid).ToList();
         foreach (var ch in toRemove) Characters.Remove(ch);
-        await _syncService.UnsubscribeFromFriend(friend.Guid);
+        await _syncService.UnsubscribeFromFriendAsync(friend.Guid);
         RefreshFriends();
         SaveSettings();
         ApplyFilters();
@@ -2685,16 +2751,19 @@ public partial class CartoViewModel : ObservableObject
     public bool ShouldShowNetworkFriend(FriendEntry friend) =>
         friend.IsVisible && !HasLocalFriendAccountsForName(friend.Name);
 
-    private void OnFriendDataReceived(string friendGuid, SyncPayload payload)
+    private void OnFriendDataReceived(string friendGuid, FriendSyncPayload payload)
     {
         System.Windows.Application.Current?.Dispatcher.Invoke(() =>
         {
             var friend = _syncService.GetFriend(friendGuid);
-            if (friend != null)
-                RefreshFriends();
+            if (friend != null && friend.LinkState != FriendLinkState.Mutual)
+                return;
 
-            var toRemove = Characters.Where(c => c.IsExternal && c.ExternalSource == friendGuid).ToList();
-            foreach (var ch in toRemove) Characters.Remove(ch);
+            var toRemove = Characters
+                .Where(c => c.IsExternal && c.ExternalSource == friendGuid)
+                .ToList();
+            foreach (var ch in toRemove)
+                Characters.Remove(ch);
 
             foreach (var ch in payload.Characters)
             {
@@ -2704,9 +2773,41 @@ public partial class CartoViewModel : ObservableObject
                 Characters.Add(ch);
             }
 
-            PersistDataForSync();
+            _data.ExternalCharacters = Characters
+                .Where(c => c.IsExternal)
+                .ToList();
             _cartoService.Save(BuildDiskSnapshot());
             ApplyFilters();
+            OnPropertyChanged(nameof(OverlayChanged));
+        });
+    }
+
+    private void OnTpBoyPublicReceived(string ownerGuid, TpBoyPublicPayload payload)
+    {
+        if (ownerGuid.Equals(MyGuid, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+        {
+            var source = CartoExternalSource.TpBoyPublic(ownerGuid);
+            var toRemove = Characters
+                .Where(c => c.IsExternal && c.ExternalSource == source)
+                .ToList();
+            foreach (var ch in toRemove)
+                Characters.Remove(ch);
+
+            foreach (var entry in payload.Entries)
+            {
+                var ch = CartoSyncPayloadBuilder.ToExternalTpBoyCharacter(entry, ownerGuid);
+                Characters.Add(ch);
+            }
+
+            _data.ExternalCharacters = Characters
+                .Where(c => c.IsExternal)
+                .ToList();
+            _cartoService.Save(BuildDiskSnapshot());
+            ApplyFilters();
+            OnPropertyChanged(nameof(OverlayChanged));
         });
     }
 

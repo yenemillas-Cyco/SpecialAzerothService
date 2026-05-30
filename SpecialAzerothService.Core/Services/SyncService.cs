@@ -7,6 +7,22 @@ using SpecialAzerothService.Core.Models.Carto;
 
 namespace SpecialAzerothService.Core.Services;
 
+public enum SyncRunTrigger
+{
+    Startup,
+    Shutdown,
+    Manual,
+    RemoteRequest
+}
+
+public sealed class SyncRunResult
+{
+    public bool Connected { get; init; }
+    public bool FriendPushed { get; init; }
+    public bool TpBoyPushed { get; init; }
+    public string Message { get; init; } = "";
+}
+
 public class SyncService : IDisposable
 {
     private HubConnection? _hub;
@@ -19,10 +35,12 @@ public class SyncService : IDisposable
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public event Action<string, SyncPayload>? FriendDataReceived;
+    public event Action<string, FriendSyncPayload>? FriendDataReceived;
+    public event Action<string, TpBoyPublicPayload>? TpBoyPublicReceived;
     public event Action<string, BountySyncPayload>? FriendBountyReceived;
     public event Action<string>? ConnectionStateChanged;
     public event Action<string, bool>? FriendOnlineChanged;
+    public event Action<string, FriendLinkState>? FriendLinkStateChanged;
     public event Action? PushRequested;
 
     public bool IsConnected => _connected;
@@ -33,7 +51,31 @@ public class SyncService : IDisposable
     public SyncService(AppSettings settings, ILogger logger)
     {
         _settings = settings;
+        MigrateLegacyFriends();
         _log = logger;
+    }
+
+    private void MigrateLegacyFriends()
+    {
+        if (_settings.FriendGuids.Count == 0)
+            return;
+
+        foreach (var guid in _settings.FriendGuids)
+        {
+            if (string.IsNullOrWhiteSpace(guid))
+                continue;
+            if (_settings.Friends.Any(f => f.Guid.Equals(guid, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            _settings.Friends.Add(new FriendEntry
+            {
+                Guid = guid.Trim(),
+                Name = guid.Trim()[..Math.Min(8, guid.Trim().Length)],
+                LinkState = FriendLinkState.PendingOutbound
+            });
+        }
+
+        _settings.FriendGuids.Clear();
     }
 
     public async Task ConnectAsync()
@@ -46,7 +88,7 @@ public class SyncService : IDisposable
 
         if (_hub != null)
         {
-            try { await _hub.DisposeAsync(); } catch { }
+            try { await _hub.DisposeAsync(); } catch { /* ignore */ }
             _hub = null;
         }
 
@@ -79,8 +121,11 @@ public class SyncService : IDisposable
                 ])
                 .Build();
 
-            _hub.On<string, string>("ReceiveUpdate", OnReceiveUpdate);
+            _hub.On<string, string>("ReceiveFriendUpdate", OnReceiveFriendUpdate);
+            _hub.On<string, string>("ReceiveUpdate", OnReceiveLegacyUpdate);
+            _hub.On<string, string>("ReceiveTpBoyPublic", OnReceiveTpBoyPublic);
             _hub.On<string, string>("ReceiveBountyUpdate", OnReceiveBountyUpdate);
+            _hub.On<string, string>("FriendLinkState", OnFriendLinkState);
             _hub.On<string>("FriendOnline", guid => FriendOnlineChanged?.Invoke(guid, true));
             _hub.On<string>("FriendOffline", guid => FriendOnlineChanged?.Invoke(guid, false));
             _hub.On("RequestPush", () => PushRequested?.Invoke());
@@ -89,7 +134,7 @@ public class SyncService : IDisposable
             {
                 _connected = true;
                 ConnectionStateChanged?.Invoke("Connecté");
-                await RegisterAndSubscribe();
+                await RegisterAndSubscribeAsync();
             };
 
             _hub.Closed += _ =>
@@ -103,20 +148,19 @@ public class SyncService : IDisposable
             _connected = true;
             ConnectionStateChanged?.Invoke("Connecté");
 
-            await RegisterAndSubscribe();
+            await RegisterAndSubscribeAsync();
             _log.Information("Sync: connected OK");
         }
         catch (Exception ex)
         {
             _connected = false;
             _hub = null;
-            var msg = $"Erreur: {ex.Message}";
-            ConnectionStateChanged?.Invoke(msg);
+            ConnectionStateChanged?.Invoke($"Erreur: {ex.Message}");
             _log.Warning(ex, "Sync: failed to connect");
         }
     }
 
-    private async Task RegisterAndSubscribe()
+    private async Task RegisterAndSubscribeAsync()
     {
         if (_hub == null) return;
         await _hub.InvokeAsync("Connect", _settings.UserGuid);
@@ -124,23 +168,40 @@ public class SyncService : IDisposable
             await _hub.InvokeAsync("Subscribe", _settings.UserGuid, f.Guid);
     }
 
-    public async Task SubscribeToFriend(string friendGuid, string friendName)
+    public async Task SubscribeToFriendAsync(string friendGuid, string friendName)
     {
-        if (_settings.Friends.All(f => f.Guid != friendGuid))
-            _settings.Friends.Add(new FriendEntry { Guid = friendGuid, Name = friendName });
+        friendGuid = friendGuid.Trim();
+        var existing = _settings.Friends.FirstOrDefault(f =>
+            f.Guid.Equals(friendGuid, StringComparison.OrdinalIgnoreCase));
+
+        if (existing == null)
+        {
+            _settings.Friends.Add(new FriendEntry
+            {
+                Guid = friendGuid,
+                Name = friendName,
+                LinkState = FriendLinkState.PendingOutbound
+            });
+        }
+        else
+        {
+            existing.Name = friendName;
+        }
 
         if (_hub?.State == HubConnectionState.Connected)
             await _hub.InvokeAsync("Subscribe", _settings.UserGuid, friendGuid);
     }
 
-    public async Task UnsubscribeFromFriend(string friendGuid)
+    public async Task UnsubscribeFromFriendAsync(string friendGuid)
     {
-        _settings.Friends.RemoveAll(f => f.Guid == friendGuid);
+        _settings.Friends.RemoveAll(f => f.Guid.Equals(friendGuid, StringComparison.OrdinalIgnoreCase));
+        _settings.ReceivedFriendRevisions.Remove(friendGuid);
         if (_hub?.State == HubConnectionState.Connected)
             await _hub.InvokeAsync("Unsubscribe", _settings.UserGuid, friendGuid);
     }
 
-    public FriendEntry? GetFriend(string guid) => _settings.Friends.FirstOrDefault(f => f.Guid == guid);
+    public FriendEntry? GetFriend(string guid) =>
+        _settings.Friends.FirstOrDefault(f => f.Guid.Equals(guid, StringComparison.OrdinalIgnoreCase));
 
     public async Task<List<string>> GetOnlineFriendsAsync()
     {
@@ -157,23 +218,66 @@ public class SyncService : IDisposable
         }
     }
 
-    public async Task PushUpdateAsync(CartoData data)
+    public async Task<SyncRunResult> RunSyncAsync(CartoSyncBuildInput input, SyncRunTrigger trigger, bool force = false)
     {
-        if (_hub?.State != HubConnectionState.Connected) return;
+        if (_hub?.State != HubConnectionState.Connected)
+            await ConnectAsync();
+
+        if (_hub?.State != HubConnectionState.Connected)
+        {
+            return new SyncRunResult
+            {
+                Connected = false,
+                Message = "Hors ligne — reconnectez-vous."
+            };
+        }
 
         try
         {
-            var payload = new SyncPayload
+            if (trigger is SyncRunTrigger.Manual or SyncRunTrigger.Startup)
+                await _hub.InvokeAsync("RequestFullRefresh", _settings.UserGuid);
+
+            var friendPayload = CartoSyncPayloadBuilder.BuildFriend(input);
+            var tpPayload = CartoSyncPayloadBuilder.BuildTpBoyPublic(input);
+
+            var friendPushed = false;
+            var tpPushed = false;
+
+            if (force || friendPayload.Revision != _settings.LastPushedFriendRevision)
             {
-                Accounts = data.Accounts,
-                Characters = data.Characters.Where(c => !c.IsExternal && !c.ExcludeFromSync).ToList()
+                var json = JsonSerializer.Serialize(friendPayload, JsonOpts);
+                await _hub.InvokeAsync("PushFriendUpdate", _settings.UserGuid, friendPayload.Revision, json);
+                _settings.LastPushedFriendRevision = friendPayload.Revision;
+                friendPushed = true;
+            }
+
+            if (force || tpPayload.Revision != _settings.LastPushedTpBoyRevision)
+            {
+                var json = JsonSerializer.Serialize(tpPayload, JsonOpts);
+                await _hub.InvokeAsync("PushTpBoyPublic", _settings.UserGuid, tpPayload.Revision, json);
+                _settings.LastPushedTpBoyRevision = tpPayload.Revision;
+                tpPushed = true;
+            }
+
+            var parts = new List<string>();
+            if (friendPushed) parts.Add("amis");
+            if (tpPushed) parts.Add("TP Boy");
+            var msg = parts.Count > 0
+                ? $"Envoyé : {string.Join(", ", parts)}."
+                : "Déjà à jour — réception en cours si le serveur a du nouveau.";
+
+            return new SyncRunResult
+            {
+                Connected = true,
+                FriendPushed = friendPushed,
+                TpBoyPushed = tpPushed,
+                Message = msg
             };
-            var json = JsonSerializer.Serialize(payload, JsonOpts);
-            await _hub.InvokeAsync("PushUpdate", _settings.UserGuid, json);
         }
         catch (Exception ex)
         {
-            _log.Warning(ex, "Sync: push failed");
+            _log.Warning(ex, "Sync: RunSync failed ({Trigger})", trigger);
+            return new SyncRunResult { Connected = _connected, Message = $"Erreur sync : {ex.Message}" };
         }
     }
 
@@ -192,6 +296,88 @@ public class SyncService : IDisposable
         }
     }
 
+    private void OnReceiveLegacyUpdate(string friendGuid, string json) => OnReceiveFriendUpdate(friendGuid, json);
+
+    private void OnReceiveFriendUpdate(string friendGuid, string json)
+    {
+        try
+        {
+            var payload = JsonSerializer.Deserialize<FriendSyncPayload>(json, JsonOpts);
+            if (payload == null)
+            {
+                var legacy = JsonSerializer.Deserialize<SyncPayload>(json, JsonOpts);
+                if (legacy == null) return;
+                payload = new FriendSyncPayload
+                {
+                    Revision = DateTimeOffset.UtcNow.Ticks,
+                    SentAt = DateTimeOffset.UtcNow,
+                    Accounts = legacy.Accounts,
+                    Characters = legacy.Characters
+                };
+            }
+
+            if (_settings.ReceivedFriendRevisions.TryGetValue(friendGuid, out var prev)
+                && prev == payload.Revision)
+                return;
+
+            _settings.ReceivedFriendRevisions[friendGuid] = payload.Revision;
+            FriendDataReceived?.Invoke(friendGuid, payload);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "Sync: failed to deserialize friend data from {Guid}", friendGuid[..Math.Min(8, friendGuid.Length)]);
+        }
+    }
+
+    private void OnReceiveTpBoyPublic(string ownerGuid, string json)
+    {
+        try
+        {
+            var payload = JsonSerializer.Deserialize<TpBoyPublicPayload>(json, JsonOpts);
+            if (payload == null) return;
+
+            if (_settings.ReceivedTpBoyRevisions.TryGetValue(ownerGuid, out var prev)
+                && prev == payload.Revision)
+                return;
+
+            _settings.ReceivedTpBoyRevisions[ownerGuid] = payload.Revision;
+            TpBoyPublicReceived?.Invoke(ownerGuid, payload);
+        }
+        catch (Exception ex)
+        {
+            _log.Warning(ex, "Sync: failed to deserialize TP public from {Guid}", ownerGuid[..Math.Min(8, ownerGuid.Length)]);
+        }
+    }
+
+    private void OnFriendLinkState(string friendGuid, string stateText)
+    {
+        if (!Enum.TryParse<FriendLinkState>(stateText, ignoreCase: true, out var state))
+        {
+            if (Enum.TryParse<ServerFriendLinkStateCompat>(stateText, ignoreCase: true, out var serverState))
+                state = serverState switch
+                {
+                    ServerFriendLinkStateCompat.Mutual => FriendLinkState.Mutual,
+                    ServerFriendLinkStateCompat.PendingOutbound => FriendLinkState.PendingOutbound,
+                    _ => FriendLinkState.PendingInbound
+                };
+            else
+                return;
+        }
+
+        var friend = GetFriend(friendGuid);
+        if (friend != null)
+            friend.LinkState = state;
+
+        FriendLinkStateChanged?.Invoke(friendGuid, state);
+    }
+
+    private enum ServerFriendLinkStateCompat
+    {
+        PendingOutbound,
+        PendingInbound,
+        Mutual
+    }
+
     private void OnReceiveBountyUpdate(string friendGuid, string json)
     {
         try
@@ -202,21 +388,7 @@ public class SyncService : IDisposable
         }
         catch (Exception ex)
         {
-            _log.Warning(ex, "Sync: failed to deserialize bounty from {Guid}", friendGuid[..8]);
-        }
-    }
-
-    private void OnReceiveUpdate(string friendGuid, string json)
-    {
-        try
-        {
-            var payload = JsonSerializer.Deserialize<SyncPayload>(json, JsonOpts);
-            if (payload != null)
-                FriendDataReceived?.Invoke(friendGuid, payload);
-        }
-        catch (Exception ex)
-        {
-            _log.Warning(ex, "Sync: failed to deserialize from {Guid}", friendGuid[..8]);
+            _log.Warning(ex, "Sync: failed to deserialize bounty from {Guid}", friendGuid[..Math.Min(8, friendGuid.Length)]);
         }
     }
 
@@ -224,7 +396,7 @@ public class SyncService : IDisposable
     {
         if (_hub != null)
         {
-            try { await _hub.DisposeAsync(); } catch { }
+            try { await _hub.DisposeAsync(); } catch { /* ignore */ }
             _hub = null;
             _connected = false;
         }

@@ -1221,6 +1221,14 @@ public partial class CartoView : UserControl
     private static string GetMapLabelText(WowCharacter ch, CartoViewModel vm)
     {
         var lockPrefix = ch.IsLocked ? "🔒 " : "";
+        if (CartoExternalSource.IsTpBoyPublic(ch.ExternalSource))
+        {
+            var account = ch.ExternalAccountDisplayName;
+            return string.IsNullOrWhiteSpace(account)
+                ? $"{lockPrefix}{ch.Name}"
+                : $"{lockPrefix}{ch.Name} ({account})";
+        }
+
         if (ch.IsExternal && ch.ExternalSource != null)
         {
             var friendName = vm.GetFriendName(ch.ExternalSource)

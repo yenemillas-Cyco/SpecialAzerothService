@@ -16,6 +16,20 @@ public sealed class AppSettings
     public string WowPath { get; set; } = "";
     public List<FriendEntry> Friends { get; set; } = [];
 
+    /// <summary>Révision locale dernier envoi ami (comparaison serveur).</summary>
+    public long LastPushedFriendRevision { get; set; }
+
+    /// <summary>Révision locale dernier envoi TP Boy public.</summary>
+    public long LastPushedTpBoyRevision { get; set; }
+
+    /// <summary>Révisions reçues par GUID ami (flux complet).</summary>
+    public Dictionary<string, long> ReceivedFriendRevisions { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Révisions reçues par GUID (flux TP public).</summary>
+    public Dictionary<string, long> ReceivedTpBoyRevisions { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Ancien format, conserve pour migration vers Friends.</summary>
     public List<string> FriendGuids { get; set; } = [];
 

@@ -8,6 +8,7 @@ builder.Services.AddSignalR(opts =>
     opts.KeepAliveInterval = TimeSpan.FromSeconds(15);
 });
 builder.Services.AddSingleton<SubscriptionStore>();
+builder.Services.AddSingleton<FriendshipStore>();
 
 var app = builder.Build();
 
