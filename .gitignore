@@ -5,6 +5,8 @@ obj/
 *.suo
 publish/
 publish-*/
+publish-output/
+**/publish-output/
 releases/
 *.zip
 carto.user.json

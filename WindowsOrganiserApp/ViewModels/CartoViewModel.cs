@@ -1,14 +1,18 @@
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WindowsOrganiserApp.Controls;
 using WindowsOrganiserApp.Converters;
+using SpecialAzerothService.Core.Models;
 using SpecialAzerothService.Core.Models.Carto;
 using SpecialAzerothService.Core.Models.WowSync;
 using SpecialAzerothService.Core.Services;
+using WindowsOrganiserApp.Models.Carto;
+using WindowsOrganiserApp.Services;
 
 namespace WindowsOrganiserApp.ViewModels;
 
@@ -17,15 +21,27 @@ public partial class CartoViewModel : ObservableObject
     private readonly ICartoService _cartoService;
     private readonly IWowSyncService _wowSyncService;
     private readonly ISettingsService _settingsService;
-    private readonly IUserProfileService _userProfile;
-    private readonly SyncService _syncService;
+    private readonly AppSettings _settings;
     private readonly DispatcherTimer _cooldownTimer;
     private CartoData _data;
     private List<WowAccountData>? _wowSyncCache;
     private Dictionary<string, WowCharacterData> _syncByKey = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, WowCharacterData> _syncByNormalizedKey = new(StringComparer.Ordinal);
     private Dictionary<string, CartoAccountConfig>? _accountSettingsEditSnapshot;
-    private Task? _characterDataLoadTask;
+    private string? _appliedWowPath;
+    private bool _wowFolderPromptShownThisSession;
+    private bool _startupWtfScanDone;
+    private readonly SemaphoreSlim _wowSyncRefreshLock = new(1, 1);
+
+    private enum WowWtfScanMode
+    {
+        StartupOnce,
+        ManualRescan
+    }
+
+    /// <summary>Notifie la vue (roster) après un scan WowSync terminé.</summary>
+    public event EventHandler? CharactersRescanned;
+    public event EventHandler? RosterRefreshRequested;
     private bool _zoneCalibrationLoaded;
     private int _mapPlacementStamp;
     private int _appliedMapPlacementStamp;
@@ -38,16 +54,15 @@ public partial class CartoViewModel : ObservableObject
     public CartoViewModel(
         ICartoService cartoService,
         IWowSyncService wowSyncService,
-        SyncService syncService,
-        IUserProfileService userProfile,
-        ISettingsService settingsService)
+        ISettingsService settingsService,
+        AppSettings settings)
     {
         _cartoService = cartoService;
         _wowSyncService = wowSyncService;
-        _syncService = syncService;
-        _userProfile = userProfile;
         _settingsService = settingsService;
+        _settings = settings;
         _data = _cartoService.Load();
+
         _data.AccountSettings ??= new Dictionary<string, CartoAccountConfig>(StringComparer.OrdinalIgnoreCase);
         CartoAccountSettings.MigrateLegacyDisplayNames(_data);
         CartoUserMigration.Migrate(_data);
@@ -56,53 +71,13 @@ public partial class CartoViewModel : ObservableObject
         MigrateCharacterProfiles();
         MigratePlacedOnMapFlags();
         MigrateStripNonAddonMapPositions();
+        MigrateClearBulkMapPlacementFlags();
         ApplyConfiguredAccountSettings();
 
         Accounts = new ObservableCollection<WowAccount>();
         Characters = new ObservableCollection<WowCharacter>();
+        RosterTreeRoots = [];
         Timers = new ObservableCollection<MapTimer>(_data.Timers);
-
-        foreach (var ext in _data.ExternalCharacters)
-            Characters.Add(ext);
-
-        PruneOrphanedExternalCharacters();
-
-        _syncService.FriendDataReceived += OnFriendDataReceived;
-        _syncService.TpBoyPublicReceived += OnTpBoyPublicReceived;
-        _syncService.FriendLinkStateChanged += (guid, state) =>
-            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
-            {
-                var friend = _syncService.GetFriend(guid);
-                if (friend != null)
-                    friend.LinkState = state;
-                RefreshFriends();
-            });
-        _syncService.FriendOnlineChanged += (guid, online) =>
-            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
-            {
-                var friend = _syncService.GetFriend(guid);
-                if (friend != null) friend.IsOnline = online;
-                RefreshFriends();
-            });
-        _syncService.PushRequested += () =>
-            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
-            {
-                if (CharactersLoaded)
-                    _ = RunNetworkSyncAsync(SyncRunTrigger.RemoteRequest);
-            });
-        _syncService.ConnectionStateChanged += s =>
-            System.Windows.Application.Current?.Dispatcher.BeginInvoke(async () =>
-            {
-                SyncStatus = s;
-                OnPropertyChanged(nameof(FriendsSummary));
-                if (s == "Connecté")
-                {
-                    var onlineGuids = await _syncService.GetOnlineFriendsAsync();
-                    foreach (var f in _syncService.Friends)
-                        f.IsOnline = onlineGuids.Contains(f.Guid);
-                    RefreshFriends();
-                }
-            });
 
         _cooldownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _cooldownTimer.Tick += (_, _) =>
@@ -113,13 +88,84 @@ public partial class CartoViewModel : ObservableObject
         };
         _cooldownTimer.Start();
 
-        RefreshFriends();
-        RefreshFriendCartoUsers();
         ApplyFilters();
         CharacterSyncGoldConverter.Vm = this;
-        _wowSyncService.WowPath = _wowSyncService.WowPath;
-        WowPath = _wowSyncService.WowPath;
-        _ = ConnectSync();
+        EnsureDefaultCartoUserExists();
+        RefreshCartoUserCollections();
+        ApplyStoredWowGameRootFromSettings();
+    }
+
+    private void EnsureDefaultCartoUserExists()
+    {
+        _data.Users ??= [];
+        if (_data.Users.Any(u =>
+                u.Name.Equals(CartoUserMigration.DefaultUserName, StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        _data.Users.Add(new CartoUser
+        {
+            Name = CartoUserMigration.DefaultUserName,
+            SortOrder = 0
+        });
+        _cartoService.Save(_data);
+    }
+
+    /// <summary>Enregistre la racine WoW (fichier settings + singleton + service + UI).</summary>
+    private void PersistWowGameRoot(string gameRoot)
+    {
+        var root = WowInstallPaths.NormalizeStoredPath(gameRoot);
+        if (string.IsNullOrWhiteSpace(root))
+            return;
+
+        _appliedWowPath = root;
+        _settings.WowPath = root;
+        if (_settings.DataSchemaVersion < CartoDataSchemaMigration.CurrentVersion)
+            _settings.DataSchemaVersion = CartoDataSchemaMigration.CurrentVersion;
+        WowGameRootStore.Write(root);
+        _settingsService.Save(_settings);
+
+        if (!string.Equals(WowPath, root, StringComparison.Ordinal))
+            WowPath = root;
+
+        OnPropertyChanged(nameof(AddonInstallPathHint));
+        OnPropertyChanged(nameof(ResolvedWowPathsSummary));
+    }
+
+    private void ApplyStoredWowGameRootFromSettings()
+    {
+        var candidate = !string.IsNullOrWhiteSpace(_settings.WowPath)
+            ? _settings.WowPath
+            : !string.IsNullOrWhiteSpace(_wowSyncService.WowPath)
+                ? _wowSyncService.WowPath
+                : WowGameRootStore.Read() ?? "";
+
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            _appliedWowPath = "";
+            WowPath = "";
+            AddonStatusText =
+                "⚠ Chemin WoW non enregistré.\nCarto → Paramètres → choisir le dossier « World of Warcraft » (ex. D:\\Programmes\\World of Warcraft).";
+            return;
+        }
+
+        if (WowInstallPaths.TryCompleteUserFolder(candidate, out var resolved))
+        {
+            PersistWowGameRoot(resolved.GameRoot);
+            return;
+        }
+
+        WowPath = WowInstallPaths.NormalizeStoredPath(candidate);
+        _appliedWowPath = WowPath;
+        AddonStatusText = WowInstallPaths.GetValidationError(WowPath);
+    }
+
+    private bool TryGetStoredWowResolution(out WowInstallPaths.WowPathResolution resolution)
+    {
+        if (WowInstallPaths.TryCompleteUserFolder(_wowSyncService.WowPath, out resolution))
+            return true;
+        if (WowInstallPaths.TryCompleteUserFolder(_settings.WowPath, out resolution))
+            return true;
+        return WowInstallPaths.TryCompleteUserFolder(WowPath, out resolution);
     }
 
     public string AddonVersion => _wowSyncService.AddonVersion;
@@ -132,83 +178,188 @@ public partial class CartoViewModel : ObservableObject
 
     partial void OnWowPathChanged(string value)
     {
-        var normalized = WowInstallPaths.NormalizeGameRoot(value);
-        if (!string.Equals(normalized, value, StringComparison.Ordinal))
-            WowPath = normalized;
-        else
-            _wowSyncService.WowPath = normalized;
+        var stored = WowInstallPaths.NormalizeStoredPath(value);
+        if (!string.Equals(stored, value, StringComparison.Ordinal))
+        {
+            WowPath = stored;
+            return;
+        }
 
         OnPropertyChanged(nameof(AddonInstallPathHint));
+        OnPropertyChanged(nameof(ResolvedWowPathsSummary));
+
+        if (string.IsNullOrWhiteSpace(stored))
+        {
+            _appliedWowPath = "";
+            _settings.WowPath = "";
+            WowGameRootStore.TryDelete();
+            _settingsService.Save(_settings);
+            AddonStatusText = "";
+            InvalidateWowSyncLoadState();
+            return;
+        }
+
+        if (!WowInstallPaths.TryCompleteUserFolder(stored, out var resolved))
+        {
+            _appliedWowPath = stored;
+            AddonStatusText = WowInstallPaths.GetValidationError(value);
+            InvalidateWowSyncLoadState();
+            return;
+        }
+
+        PersistWowGameRoot(resolved.GameRoot);
+        if (!string.Equals(WowPath, resolved.GameRoot, StringComparison.Ordinal))
+            return;
+
+        InvalidateWowSyncLoadState();
+        AddonStatusText = "Chemin enregistré — cliquez « Rescanner » pour charger les personnages depuis WTF.";
+    }
+
+    public string ResolvedWowPathsSummary
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(WowPath))
+                return "";
+
+            return WowInstallPaths.DescribeResolution(WowPath, WowSyncService.AddonVersionValue);
+        }
+    }
+
+    /// <summary>Valide, enregistre le dossier choisi et charge les personnages (bouton 📁).</summary>
+    public async Task<bool> CommitWowGameRootAsync(string? folderPath, bool showErrors = false)
+    {
+        if (string.IsNullOrWhiteSpace(folderPath))
+            return false;
+
+        if (!WowInstallPaths.TryCompleteUserFolder(folderPath, out var resolved))
+        {
+            var error = WowInstallPaths.GetValidationError(folderPath);
+            AddonStatusText = error;
+            if (showErrors)
+            {
+                System.Windows.MessageBox.Show(
+                    error,
+                    "Dossier World of Warcraft incorrect",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+            }
+
+            return false;
+        }
+
+        PersistWowGameRoot(resolved.GameRoot);
+        if (_startupWtfScanDone)
+        {
+            InvalidateWowSyncLoadState();
+            return await ScanWowFromWtfCoreAsync(WowWtfScanMode.ManualRescan).ConfigureAwait(true);
+        }
+
+        return await ScanWowFromWtfCoreAsync(WowWtfScanMode.StartupOnce).ConfigureAwait(true);
+    }
+
+    /// <summary>Scan WTF unique au démarrage (après choix du chemin WoW).</summary>
+    public Task<bool> ScanWowFromWtfAtStartupAsync() =>
+        RunOnUiThreadAsync(() => ScanWowFromWtfCoreAsync(WowWtfScanMode.StartupOnce));
+
+    /// <summary>Vide la liste puis relit uniquement les WowSync.lua sous WTF.</summary>
+    public Task<bool> RescanWowFromWtfAsync() =>
+        RunOnUiThreadAsync(() => ScanWowFromWtfCoreAsync(WowWtfScanMode.ManualRescan));
+
+    public Task<bool> RescanWowAndAccountsAsync() => RescanWowFromWtfAsync();
+
+    /// <summary>Aligne settings/WowSyncService sur <see cref="WowPath"/> (champ UI).</summary>
+    public bool EnsureWowPathPersisted(out WowInstallPaths.WowPathResolution resolution)
+    {
+        if (!TryGetStoredWowResolution(out resolution))
+        {
+            var stored = WowInstallPaths.NormalizeStoredPath(WowPath);
+            if (!string.IsNullOrWhiteSpace(stored)
+                && WowInstallPaths.TryCompleteUserFolder(stored, out resolution))
+                PersistWowGameRoot(resolution.GameRoot);
+            else
+                return false;
+        }
+        else
+        {
+            PersistWowGameRoot(resolution.GameRoot);
+        }
+
+        return true;
+    }
+
+    public bool EnsureWowPathPersisted() => EnsureWowPathPersisted(out _);
+
+    private static async Task<T> RunOnUiThreadAsync<T>(Func<Task<T>> action)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher
+                         ?? throw new InvalidOperationException("Application WPF non initialisée.");
+        if (dispatcher.CheckAccess())
+            return await action().ConfigureAwait(true);
+        return await dispatcher.InvokeAsync(action).Task.Unwrap().ConfigureAwait(true);
+    }
+
+    private void InvalidateWowSyncLoadState()
+    {
+        _startupWtfScanDone = false;
+        _wowSyncCache = null;
+        CharactersLoaded = false;
+        OnPropertyChanged(CharactersLoadedPropertyName);
+    }
+
+    /// <summary>Supprime tous les persos/comptes dérivés du WTF avant un nouveau scan.</summary>
+    private void ClearWowSyncRosterState()
+    {
+        Characters.Clear();
+        Accounts.Clear();
+        _data.Accounts.Clear();
+        _wowSyncCache = null;
+        _syncByKey.Clear();
+        _syncByNormalizedKey.Clear();
+        _precomputedPlacements = null;
+        _mapPositionsReady = false;
+        _appliedMapPlacementStamp = 0;
+        _mapPlacementStamp = 0;
+        FilteredCharacters.Clear();
+        CharactersLoaded = false;
+        OnPropertyChanged(CharactersLoadedPropertyName);
+        OnPropertyChanged(nameof(FilteredCharacters));
+        BumpMapPlacementStamp();
+    }
+
+    /// <summary>Demande le dossier WoW au premier lancement si absent (addon déjà installé).</summary>
+    private async Task EnsureWowPathConfiguredAsync()
+    {
+        if (WowInstallPaths.TryCompleteUserFolder(WowPath, out _)
+            || WowInstallPaths.TryCompleteUserFolder(_wowSyncService.WowPath, out _))
+            return;
+
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null)
+            return;
+
+        await dispatcher.InvokeAsync(async () =>
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "Dossier World of Warcraft (racine du jeu)"
+            };
+            if (dialog.ShowDialog() != true)
+                return;
+
+            await CommitWowGameRootAsync(dialog.FolderName, showErrors: true).ConfigureAwait(true);
+        }, System.Windows.Threading.DispatcherPriority.Normal).Task.Unwrap();
     }
 
     public string AddonInstallPathHint =>
-        string.IsNullOrWhiteSpace(WowPath)
-            ? ""
-            : $"Addon : {WowInstallPaths.GetAddonsDirectory(WowPath)}";
+        string.IsNullOrWhiteSpace(WowPath) ? "" : WowInstallPaths.DescribeResolution(WowPath);
 
     public const string CharactersLoadedPropertyName = nameof(CharactersLoaded);
 
     public bool CharactersLoaded { get; private set; }
 
-    /// <summary>Charge WTF / WowSync une seule fois, hors thread UI.</summary>
-    public Task EnsureCharacterDataLoadedAsync()
-    {
-        if (CharactersLoaded)
-            return Task.CompletedTask;
-
-        return _characterDataLoadTask ??= LoadCharacterDataDeferredAsync();
-    }
-
-    private async Task LoadCharacterDataDeferredAsync()
-    {
-        try
-        {
-            List<WowAccountData> syncAccounts = [];
-            IReadOnlyList<CartoMapPositionPrecompute.CharacterPlacement> placements = [];
-
-            await Task.Run(() =>
-            {
-                syncAccounts = TryReadWowSyncAccounts();
-                placements = CartoMapPositionPrecompute.ComputeForAccounts(syncAccounts);
-            }).ConfigureAwait(false);
-
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                _wowSyncCache = syncAccounts;
-                _precomputedPlacements = placements;
-                RebuildSyncIndex();
-                ApplyDeferredCharacterData();
-            }, DispatcherPriority.Background);
-
-            _ = Task.Run(CartoMapQuestIcon.PreloadQuestStubIcons);
-        }
-        catch (Exception ex)
-        {
-            _characterDataLoadTask = null;
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                System.Windows.MessageBox.Show(
-                    $"Erreur chargement Carto / WowSync :\n{ex.Message}",
-                    "Special Azeroth Service",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Warning));
-        }
-    }
-
-    private void ApplyDeferredCharacterData()
-    {
-        RefreshCharactersFromWowSync(saveAfter: false);
-        foreach (var ch in Characters.Where(c => c.Status == CharacterStatus.Reroll))
-            ch.Status = CharacterStatus.Main;
-        CartoUserMigration.ApplyLegacyAccountHiddenToCharacters(_data, Characters);
-        foreach (var account in Accounts)
-            account.IsHidden = false;
-        AccountIdToNameConverter.Accounts = [.. Accounts];
-        CharacterSyncGoldConverter.Vm = this;
-        ApplyPrecomputedMapPositions();
-        FinishMapPlacementForDisplay();
-        CharactersLoaded = true;
-        OnPropertyChanged(CharactersLoadedPropertyName);
-    }
+    /// <summary>Ne relit pas WTF — le scan a lieu une seule fois au démarrage ou via Rescanner.</summary>
+    public Task EnsureCharacterDataLoadedAsync() => Task.CompletedTask;
 
     /// <summary>Applique les coords absolues calculées au warmup (cache map-positions-cache.json).</summary>
     private void ApplyPrecomputedMapPositions()
@@ -220,12 +371,13 @@ public partial class CartoViewModel : ObservableObject
             p => p.SyncKey,
             StringComparer.OrdinalIgnoreCase);
 
-        foreach (var ch in Characters.Where(c => !c.IsExternal && !string.IsNullOrEmpty(c.SyncKey)))
+        foreach (var ch in Characters.Where(c => !string.IsNullOrEmpty(c.SyncKey)))
         {
             if (!byKey.TryGetValue(ch.SyncKey, out var placement) || !placement.Placed)
                 continue;
 
             ApplySyncPosition(ch, placement.MapX, placement.MapY);
+            ch.IsPlacedOnMap = true;
         }
 
         _mapPositionsReady = true;
@@ -290,15 +442,8 @@ public partial class CartoViewModel : ObservableObject
 
     private bool ApplyFiltersChanged()
     {
-        var hiddenFriends = _syncService.Friends
-            .Where(f => !f.IsVisible).Select(f => f.Guid).ToHashSet();
-
         var filtered = Characters.AsEnumerable()
-            .Where(c => !c.IsHidden)
-            .Where(IsCharacterInVisibleRosterSubtree)
-            .Where(c => CartoExternalSource.IsTpBoyPublic(c.ExternalSource)
-                        || !c.IsExternal
-                        || (c.ExternalSource != null && !hiddenFriends.Contains(c.ExternalSource)));
+            .Where(c => IsCharacterVisibleOnMap(c));
 
         if (FilterClass.HasValue)
             filtered = filtered.Where(c => c.Class == FilterClass.Value);
@@ -333,17 +478,40 @@ public partial class CartoViewModel : ObservableObject
         void Report(double percent, string message) =>
             progress?.Report(new StartupLoadProgress(percent, message));
 
-        Report(28, "Lecture WowSync et personnages…");
-        await EnsureCharacterDataLoadedAsync().ConfigureAwait(false);
+        Report(22, "Chemin World of Warcraft…");
+        ApplyStoredWowGameRootFromSettings();
+        await EnsureWowPathConfiguredAsync().ConfigureAwait(false);
+
+        if (EnsureWowPathPersisted(out _) && !_startupWtfScanDone)
+        {
+            Report(28, "Scan WTF (WowSync.lua)…");
+            var loaded = await ScanWowFromWtfAtStartupAsync().ConfigureAwait(false);
+            if (loaded)
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsRosterOpen = true;
+                }, DispatcherPriority.Normal);
+            }
+        }
+        else
+        {
+            Report(28, "Choisissez le dossier WoW dans Carto → Paramètres.");
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                AddonStatusText =
+                    "⚠ Chemin WoW non enregistré.\nChoisissez le dossier « World of Warcraft » dans Paramètres (📁), puis Rescanner.";
+            }, DispatcherPriority.Normal);
+        }
 
         Report(52, "Chargement de la carte…");
         await Task.Run(CartoMapPreloader.EnsureLoaded, cancellationToken).ConfigureAwait(false);
 
         var (mapW, mapH) = CartoMapPreloader.PixelSize;
 
-        Report(72, "Placement des personnages sur la carte…");
-        if (!CharactersLoaded)
-            await EnsureCharacterDataLoadedAsync().ConfigureAwait(false);
+        Report(72, "Positions WowSync sur la carte…");
+
+        _ = Task.Run(CartoMapQuestIcon.PreloadQuestStubIcons);
 
         var uiDispatcher = System.Windows.Application.Current?.Dispatcher
                            ?? throw new InvalidOperationException("Application WPF non initialisée.");
@@ -360,12 +528,12 @@ public partial class CartoViewModel : ObservableObject
         Report(90, "Préparation de l'interface Carto…");
         await uiDispatcher.InvokeAsync(PrepareMapDisplay, DispatcherPriority.Background);
 
-        Report(96, "Synchronisation réseau…");
-        await RunNetworkSyncAsync(SyncRunTrigger.Startup).ConfigureAwait(false);
+        Report(96, "Finalisation…");
     }
 
     public ObservableCollection<WowAccount> Accounts { get; }
     public ObservableCollection<WowCharacter> Characters { get; }
+    public ObservableCollection<CartoRosterTreeNode> RosterTreeRoots { get; }
     public ObservableCollection<MapTimer> Timers { get; }
 
     [ObservableProperty]
@@ -430,7 +598,7 @@ public partial class CartoViewModel : ObservableObject
     private bool _isRosterOpen;
 
     [ObservableProperty]
-    private bool _isCooldownRosterOpen = true;
+    private bool _isCooldownRosterOpen;
 
     /// <summary>Volet détail personnage (remplace la popup).</summary>
     [ObservableProperty]
@@ -480,30 +648,34 @@ public partial class CartoViewModel : ObservableObject
     private void ToggleRosterPanel() => IsRosterOpen = !IsRosterOpen;
 
     [RelayCommand]
-    private void BrowseWowPath()
+    private async Task BrowseWowPath()
     {
         var dialog = new Microsoft.Win32.OpenFolderDialog
         {
-            Title = "Sélectionner le dossier World of Warcraft (racine du jeu)"
+            Title = "Dossier World of Warcraft (racine du jeu)",
+            InitialDirectory = string.IsNullOrWhiteSpace(WowPath) ? null : WowPath
         };
         if (dialog.ShowDialog() == true)
-            WowPath = dialog.FolderName;
+            await CommitWowGameRootAsync(dialog.FolderName, showErrors: true).ConfigureAwait(true);
     }
 
     [RelayCommand]
     private void DeployAddon()
     {
-        if (string.IsNullOrWhiteSpace(WowPath))
+        if (!EnsureWowPathPersisted(out var resolved))
         {
-            AddonStatusText = "⚠ Configurez le chemin WoW d'abord.";
+            AddonStatusText = string.IsNullOrWhiteSpace(WowPath)
+                ? "⚠ Choisissez le dossier « World of Warcraft » d'abord."
+                : WowInstallPaths.GetValidationError(WowPath);
             return;
         }
 
         try
         {
-            _wowSyncService.DeployAddon();
+            _wowSyncService.DeployAddon(resolved.GameRoot);
+            OnPropertyChanged(nameof(AddonInstallPathHint));
             AddonStatusText =
-                $"✅ Addon v{WowSyncService.AddonVersionValue} déployé dans _classic_era_\\Interface\\AddOns — /reload en jeu.";
+                $"✅ Addon v{WowSyncService.AddonVersionValue} déployé.\n{resolved.AddonsDirectory}\n/reload en jeu.";
         }
         catch (Exception ex)
         {
@@ -514,10 +686,7 @@ public partial class CartoViewModel : ObservableObject
     partial void OnIsSettingsPanelOpenChanged(bool value)
     {
         if (value)
-        {
-            FriendUserStatusMessage = string.Empty;
             BeginAccountSettingsEdit();
-        }
         else if (!_settingsPanelClosingAfterSave)
             CancelAccountSettingsEdit();
     }
@@ -631,35 +800,22 @@ public partial class CartoViewModel : ObservableObject
         .ToArray();
     public Array QuestItemTypes => Enum.GetValues(typeof(QuestItemType));
 
-    /// <summary>Persos pour le bandeau latéral — les comptes masqués (œil) restent listés.</summary>
-    public IEnumerable<WowCharacter> GetCharactersForRoster() =>
-        Characters.Where(c => PassesRosterFilters(c));
+    /// <summary>Tous les personnages locaux pour le volet Personnages (sans filtre carte).</summary>
+    public IEnumerable<WowCharacter> GetCharactersForRoster() => Characters;
 
-    private bool PassesRosterFilters(WowCharacter c)
+    public bool IsCharacterEligibleForRosterTree(WowCharacter c) => true;
+
+    /// <summary>Marqueur affiché sur la carte (perso + propriétaire / compte / catégorie).</summary>
+    public bool IsCharacterVisibleOnMap(WowCharacter ch)
     {
-        if (CartoExternalSource.IsTpBoyPublic(c.ExternalSource))
+        if (ch.IsHidden)
             return false;
 
-        if (c.IsExternal)
-        {
-            var hiddenFriends = _syncService.Friends
-                .Where(f => !f.IsVisible).Select(f => f.Guid).ToHashSet();
-            return c.ExternalSource != null && !hiddenFriends.Contains(c.ExternalSource);
-        }
-
-        return IsCharacterInVisibleRosterSubtree(c);
-    }
-
-    /// <summary>Utilisateur ou catégorie masquée dans le roster (et sur la carte).</summary>
-    public bool IsCharacterInVisibleRosterSubtree(WowCharacter ch)
-    {
-        if (ch.IsExternal)
-            return true;
+        var account = _data.Accounts.FirstOrDefault(a => a.Id == ch.AccountId);
+        if (account?.IsHidden == true)
+            return false;
 
         var userId = GetUserIdForCharacter(ch);
-        if (userId == null)
-            return true;
-
         var user = GetUserById(userId);
         if (user?.IsRosterSubtreeHidden == true)
             return false;
@@ -673,25 +829,141 @@ public partial class CartoViewModel : ObservableObject
         return policy?.IsRosterSubtreeHidden != true;
     }
 
-    public void ToggleUserRosterSubtreeVisibility(CartoUser user)
+    public void ToggleUserMapVisibility(CartoUser user)
     {
         user.IsRosterSubtreeHidden = !user.IsRosterSubtreeHidden;
         Save();
         ApplyFilters();
+        OnPropertyChanged(nameof(OverlayChanged));
     }
 
-    public void ToggleCategoryRosterSubtreeVisibility(CartoUser user, CharacterStatus category)
+    public void ToggleAccountMapVisibility(WowAccount account)
     {
-        var policy = GetCategorySyncPolicy(user.Id, category);
+        account.IsHidden = !account.IsHidden;
+        Save();
+        ApplyFilters();
+        OnPropertyChanged(nameof(OverlayChanged));
+    }
+
+    public void ToggleCategoryMapVisibility(CartoUser user, CharacterStatus category)
+    {
+        var policy = GetCategoryPolicy(user.Id, category);
         policy.IsRosterSubtreeHidden = !policy.IsRosterSubtreeHidden;
         Save();
         ApplyFilters();
+        OnPropertyChanged(nameof(OverlayChanged));
     }
 
-    public bool IsUserRosterSubtreeVisible(CartoUser user) => !user.IsRosterSubtreeHidden;
+    public bool IsUserVisibleOnMap(CartoUser user) => !user.IsRosterSubtreeHidden;
 
-    public bool IsCategoryRosterSubtreeVisible(CartoUser user, CharacterStatus category) =>
-        !GetCategorySyncPolicy(user.Id, category).IsRosterSubtreeHidden;
+    public bool IsAccountVisibleOnMap(WowAccount account) => !account.IsHidden;
+
+    public bool IsCategoryVisibleOnMap(CartoUser user, CharacterStatus category) =>
+        !GetCategoryPolicy(user.Id, category).IsRosterSubtreeHidden;
+
+    [ObservableProperty]
+    private string _autoSortStatusMessage = "";
+
+    [RelayCommand]
+    private void AutoSortCharacterCategories()
+    {
+        var changed = 0;
+        foreach (var ch in Characters)
+        {
+            var sync = FindWowSyncCharacter(ch);
+            var suggested = CartoCharacterCategoryAutoSort.SuggestCategory(ch, sync);
+            if (suggested == null || ch.Status == suggested)
+                continue;
+
+            ch.Status = suggested.Value;
+            changed++;
+        }
+
+        Save();
+        ApplyFilters();
+        RefreshRosterTree();
+        AutoSortStatusMessage = changed == 0
+            ? "Aucun changement (règles déjà appliquées ou niveaux hors plage)."
+            : $"{changed} personnage(s) reclassé(s).";
+    }
+
+    [RelayCommand]
+    private void HideAllExceptTpBoyOnMap()
+    {
+        foreach (var ch in Characters)
+            ch.IsHidden = ch.Status != CharacterStatus.TpBoy;
+
+        Save();
+        ApplyFilters();
+        OnPropertyChanged(nameof(OverlayChanged));
+        AutoSortStatusMessage = "Carte : seuls les TP Boy restent visibles.";
+    }
+
+    [RelayCommand]
+    private void ShowAllOnMap()
+    {
+        foreach (var ch in Characters)
+            ch.IsHidden = false;
+
+        foreach (var user in _data.Users)
+            user.IsRosterSubtreeHidden = false;
+
+        foreach (var policy in _data.CategoryPolicies)
+            policy.IsRosterSubtreeHidden = false;
+
+        foreach (var account in _data.Accounts)
+            account.IsHidden = false;
+
+        Save();
+        ApplyFilters();
+        OnPropertyChanged(nameof(OverlayChanged));
+        AutoSortStatusMessage = "Tous les personnages sont à nouveau visibles sur la carte.";
+    }
+
+    /// <summary>Sans réglage utilisateur : tous les comptes WTF sont rattachés à « Moi ».</summary>
+    public void EnsureAccountsAssignedToDefaultUser()
+    {
+        EnsureDefaultCartoUserExists();
+        var moiId = GetDefaultUserId();
+        if (string.IsNullOrWhiteSpace(moiId))
+            return;
+
+        _data.AccountSettings ??= new Dictionary<string, CartoAccountConfig>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var account in Accounts)
+        {
+            var folder = GetSourceFolderForAccount(account);
+            if (string.IsNullOrWhiteSpace(folder))
+                continue;
+
+            if (!_data.AccountSettings.TryGetValue(folder, out var cfg))
+            {
+                _data.AccountSettings[folder] = new CartoAccountConfig
+                {
+                    DisplayName = account.Name,
+                    UserId = moiId,
+                    Scope = AccountScope.Mine
+                };
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(cfg.UserId))
+                cfg.UserId = moiId;
+        }
+    }
+
+    public void RefreshRosterTree(Func<string, bool, bool>? resolveExpanded = null)
+    {
+        EnsureAccountsAssignedToDefaultUser();
+        CartoRosterTreeBuilder.Rebuild(this, RosterTreeRoots, resolveExpanded);
+        OnPropertyChanged(nameof(RosterTreeRoots));
+        RosterRefreshRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    public string? GetDefaultUserId() =>
+        _data.Users.FirstOrDefault(u =>
+            u.Name.Equals(CartoUserMigration.DefaultUserName, StringComparison.OrdinalIgnoreCase))?.Id
+        ?? _data.Users.OrderBy(u => u.SortOrder).FirstOrDefault()?.Id;
 
     private void ApplyFilters()
     {
@@ -880,7 +1152,7 @@ public partial class CartoViewModel : ObservableObject
 
     public bool TryGetMarkerPosition(WowCharacter ch, out double x, out double y)
     {
-        if (!ch.IsPlacedOnMap || ch.IsExternal)
+        if (!ch.IsPlacedOnMap)
         {
             x = 0;
             y = 0;
@@ -897,7 +1169,7 @@ public partial class CartoViewModel : ObservableObject
     {
         var stackIndex = 0;
         foreach (var ch in Characters
-                     .Where(c => c.IsPlacedOnMap && !c.IsHidden && !c.IsExternal)
+                     .Where(c => c.IsPlacedOnMap && !c.IsHidden)
                      .OrderBy(c => Accounts.FirstOrDefault(a => a.Id == c.AccountId)?.Name ?? "")
                      .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
         {
@@ -914,7 +1186,12 @@ public partial class CartoViewModel : ObservableObject
 
     public bool HasEffectiveWorldMapPlacement(WowCharacter ch)
     {
-        if (ch.IsExternal || !ch.IsPlacedOnMap)
+        return CanResolveWowSyncWorldPosition(ch);
+    }
+
+    private bool CanResolveWowSyncWorldPosition(WowCharacter ch)
+    {
+        if (ch.IsHidden)
             return false;
 
         var sync = FindWowSyncCharacter(ch);
@@ -1055,10 +1332,11 @@ public partial class CartoViewModel : ObservableObject
     /// <summary>Change la catégorie et replace le perso (cadre gauche ou pile carte).</summary>
     public void SetCharacterStatus(WowCharacter character, CharacterStatus status)
     {
-        if (character.IsExternal || character.Status == status)
+        if (character.Status == status)
             return;
 
         character.Status = status;
+        RefreshRosterTree();
 
         // Hors carte → le cadre correspondant est mis à jour par la vue.
         // Sur carte → retirer pour rejoindre le cadre de la nouvelle catégorie.
@@ -1076,9 +1354,10 @@ public partial class CartoViewModel : ObservableObject
     public void PlaceCharacterOnMap(WowCharacter? character)
     {
         character ??= SelectedCharacter;
-        if (character == null || character.IsExternal) return;
+        if (character == null) return;
 
         character.IsPlacedOnMap = true;
+        character.HasCustomMapPosition = true;
         ReorganizePlacedOnMapStacks();
         ApplyFilters();
         Save();
@@ -1087,19 +1366,13 @@ public partial class CartoViewModel : ObservableObject
     /// <summary>Place un perso sur la carte à une position précise (drag depuis un cadre).</summary>
     public void PlaceCharacterOnMapAt(WowCharacter character, double mapX, double mapY)
     {
-        if (character.IsExternal)
-        {
-            character.IsPlacedOnMap = true;
-            character.MapX = Math.Clamp(mapX, 0, 1);
-            character.MapY = Math.Clamp(mapY, 0, 1);
-            ApplyFilters();
-            Save();
-            return;
-        }
-
         character.IsPlacedOnMap = true;
         if (!TryApplyWowSyncMapPosition(character))
+        {
+            character.HasCustomMapPosition = true;
             ReorganizePlacedOnMapStacks();
+        }
+
         ApplyFilters();
         Save();
     }
@@ -1107,8 +1380,6 @@ public partial class CartoViewModel : ObservableObject
     /// <summary>Retire de la carte et place dans le cadre de catégorie (drag depuis la carte).</summary>
     public void MoveCharacterToCategoryFrame(WowCharacter character, CharacterStatus category)
     {
-        if (character.IsExternal) return;
-
         if (character.Status != category)
             character.Status = category;
 
@@ -1120,13 +1391,14 @@ public partial class CartoViewModel : ObservableObject
 
         Save();
         ApplyFilters();
+        RefreshRosterTree();
     }
 
     [RelayCommand]
     public void RemoveCharacterFromMap(WowCharacter? character)
     {
         character ??= SelectedCharacter;
-        if (character == null || character.IsExternal) return;
+        if (character == null) return;
 
         character.IsPlacedOnMap = false;
         if (SelectedCharacter == character)
@@ -1138,13 +1410,6 @@ public partial class CartoViewModel : ObservableObject
 
     public void ApplyMapPosition(WowCharacter ch, double x, double y)
     {
-        if (ch.IsExternal)
-        {
-            ch.MapX = Math.Clamp(x, 0, 1);
-            ch.MapY = Math.Clamp(y, 0, 1);
-            return;
-        }
-
         TryApplyWowSyncMapPosition(ch);
     }
 
@@ -1167,7 +1432,6 @@ public partial class CartoViewModel : ObservableObject
         var profilesByKey = _data.CharacterProfiles
             .ToDictionary(p => p.SyncKey, StringComparer.OrdinalIgnoreCase);
 
-        var external = Characters.Where(c => c.IsExternal).ToList();
         var preservedAccounts = _data.Accounts
             .Concat(Accounts)
             .Where(a => !string.IsNullOrWhiteSpace(a.SourceFolder))
@@ -1179,6 +1443,8 @@ public partial class CartoViewModel : ObservableObject
         _data.Accounts.Clear();
 
         var stackIndex = 0;
+        var seenCharacterKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenGlobalNameRealm = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var syncAccount in syncAccounts.OrderBy(a => a.SourceAccountName, StringComparer.OrdinalIgnoreCase))
         {
             var sourceFolder = syncAccount.SourceAccountName;
@@ -1222,6 +1488,17 @@ public partial class CartoViewModel : ObservableObject
 
             foreach (var syncChar in syncAccount.Characters.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
             {
+                if (string.IsNullOrWhiteSpace(syncChar.Name))
+                    continue;
+
+                var rosterKey = $"{sourceFolder}|{syncChar.Key}";
+                if (!seenCharacterKeys.Add(rosterKey))
+                    continue;
+
+                var globalKey = CartoCharacterSyncKey.Normalize($"{syncChar.Name}|{syncChar.Realm}");
+                if (!seenGlobalNameRealm.Add(globalKey))
+                    continue;
+
                 var extras = ResolveCharacterExtras(extrasByKey, syncChar);
                 CartoCharacterProfile? profile = null;
                 if (!profilesByKey.TryGetValue(syncChar.Key, out profile)
@@ -1232,15 +1509,6 @@ public partial class CartoViewModel : ObservableObject
                 CartoCharacterEnricher.ApplyFromSync(syncChar, cartoChar);
                 Characters.Add(cartoChar);
             }
-        }
-
-        foreach (var ext in external)
-        {
-            if (HasLocalCharacterWithSyncKey(ext.SyncKey))
-                continue;
-
-            ext.IsPlacedOnMap = true;
-            Characters.Add(ext);
         }
 
         foreach (var ch in Characters.Where(c => c.Status == CharacterStatus.Reroll))
@@ -1258,10 +1526,7 @@ public partial class CartoViewModel : ObservableObject
         OnPropertyChanged(nameof(OverlayChanged));
 
         if (saveAfter)
-        {
             Save();
-            _ = RunNetworkSyncAsync(SyncRunTrigger.Manual);
-        }
 
         return stackIndex;
     }
@@ -1283,7 +1548,7 @@ public partial class CartoViewModel : ObservableObject
     public string? TryPlaceCharacterFromWowSync(WowCharacter? character = null)
     {
         character ??= SelectedCharacter;
-        if (character == null || character.IsExternal)
+        if (character == null)
             return "Aucun personnage sélectionné.";
 
         var sync = FindWowSyncCharacter(character);
@@ -1352,8 +1617,7 @@ public partial class CartoViewModel : ObservableObject
     {
         EnsureZoneCalibrationLoaded();
 
-        foreach (var ch in Characters.Where(c =>
-                     !c.IsExternal && !c.IsHidden && !c.ExcludeFromSync))
+        foreach (var ch in Characters.Where(c => !c.IsHidden))
             TryApplyWowSyncMapPosition(ch);
     }
 
@@ -1374,21 +1638,16 @@ public partial class CartoViewModel : ObservableObject
         return true;
     }
 
-    private bool IsEligibleForStartupMapPlacement(WowCharacter ch) =>
-        !ch.IsExternal
-        && !ch.IsHidden
-        && !ch.ExcludeFromSync
-        && IsCharacterInVisibleRosterSubtree(ch);
+    private bool IsEligibleForStartupMapPlacement(WowCharacter ch) => IsCharacterVisibleOnMap(ch);
 
     public int CountLocalCharactersForUser(string userId) =>
-        Characters.Count(c => !c.IsExternal && GetUserIdForCharacter(c) == userId);
+        Characters.Count(c => GetUserIdForCharacter(c) == userId);
 
     public int CountLocalCharactersInCategory(string userId, CharacterStatus frameCategory)
     {
         var statuses = StatusesForRosterCategory(frameCategory).ToHashSet();
         return Characters.Count(c =>
-            !c.IsExternal
-            && GetUserIdForCharacter(c) == userId
+            GetUserIdForCharacter(c) == userId
             && statuses.Contains(c.Status));
     }
 
@@ -1402,48 +1661,132 @@ public partial class CartoViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task RefreshWowSync()
+    private Task RefreshWowSync() => RescanWowFromWtfAsync();
+
+    private async Task<bool> ScanWowFromWtfCoreAsync(WowWtfScanMode mode)
     {
+        await _wowSyncRefreshLock.WaitAsync().ConfigureAwait(true);
         try
         {
-            if (string.IsNullOrWhiteSpace(_wowSyncService.WowPath))
+            if (mode == WowWtfScanMode.StartupOnce && _startupWtfScanDone)
+                return Characters.Count > 0;
+
+            if (!EnsureWowPathPersisted(out _))
             {
-                AddonStatusText = "⚠ Configurez le chemin WoW dans le panneau Addon.";
-                return;
+                AddonStatusText = string.IsNullOrWhiteSpace(_settings.WowPath) && string.IsNullOrWhiteSpace(WowPath)
+                    ? "⚠ Chemin WoW non enregistré — Paramètres → dossier « World of Warcraft »."
+                    : WowInstallPaths.GetValidationError(WowPath);
+                return false;
             }
 
-            var wtfPath = _wowSyncService.ResolvedWtfPath;
-            var wtfExists = Directory.Exists(wtfPath);
+            ClearWowSyncRosterState();
 
-            _wowSyncCache = null;
-            BumpMapPlacementStamp();
-            RefreshCharactersFromWowSync(saveAfter: false, reapplyMapLayout: false);
+            var gameRoot = _wowSyncService.WowPath;
+            AddonStatusText = mode == WowWtfScanMode.ManualRescan
+                ? "Rescan WTF : vidage puis lecture WowSync.lua…"
+                : "Lecture WTF (WowSync.lua)…";
 
-            var placements = await Task.Run(() =>
-                CartoMapPositionPrecompute.ComputeForAccounts(TryReadWowSyncAccounts())).ConfigureAwait(true);
+            var accountSettings = _data.AccountSettings;
+            var (scan, syncAccounts, placements) = await Task.Run(() =>
+            {
+                var diagnostics = _wowSyncService.GetScanDiagnostics(gameRoot);
+                var accounts = _wowSyncService.ReadAllAccounts(accountSettings, gameRoot);
+                var computed = CartoMapPositionPrecompute.ComputeForAccounts(accounts);
+                return (diagnostics, accounts, computed);
+            }).ConfigureAwait(true);
 
-            _precomputedPlacements = placements;
-            ApplyPrecomputedMapPositions();
-            FinishMapPlacementForDisplay();
+            ApplyWowSyncScanResults(scan, syncAccounts, placements);
+            _startupWtfScanDone = true;
 
-            ApplySyncEnrichmentForAll();
-            UpdateItemSearch();
-            ApplyFilters();
-            Save();
-            OnPropertyChanged(nameof(OverlayChanged));
-            OnPropertyChanged(CharactersLoadedPropertyName);
-            var localCount = Characters.Count(c => !c.IsExternal);
-            if (!wtfExists)
-                AddonStatusText = $"❌ Dossier de comptes WoW introuvable : {wtfPath}";
-            else if (localCount == 0)
-                AddonStatusText = "⚠ Dossier WoW OK mais aucun WowSync.lua — déployez l'addon, jouez, déconnectez-vous.";
-            else
-                AddonStatusText = $"✅ {localCount} personnage(s) relu(s) depuis les comptes locaux.";
+            var localCount = Characters.Count;
+            AddonStatusText = BuildWowSyncStatusText(scan, _wowSyncService.ListWtfAccountFolderNames(), localCount);
+            if (localCount > 0)
+                IsRosterOpen = true;
+            return localCount > 0;
         }
         catch (Exception ex)
         {
-            AddonStatusText = $"❌ Erreur lecture : {ex.Message}";
+            AddonStatusText = $"Erreur lecture WTF : {ex.Message}";
+            return false;
         }
+        finally
+        {
+            _wowSyncRefreshLock.Release();
+        }
+    }
+
+    private void ApplyWowSyncScanResults(
+        WowSyncScanDiagnostics scan,
+        List<WowAccountData> syncAccounts,
+        IReadOnlyList<CartoMapPositionPrecompute.CharacterPlacement> placements)
+    {
+        var wtfFolders = _wowSyncService.ListWtfAccountFolderNames();
+
+        CartoUserMigration.Migrate(_data);
+        EnsureDefaultCartoUserExists();
+        _wowSyncCache = syncAccounts;
+        BumpMapPlacementStamp();
+        RefreshCharactersFromWowSync(saveAfter: false, reapplyMapLayout: false);
+
+        _precomputedPlacements = placements;
+        ApplyPrecomputedMapPositions();
+        FinishMapPlacementForDisplay();
+
+        ApplySyncEnrichmentForAll();
+        UpdateItemSearch();
+        ApplyFilters();
+        Save();
+        OnPropertyChanged(nameof(OverlayChanged));
+
+        var localCount = Characters.Count;
+        AddonStatusText = BuildWowSyncStatusText(scan, wtfFolders, localCount);
+
+        RefreshAccountSettingRows();
+        ApplyConfiguredAccountSettings();
+
+        CharactersLoaded = true;
+        OnPropertyChanged(CharactersLoadedPropertyName);
+        OnPropertyChanged(nameof(FilteredCharacters));
+        RefreshCartoUserCollections();
+        RefreshRosterTree();
+        CharactersRescanned?.Invoke(this, EventArgs.Empty);
+
+        if (localCount > 0)
+        {
+            IsCooldownRosterOpen = false;
+            IsRosterOpen = true;
+        }
+    }
+
+    private static string BuildWowSyncStatusText(
+        WowSyncScanDiagnostics scan,
+        IReadOnlyList<string> wtfFolders,
+        int loadedCharacterCount)
+    {
+        if (string.IsNullOrWhiteSpace(scan.WtfAccountPath) && scan.Issues.Count > 0)
+            return $"❌ {scan.Issues[0]}";
+
+        if (string.IsNullOrWhiteSpace(scan.WtfAccountPath))
+            return $"❌ {scan.Issues.FirstOrDefault() ?? "Chemin WoW invalide."}";
+
+        if (scan.WtfFolderCount == 0)
+            return $"⚠ Comptes : {scan.WtfAccountPath}\nAucun sous-dossier compte Battle.net.";
+
+        if (loadedCharacterCount > 0)
+        {
+            return $"✅ {loadedCharacterCount} personnage(s) chargé(s).\n"
+                   + $"Lecture : {scan.WtfAccountPath}\n"
+                   + $"({scan.WowSyncLuaFileCount} WowSync.lua, {scan.CharactersInLuaFiles} entrée(s) en jeu)";
+        }
+
+        var folderHint = wtfFolders.Count > 0
+            ? string.Join(", ", wtfFolders.Take(4)) + (wtfFolders.Count > 4 ? "…" : "")
+            : "—";
+        var issue = scan.Issues.FirstOrDefault()
+                    ?? "Aucun personnage dans WowSync.lua — connectez-vous, /wowsync, déconnectez-vous.";
+        return $"⚠ 0 personnage chargé ({scan.WtfFolderCount} compte(s) WTF : {folderHint}).\n"
+               + $"Fichiers WowSync.lua : {scan.WowSyncLuaFileCount} — entrées lues : {scan.CharactersInLuaFiles}.\n"
+               + issue;
     }
 
     public string? GetCharacterPositionDisplay(WowCharacter ch)
@@ -1461,15 +1804,12 @@ public partial class CartoViewModel : ObservableObject
 
     public void ApplySyncEnrichmentForAll()
     {
-        foreach (var ch in Characters.Where(c => !c.IsExternal))
+        foreach (var ch in Characters)
             ApplySyncEnrichment(ch);
     }
 
     public WowCharacterData? FindWowSyncCharacter(WowCharacter ch)
     {
-        if (ch.IsExternal)
-            return null;
-
         EnsureSyncIndex();
         if (TryGetSyncCharacter(ch.SyncKey, out var found))
             return found;
@@ -1643,7 +1983,7 @@ public partial class CartoViewModel : ObservableObject
         if (_data.CharacterExtras.Count > 0 || _data.Characters.Count == 0)
             return;
 
-        foreach (var legacy in _data.Characters.Where(c => !c.IsExternal))
+        foreach (var legacy in _data.Characters)
         {
             _data.CharacterExtras.Add(CartoSyncMapper.MigrateLegacyCharacter(legacy));
             if (!string.IsNullOrEmpty(legacy.SyncKey) || !string.IsNullOrEmpty(legacy.Name))
@@ -1693,6 +2033,23 @@ public partial class CartoViewModel : ObservableObject
     }
 
     /// <summary>Supprime les positions carte sauvegardées hors addon (pile / drag manuel).</summary>
+    /// <summary>Retire les drapeaux « sur carte » posés en masse (sans placement manuel ni coords addon).</summary>
+    private void MigrateClearBulkMapPlacementFlags()
+    {
+        var changed = false;
+        foreach (var extra in _data.CharacterExtras)
+        {
+            if (!extra.IsPlacedOnMap || extra.HasCustomMapPosition)
+                continue;
+
+            extra.IsPlacedOnMap = false;
+            changed = true;
+        }
+
+        if (changed)
+            _cartoService.Save(_data);
+    }
+
     private void MigrateStripNonAddonMapPositions()
     {
         var changed = false;
@@ -1726,7 +2083,84 @@ public partial class CartoViewModel : ObservableObject
         }
     }
 
-    public IEnumerable<CartoUser> CartoUsers => GetOrderedUsers();
+    [ObservableProperty]
+    private ObservableCollection<CartoUser> _cartoUsers = [];
+
+    /// <summary>Propriétaires locaux autres que « Moi » (paramètres).</summary>
+    [ObservableProperty]
+    private ObservableCollection<CartoUser> _otherCartoOwners = [];
+
+    [ObservableProperty]
+    private string _newCartoOwnerName = "";
+
+    [ObservableProperty]
+    private string _cartoOwnerStatusMessage = "";
+
+    public void RefreshCartoUserCollections()
+    {
+        CartoUsers = new ObservableCollection<CartoUser>(GetOrderedUsers());
+        OtherCartoOwners = new ObservableCollection<CartoUser>(
+            CartoUsers.Where(u => !IsDefaultCartoUser(u)));
+    }
+
+    [RelayCommand]
+    private void AddCartoOwner()
+    {
+        var name = NewCartoOwnerName.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            CartoOwnerStatusMessage = "Indiquez un nom de propriétaire.";
+            return;
+        }
+
+        if (name.Equals(CartoUserMigration.DefaultUserName, StringComparison.OrdinalIgnoreCase))
+        {
+            CartoOwnerStatusMessage = "« Moi » est réservé à vos comptes.";
+            return;
+        }
+
+        if (_data.Users.Any(u => u.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            CartoOwnerStatusMessage = $"Le propriétaire « {name} » existe déjà.";
+            return;
+        }
+
+        var maxOrder = _data.Users.Count > 0 ? _data.Users.Max(u => u.SortOrder) : 0;
+        _data.Users.Add(new CartoUser { Name = name, SortOrder = maxOrder + 1 });
+        NewCartoOwnerName = string.Empty;
+        CartoOwnerStatusMessage = $"Propriétaire « {name} » ajouté.";
+        FinishCartoOwnerChange();
+    }
+
+    [RelayCommand]
+    private void RemoveCartoOwner(CartoUser? user)
+    {
+        if (user == null || IsDefaultCartoUser(user))
+            return;
+
+        var moiId = GetDefaultUserId();
+        if (moiId == null)
+            return;
+
+        foreach (var cfg in _data.AccountSettings.Values)
+        {
+            if (cfg.UserId == user.Id)
+                cfg.UserId = moiId;
+        }
+
+        _data.Users.RemoveAll(u => u.Id == user.Id);
+        CartoOwnerStatusMessage = $"Propriétaire « {user.Name} » retiré.";
+        FinishCartoOwnerChange();
+    }
+
+    private void FinishCartoOwnerChange()
+    {
+        CartoUserMigration.ReindexUsers(_data);
+        RefreshCartoUserCollections();
+        RefreshAccountSettingRows();
+        Save();
+        RefreshRosterTree();
+    }
 
     public IEnumerable<CartoUser> GetOrderedUsers() =>
         _data.Users.OrderBy(u => u.SortOrder).ThenBy(u => u.Name, StringComparer.OrdinalIgnoreCase);
@@ -1746,17 +2180,9 @@ public partial class CartoViewModel : ObservableObject
 
     public string? GetUserIdForCharacter(WowCharacter ch)
     {
-        if (ch.IsExternal)
-            return null;
-
         var account = Accounts.FirstOrDefault(a => a.Id == ch.AccountId);
         return GetUserIdForAccount(account) ?? GetDefaultUserId();
     }
-
-    private string? GetDefaultUserId() =>
-        _data.Users.FirstOrDefault(u =>
-            u.Name.Equals(CartoUserMigration.DefaultUserName, StringComparison.OrdinalIgnoreCase))?.Id
-        ?? _data.Users.OrderBy(u => u.SortOrder).FirstOrDefault()?.Id;
 
     public string GetUserDisplayName(string? userId)
     {
@@ -1776,7 +2202,7 @@ public partial class CartoViewModel : ObservableObject
     /// <summary>Nom affiché du compte WTF lié au personnage (paramètres Comptes).</summary>
     public string? GetCharacterAccountDisplayName(WowCharacter ch)
     {
-        if (ch.IsExternal || string.IsNullOrEmpty(ch.AccountId))
+        if (string.IsNullOrEmpty(ch.AccountId))
             return null;
 
         var account = Accounts.FirstOrDefault(a => a.Id == ch.AccountId);
@@ -1810,8 +2236,7 @@ public partial class CartoViewModel : ObservableObject
     {
         var statuses = StatusesForRosterCategory(category).ToHashSet();
         return Characters
-            .Where(c => !c.IsExternal
-                        && GetUserIdForCharacter(c) == userId
+            .Where(c => GetUserIdForCharacter(c) == userId
                         && statuses.Contains(c.Status))
             .ToList();
     }
@@ -1822,7 +2247,7 @@ public partial class CartoViewModel : ObservableObject
             return 0;
 
         long total = 0;
-        foreach (var ch in Characters.Where(c => !c.IsExternal))
+        foreach (var ch in Characters)
         {
             var account = Accounts.FirstOrDefault(a => a.Id == ch.AccountId);
             if (account == null
@@ -1881,7 +2306,7 @@ public partial class CartoViewModel : ObservableObject
         _ => t.ToString()
     };
 
-    public CartoCategoryPolicy GetCategorySyncPolicy(string userId, CharacterStatus category)
+    public CartoCategoryPolicy GetCategoryPolicy(string userId, CharacterStatus category)
     {
         var policy = _data.CategoryPolicies.FirstOrDefault(p =>
             p.UserId == userId && p.Category == category);
@@ -1891,28 +2316,6 @@ public partial class CartoViewModel : ObservableObject
         policy = new CartoCategoryPolicy { UserId = userId, Category = category };
         _data.CategoryPolicies.Add(policy);
         return policy;
-    }
-
-    public void UpdateCategorySyncPolicy(
-        string userId,
-        CharacterStatus category,
-        Action<CartoCategoryPolicy> apply)
-    {
-        var policy = GetCategorySyncPolicy(userId, category);
-        apply(policy);
-        Save();
-    }
-
-    public static string FormatCategorySyncSummary(CartoCategoryPolicy policy)
-    {
-        var parts = new List<string>(6);
-        if (policy.SyncBank) parts.Add("Banque");
-        if (policy.SyncInventory) parts.Add("Inv.");
-        if (policy.SyncProfessions) parts.Add("Métiers");
-        if (policy.SyncCooldowns) parts.Add("CDs");
-        if (policy.SyncGold) parts.Add("PO");
-        if (policy.SyncSoulShards) parts.Add("Frag.");
-        return parts.Count == 0 ? "aucune" : string.Join(" · ", parts);
     }
 
     public long GetCategoryGoldCopper(IReadOnlyList<WowCharacter> chars)
@@ -1957,9 +2360,6 @@ public partial class CartoViewModel : ObservableObject
         var best = tpBoys[0];
         return (best, best.ShardCount);
     }
-
-    public bool IsFriendUser(CartoUser user) =>
-        !user.Name.Equals(CartoUserMigration.DefaultUserName, StringComparison.OrdinalIgnoreCase);
 
     public static bool IsDefaultCartoUser(CartoUser user) =>
         user.Name.Equals(CartoUserMigration.DefaultUserName, StringComparison.OrdinalIgnoreCase);
@@ -2056,121 +2456,12 @@ public partial class CartoViewModel : ObservableObject
         return FindSourceFolderForAccountName(account.Name);
     }
 
-    public string GetCharacterFriendGroup(WowCharacter ch)
-    {
-        if (CartoExternalSource.IsTpBoyPublic(ch.ExternalSource))
-            return "TP communauté";
-
-        if (ch.IsExternal)
-        {
-            if (!string.IsNullOrEmpty(ch.ExternalSource))
-            {
-                var name = GetFriendName(ch.ExternalSource);
-                if (!string.IsNullOrWhiteSpace(name))
-                    return name.Trim();
-            }
-
-            return "Ami";
-        }
-
-        var userId = GetUserIdForCharacter(ch);
-        return GetUserDisplayName(userId);
-    }
-
     public bool HasLocalCharacterWithSyncKey(string syncKey) =>
         !string.IsNullOrWhiteSpace(syncKey)
-        && Characters.Any(c => !c.IsExternal
-            && syncKey.Equals(c.SyncKey, StringComparison.OrdinalIgnoreCase));
+        && Characters.Any(c => syncKey.Equals(c.SyncKey, StringComparison.OrdinalIgnoreCase));
 
     [ObservableProperty]
     private ObservableCollection<AccountSettingRow> _accountSettingRows = [];
-
-    [ObservableProperty]
-    private ObservableCollection<CartoUser> _friendCartoUsers = [];
-
-    [ObservableProperty]
-    private string _newFriendUserName = string.Empty;
-
-    [ObservableProperty]
-    private string _friendUserStatusMessage = string.Empty;
-
-    /// <summary>Utilisateurs locaux (tous sauf Moi) — regroupement des comptes WoW.</summary>
-    public void RefreshFriendCartoUsers()
-    {
-        FriendCartoUsers = new ObservableCollection<CartoUser>(
-            GetOrderedUsers().Where(u => !IsDefaultCartoUser(u)));
-    }
-
-    [RelayCommand]
-    private void AddFriendCartoUser()
-    {
-        var name = NewFriendUserName.Trim();
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            FriendUserStatusMessage = "Indiquez un nom d'utilisateur.";
-            return;
-        }
-
-        if (name.Equals(CartoUserMigration.DefaultUserName, StringComparison.OrdinalIgnoreCase))
-        {
-            FriendUserStatusMessage = "« Moi » est réservé à vos comptes.";
-            return;
-        }
-
-        if (_data.Users.Any(u => u.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-        {
-            FriendUserStatusMessage = $"L'utilisateur « {name} » existe déjà.";
-            return;
-        }
-
-        var maxOrder = _data.Users.Count > 0 ? _data.Users.Max(u => u.SortOrder) : 0;
-        _data.Users.Add(new CartoUser { Name = name, SortOrder = maxOrder + 1 });
-        NewFriendUserName = string.Empty;
-        FriendUserStatusMessage = $"Utilisateur « {name} » ajouté.";
-        FinishFriendUserChange();
-    }
-
-    [RelayCommand]
-    private void RemoveFriendCartoUser(CartoUser? user)
-    {
-        if (user == null || IsDefaultCartoUser(user))
-            return;
-
-        var moiId = _data.Users.FirstOrDefault(u =>
-            u.Name.Equals(CartoUserMigration.DefaultUserName, StringComparison.OrdinalIgnoreCase))?.Id;
-        if (moiId == null)
-            return;
-
-        foreach (var cfg in _data.AccountSettings.Values)
-        {
-            if (cfg.UserId == user.Id)
-                cfg.UserId = moiId;
-        }
-
-        foreach (var row in AccountSettingRows)
-        {
-            if (row.UserId == user.Id)
-                row.UserId = moiId;
-        }
-
-        foreach (var policy in _data.CategoryPolicies)
-        {
-            if (policy.UserId == user.Id)
-                policy.UserId = moiId;
-        }
-
-        _data.Users.RemoveAll(u => u.Id == user.Id);
-        FriendUserStatusMessage = $"Utilisateur « {user.Name} » retiré — ses comptes sont passés sous Moi.";
-        FinishFriendUserChange();
-    }
-
-    private void FinishFriendUserChange()
-    {
-        CartoUserMigration.ReindexUsers(_data);
-        RefreshFriendCartoUsers();
-        OnPropertyChanged(nameof(CartoUsers));
-        Save();
-    }
 
     /// <summary>Ouvre la popup comptes : copie de secours pour Annuler.</summary>
     public void BeginAccountSettingsEdit()
@@ -2204,19 +2495,24 @@ public partial class CartoViewModel : ObservableObject
             StringComparer.OrdinalIgnoreCase);
 
         var syncAccounts = TryReadWowSyncAccounts();
+        var syncByFolder = syncAccounts.ToDictionary(
+            a => a.SourceAccountName,
+            StringComparer.OrdinalIgnoreCase);
+        var wtfFolders = _wowSyncService.ListWtfAccountFolderNames();
         var rows = new List<AccountSettingRow>();
         var users = GetOrderedUsers().ToList();
 
-        foreach (var sync in syncAccounts.OrderBy(a => a.SourceAccountName, StringComparer.OrdinalIgnoreCase))
+        foreach (var folder in wtfFolders)
         {
-            _data.AccountSettings.TryGetValue(sync.SourceAccountName, out var cfg);
+            syncByFolder.TryGetValue(folder, out var sync);
+            _data.AccountSettings.TryGetValue(folder, out var cfg);
             var row = AccountSettingRow.From(
-                sync.SourceAccountName,
+                folder,
                 cfg,
-                sync.Characters.Count,
-                GetAccountGoldCopper(sync.SourceAccountName),
+                sync?.Characters.Count ?? 0,
+                GetAccountGoldCopper(folder),
                 users);
-            if (pendingEdits.TryGetValue(sync.SourceAccountName, out var edit))
+            if (pendingEdits.TryGetValue(folder, out var edit))
             {
                 row.DisplayName = edit.DisplayName;
                 row.UserId = edit.UserId;
@@ -2246,14 +2542,12 @@ public partial class CartoViewModel : ObservableObject
         }
 
         AccountSettingRows = new ObservableCollection<AccountSettingRow>(rows);
-        RefreshFriendCartoUsers();
-        OnPropertyChanged(nameof(CartoUsers));
+        RefreshCartoUserCollections();
     }
 
     public void CloseSettingsPanelAfterSave()
     {
         SaveAccountSettingsFromRows();
-        RefreshFriendCartoUsers();
         _settingsPanelClosingAfterSave = true;
         IsSettingsPanelOpen = false;
         _settingsPanelClosingAfterSave = false;
@@ -2292,7 +2586,7 @@ public partial class CartoViewModel : ObservableObject
         ApplyConfiguredAccountSettings();
         AccountIdToNameConverter.Accounts = [.. Accounts];
         CharacterSyncGoldConverter.Vm = this;
-        OnPropertyChanged(nameof(CartoUsers));
+        RefreshCartoUserCollections();
     }
 
     private static Dictionary<string, CartoAccountConfig> CloneAccountSettings(
@@ -2314,13 +2608,12 @@ public partial class CartoViewModel : ObservableObject
         return clone;
     }
 
-    private void PersistDataForSync()
+    private void PersistDataBeforeSave()
     {
         _data.Accounts = [.. Accounts];
         _data.Timers = [.. Timers];
         MergeCharacterProfilesFromMemory();
         MergeCharacterExtrasFromMemory();
-        _data.ExternalCharacters = Characters.Where(c => c.IsExternal).ToList();
         _data.Characters = [.. Characters];
     }
 
@@ -2332,7 +2625,7 @@ public partial class CartoViewModel : ObservableObject
             .Where(p => !string.IsNullOrWhiteSpace(p.SyncKey))
             .ToDictionary(p => p.SyncKey, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var ch in Characters.Where(c => !c.IsExternal && !string.IsNullOrWhiteSpace(c.SyncKey)))
+        foreach (var ch in Characters.Where(c => !string.IsNullOrWhiteSpace(c.SyncKey)))
             byKey[ch.SyncKey] = CartoSyncMapper.ToProfile(ch);
 
         _data.CharacterProfiles = byKey.Values.ToList();
@@ -2345,7 +2638,7 @@ public partial class CartoViewModel : ObservableObject
             .Where(e => !string.IsNullOrWhiteSpace(e.SyncKey))
             .ToDictionary(e => e.SyncKey, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var ch in Characters.Where(c => !c.IsExternal && !string.IsNullOrWhiteSpace(c.SyncKey)))
+        foreach (var ch in Characters.Where(c => !string.IsNullOrWhiteSpace(c.SyncKey)))
             byKey[ch.SyncKey] = CartoSyncMapper.ToExtras(ch);
 
         _data.CharacterExtras = byKey.Values.ToList();
@@ -2374,11 +2667,14 @@ public partial class CartoViewModel : ObservableObject
     }
 
     /// <summary>Empêche de perdre la carte hors écran ; centre si la carte est plus petite que la zone visible.</summary>
-    public void ClampMapPan(double viewportW, double viewportH, double mapPixelW, double mapPixelH)
+    /// <param name="dockOverlayRight">Largeur réservée à droite (volet en surcouche) — le centrage / pan utilise la bande visible à gauche.</param>
+    public void ClampMapPan(double viewportW, double viewportH, double mapPixelW, double mapPixelH, double dockOverlayRight = 0)
     {
         if (viewportW < 1 || viewportH < 1 || mapPixelW < 1 || mapPixelH < 1)
             return;
 
+        var overlay = Math.Max(0, dockOverlayRight);
+        var visW = Math.Max(1, viewportW - overlay);
         var scaledW = mapPixelW * MapZoom;
         var scaledH = mapPixelH * MapZoom;
         const double edgePad = 24;
@@ -2386,7 +2682,7 @@ public partial class CartoViewModel : ObservableObject
         if (scaledW <= viewportW)
             MapOffsetX = (viewportW - scaledW) / 2;
         else
-            MapOffsetX = Math.Clamp(MapOffsetX, viewportW - scaledW - edgePad, edgePad);
+            MapOffsetX = Math.Clamp(MapOffsetX, visW - scaledW - edgePad, edgePad);
 
         if (scaledH <= viewportH)
             MapOffsetY = (viewportH - scaledH) / 2;
@@ -2528,7 +2824,7 @@ public partial class CartoViewModel : ObservableObject
 
     public void Save()
     {
-        PersistDataForSync();
+        PersistDataBeforeSave();
         AccountIdToNameConverter.Accounts = [.. Accounts];
         CharacterSyncGoldConverter.Vm = this;
         _cartoService.Save(BuildDiskSnapshot());
@@ -2543,273 +2839,11 @@ public partial class CartoViewModel : ObservableObject
         Accounts = _data.Accounts,
         CharacterProfiles = _data.CharacterProfiles,
         CharacterExtras = _data.CharacterExtras,
-        ExternalCharacters = _data.ExternalCharacters,
         Timers = _data.Timers,
         Characters = []
     };
 
-    // ─── Amis réseau (SignalR) / persos externes ──────────────
-
-    public string MyGuid => _syncService.UserGuid;
-
-    [ObservableProperty]
-    private ObservableCollection<FriendEntry> _friends = [];
-
-    [ObservableProperty]
-    private string _syncStatus = "Déconnecté";
-
-    [ObservableProperty]
-    private string _friendGuidInput = string.Empty;
-
-    [ObservableProperty]
-    private string _friendNameInput = string.Empty;
-
-    [ObservableProperty]
-    private string _networkFriendStatusMessage = string.Empty;
-
-    partial void OnSyncStatusChanged(string value) => OnPropertyChanged(nameof(FriendsSummary));
-
-    public string FriendsSummary
-    {
-        get
-        {
-            var total = _syncService.Friends.Count;
-            if (total == 0)
-                return $"🔄 {SyncStatus}";
-            var online = _syncService.Friends.Count(f => f.IsOnline);
-            return $"🔄 {SyncStatus} · {online}/{total} ami(s) en ligne";
-        }
-    }
-
-    public void RefreshFriends()
-    {
-        Friends = new ObservableCollection<FriendEntry>(_syncService.Friends);
-        OnPropertyChanged(nameof(FriendsSummary));
-    }
-
-    private void SaveSettings() => _settingsService.Save(_syncService.Settings);
-
-    public string? GetFriendName(string guid) => _syncService.GetFriend(guid)?.Name;
-
-    [ObservableProperty]
-    private string _lastSyncMessage = string.Empty;
-
-    [RelayCommand]
-    private async Task ConnectSync()
-    {
-        SyncStatus = "Connexion...";
-        OnPropertyChanged(nameof(FriendsSummary));
-        await _syncService.ConnectAsync();
-    }
-
-    [RelayCommand]
-    private async Task SyncNow()
-    {
-        LastSyncMessage = "Synchronisation…";
-        var result = await RunNetworkSyncAsync(SyncRunTrigger.Manual, force: true).ConfigureAwait(true);
-        LastSyncMessage = result.Message;
-        NetworkFriendStatusMessage = result.Message;
-    }
-
-    /// <summary>Sync réseau : envoi si données plus récentes, réception via le serveur.</summary>
-    public async Task<SyncRunResult> RunNetworkSyncAsync(SyncRunTrigger trigger, bool force = false)
-    {
-        if (!CharactersLoaded)
-            return new SyncRunResult { Message = "Personnages non chargés." };
-
-        PersistDataForSync();
-        var input = CreateSyncBuildInput();
-        var result = await _syncService.RunSyncAsync(input, trigger, force).ConfigureAwait(false);
-        SaveSettings();
-        return result;
-    }
-
-    private CartoSyncBuildInput CreateSyncBuildInput() => new()
-    {
-        OwnerGuid = MyGuid,
-        Accounts = [.. Accounts],
-        LocalCharacters = Characters.Where(c => !c.IsExternal).ToList(),
-        ResolveAccountDisplayName = GetCharacterAccountDisplayName,
-        FindWowSyncCharacter = FindWowSyncCharacter
-    };
-
-    private void PruneOrphanedExternalCharacters()
-    {
-        var friendGuids = _syncService.Friends.Select(f => f.Guid).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var orphaned = Characters
-            .Where(c => c.IsExternal && c.ExternalSource != null)
-            .Where(c =>
-            {
-                if (CartoExternalSource.IsTpBoyPublic(c.ExternalSource))
-                    return false;
-                return !friendGuids.Contains(c.ExternalSource!);
-            })
-            .ToList();
-
-        foreach (var ch in orphaned)
-            Characters.Remove(ch);
-    }
-
-    [RelayCommand]
-    private void CopyMyGuid()
-    {
-        try
-        {
-            System.Windows.Clipboard.SetText(MyGuid);
-            NetworkFriendStatusMessage = "Identifiant copié dans le presse-papiers.";
-        }
-        catch
-        {
-            NetworkFriendStatusMessage = "Impossible de copier l'identifiant.";
-        }
-    }
-
-    [RelayCommand]
-    private async Task AddFriend()
-    {
-        var guid = FriendGuidInput.Trim();
-        if (string.IsNullOrWhiteSpace(guid))
-        {
-            NetworkFriendStatusMessage = "Collez l'identifiant de votre ami.";
-            return;
-        }
-
-        if (guid.Equals(MyGuid, StringComparison.OrdinalIgnoreCase))
-        {
-            NetworkFriendStatusMessage = "Vous ne pouvez pas vous ajouter vous-même.";
-            return;
-        }
-
-        if (_syncService.Friends.Any(f => f.Guid.Equals(guid, StringComparison.OrdinalIgnoreCase)))
-        {
-            NetworkFriendStatusMessage = "Cet ami est déjà dans la liste.";
-            return;
-        }
-
-        var name = string.IsNullOrWhiteSpace(FriendNameInput)
-            ? guid[..Math.Min(8, guid.Length)]
-            : FriendNameInput.Trim();
-
-        await _syncService.SubscribeToFriendAsync(guid, name);
-        FriendGuidInput = string.Empty;
-        FriendNameInput = string.Empty;
-        NetworkFriendStatusMessage =
-            $"« {name} » ajouté — partage complet quand il vous ajoute aussi (TP Boy public sans amitié).";
-        RefreshFriends();
-        SaveSettings();
-        if (CharactersLoaded)
-            _ = RunNetworkSyncAsync(SyncRunTrigger.Manual);
-    }
-
-    [RelayCommand]
-    private async Task RemoveFriend(FriendEntry friend)
-    {
-        var toRemove = Characters.Where(c => c.IsExternal && c.ExternalSource == friend.Guid).ToList();
-        foreach (var ch in toRemove) Characters.Remove(ch);
-        await _syncService.UnsubscribeFromFriendAsync(friend.Guid);
-        RefreshFriends();
-        SaveSettings();
-        ApplyFilters();
-        Save();
-    }
-
-    [RelayCommand]
-    private void ToggleFriendVisibility(FriendEntry friend)
-    {
-        friend.IsVisible = !friend.IsVisible;
-        RefreshFriends();
-        SaveSettings();
-        ApplyFilters();
-    }
-
-    public bool HasLocalFriendAccountsForName(string friendName)
-    {
-        if (string.IsNullOrWhiteSpace(friendName))
-            return false;
-
-        var key = friendName.Trim();
-        foreach (var user in _data.Users)
-        {
-            if (user.Name.Equals(CartoUserMigration.DefaultUserName, StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            if (user.Name.Equals(key, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        foreach (var account in Accounts)
-        {
-            var userId = GetUserIdForAccount(account);
-            var userName = GetUserDisplayName(userId);
-            if (userName.Equals(key, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
-    }
-
-    public bool ShouldShowNetworkFriend(FriendEntry friend) =>
-        friend.IsVisible && !HasLocalFriendAccountsForName(friend.Name);
-
-    private void OnFriendDataReceived(string friendGuid, FriendSyncPayload payload)
-    {
-        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
-        {
-            var friend = _syncService.GetFriend(friendGuid);
-            if (friend != null && friend.LinkState != FriendLinkState.Mutual)
-                return;
-
-            var toRemove = Characters
-                .Where(c => c.IsExternal && c.ExternalSource == friendGuid)
-                .ToList();
-            foreach (var ch in toRemove)
-                Characters.Remove(ch);
-
-            foreach (var ch in payload.Characters)
-            {
-                ch.IsExternal = true;
-                ch.ExternalSource = friendGuid;
-                ch.IsLocked = true;
-                Characters.Add(ch);
-            }
-
-            _data.ExternalCharacters = Characters
-                .Where(c => c.IsExternal)
-                .ToList();
-            _cartoService.Save(BuildDiskSnapshot());
-            ApplyFilters();
-            OnPropertyChanged(nameof(OverlayChanged));
-        });
-    }
-
-    private void OnTpBoyPublicReceived(string ownerGuid, TpBoyPublicPayload payload)
-    {
-        if (ownerGuid.Equals(MyGuid, StringComparison.OrdinalIgnoreCase))
-            return;
-
-        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
-        {
-            var source = CartoExternalSource.TpBoyPublic(ownerGuid);
-            var toRemove = Characters
-                .Where(c => c.IsExternal && c.ExternalSource == source)
-                .ToList();
-            foreach (var ch in toRemove)
-                Characters.Remove(ch);
-
-            foreach (var entry in payload.Entries)
-            {
-                var ch = CartoSyncPayloadBuilder.ToExternalTpBoyCharacter(entry, ownerGuid);
-                Characters.Add(ch);
-            }
-
-            _data.ExternalCharacters = Characters
-                .Where(c => c.IsExternal)
-                .ToList();
-            _cartoService.Save(BuildDiskSnapshot());
-            ApplyFilters();
-            OnPropertyChanged(nameof(OverlayChanged));
-        });
-    }
+    private void SaveSettings() => _settingsService.Save(_settings);
 
     [RelayCommand]
     private void ToggleCharacterMapVisibility(WowCharacter character)
@@ -2835,6 +2869,9 @@ public partial class CartoViewModel : ObservableObject
     /// <summary>Zones monde calibrées (hors capitales), pour la liste du volet Zones.</summary>
     public ObservableCollection<CartoZoneRectItem> WorldZoneRects { get; } = [];
 
+    /// <summary>Rectangles de calibration sur les 6 mini-cartes de capitales.</summary>
+    public ObservableCollection<CartoZoneRectItem> CapitalZoneRects { get; } = [];
+
     public ObservableCollection<CartoDungeonMarker> DungeonMarkers { get; } = [];
 
     public IReadOnlyList<ClassicEraMapProjection.ZoneCatalogEntry> ZoneCatalog
@@ -2844,6 +2881,9 @@ public partial class CartoViewModel : ObservableObject
         => CartoDungeonCatalog.All;
 
     public ObservableCollection<ZoneCatalogListItem> ZoneCatalogItems { get; } = [];
+
+    /// <summary>Capitales disponibles à placer (mini-cartes).</summary>
+    public ObservableCollection<ZoneCatalogListItem> CapitalCatalogItems { get; } = [];
 
     public ObservableCollection<DungeonCatalogListItem> DungeonCatalogItems { get; } = [];
 
@@ -2861,6 +2901,23 @@ public partial class CartoViewModel : ObservableObject
 
     [ObservableProperty]
     private int? _zoneToAddMapId;
+
+    [ObservableProperty]
+    private int? _capitalToAddMapId;
+
+    /// <summary>True après ＋ capitales : le rectangle n'est créé qu'au clic sur la tuile.</summary>
+    [ObservableProperty]
+    private bool _isPlacingCapitalZone;
+
+    /// <summary>True après ＋ zones ouvertes : le rectangle n'est créé qu'au clic sur Azeroth.</summary>
+    [ObservableProperty]
+    private bool _isPlacingWorldZone;
+
+    /// <summary>Ignore les clics carte juste après changement de combo (évite le clic fantôme à la fermeture).</summary>
+    public DateTime SuppressCapitalMapClickUntilUtc { get; private set; }
+
+    public void SuppressCapitalMapClicks(int milliseconds = 1200) =>
+        SuppressCapitalMapClickUntilUtc = DateTime.UtcNow.AddMilliseconds(milliseconds);
 
     [ObservableProperty]
     private string? _dungeonToPlaceKey;
@@ -2896,6 +2953,8 @@ public partial class CartoViewModel : ObservableObject
             LoadZoneRects();
             LoadDungeonMarkers();
             RefreshZoneCatalogItems();
+            if (CapitalToAddMapId is not > 0 && CapitalCatalogItems.Count > 0)
+                CapitalToAddMapId = CapitalCatalogItems[0].MapId;
             SyncSelectedZoneFromCombo();
             ShowWorldZoneRectOverlays = CartoRuntimeOptions.ShowWorldZoneRectOverlays;
             ZonePanelStatusMessage = ShowWorldZoneRectOverlays
@@ -2933,7 +2992,9 @@ public partial class CartoViewModel : ObservableObject
         {
             ZoneToAddMapId = value.MapId;
             SelectedDungeonMarker = null;
-            ZonePanelStatusMessage = $"Zone : {value.DisplayName} — les autres sont masquées";
+            ZonePanelStatusMessage = ClassicEraMapProjection.IsCapitalMap(value.MapId)
+                ? $"Capitale : {value.DisplayName} — glisser le jaune ; coin rond = taille"
+                : $"Zone : {value.DisplayName} — les autres sont masquées";
         }
         else if (IsZonesPanelOpen)
             ZonePanelStatusMessage = "Toutes les zones visibles sur la carte";
@@ -2981,14 +3042,50 @@ public partial class CartoViewModel : ObservableObject
 
     partial void OnZoneToAddMapIdChanged(int? value) => SyncSelectedZoneFromCombo();
 
+    partial void OnCapitalToAddMapIdChanged(int? value)
+    {
+        SyncSelectedCapitalFromCombo();
+    }
+
+    partial void OnIsPlacingCapitalZoneChanged(bool value)
+    {
+        if (!value || !IsZonesPanelOpen)
+            return;
+
+        if (CapitalToAddMapId is not > 0)
+            return;
+
+        var title = CapitalMapDefinitions.All.FirstOrDefault(d => d.MapId == CapitalToAddMapId.Value)?.Title
+                    ?? "la capitale";
+        ZonePanelStatusMessage =
+            $"{title} : cliquez sur l'image des capitales (à droite d'Azeroth). Aucun rectangle avant ce clic.";
+        OnPropertyChanged(nameof(OverlayChanged));
+    }
+
     private void SyncSelectedZoneFromCombo()
     {
         if (ZoneToAddMapId is not > 0)
             return;
 
+        if (ClassicEraMapProjection.IsCapitalMap(ZoneToAddMapId.Value))
+            return;
+
         var match = ZoneRects.FirstOrDefault(z => z.MapId == ZoneToAddMapId.Value);
         if (match != null && !ReferenceEquals(SelectedZoneRect, match))
             SelectedZoneRect = match;
+    }
+
+    private void SyncSelectedCapitalFromCombo()
+    {
+        if (CapitalToAddMapId is not > 0 || !IsZonesPanelOpen)
+            return;
+
+        var title = CapitalMapDefinitions.All.FirstOrDefault(d => d.MapId == CapitalToAddMapId.Value)?.Title
+                    ?? "cette capitale";
+        var match = ZoneRects.FirstOrDefault(z => z.MapId == CapitalToAddMapId.Value);
+        ZonePanelStatusMessage = match != null
+            ? $"{match.DisplayName} : déjà sur la carte — cliquez sa tuile pour déplacer, ou ✕ pour supprimer."
+            : $"{title} : appuyez sur ＋ puis cliquez sur sa tuile (aucun rectangle avant le clic).";
     }
 
     private void LoadZoneRects()
@@ -2998,14 +3095,12 @@ public partial class CartoViewModel : ObservableObject
 
         foreach (var entry in ZoneCatalog)
         {
-            if (ClassicEraMapProjection.IsContinentMap(entry.MapId))
+            if (ClassicEraMapProjection.IsContinentMap(entry.MapId)
+                || ClassicEraMapProjection.IsCapitalMap(entry.MapId))
                 continue;
 
-            if (!rects.TryGetValue(entry.MapId, out var rect)
-                && !ClassicEraMapProjection.TryGetMapRect(entry.MapId, out rect))
-            {
-                rect = ClassicEraMapProjection.CreateDefaultRect(entry.MapId);
-            }
+            if (!rects.TryGetValue(entry.MapId, out var rect))
+                continue;
 
             ZoneRects.Add(new CartoZoneRectItem
             {
@@ -3020,17 +3115,14 @@ public partial class CartoViewModel : ObservableObject
             });
         }
 
-        EnsureCapitalZoneRects();
+        LoadSavedCapitalZoneRects();
 
         RefreshWorldZoneRects();
+        RefreshCapitalZoneRects();
+        RefreshZoneCatalogItems();
 
-        if (SelectedZoneRect == null || WorldZoneRects.All(z => !ReferenceEquals(z, SelectedZoneRect)))
-        {
-            var firstWorld = WorldZoneRects.FirstOrDefault();
-            SelectedZoneRect = firstWorld;
-            if (firstWorld != null)
-                ZoneToAddMapId = firstWorld.MapId;
-        }
+        if (SelectedZoneRect == null || ZoneRects.All(z => !ReferenceEquals(z, SelectedZoneRect)))
+            SelectedZoneRect = ZoneRects.FirstOrDefault(z => !ClassicEraMapProjection.IsCapitalMap(z.MapId));
     }
 
     private void RefreshWorldZoneRects()
@@ -3042,11 +3134,59 @@ public partial class CartoViewModel : ObservableObject
             WorldZoneRects.Add(z);
     }
 
+    private void RefreshCapitalZoneRects()
+    {
+        CapitalZoneRects.Clear();
+        foreach (var z in ZoneRects
+                     .Where(z => ClassicEraMapProjection.IsCapitalMap(z.MapId))
+                     .OrderBy(z => z.DisplayName, StringComparer.OrdinalIgnoreCase))
+            CapitalZoneRects.Add(z);
+    }
+
+    /// <summary>Capitales : uniquement le fichier utilisateur (pas les rects intégrés / embarqués).</summary>
+    private void LoadSavedCapitalZoneRects()
+    {
+        var userRects = ZoneMapCalibration.LoadUserOverrides();
+        foreach (var def in CapitalMapDefinitions.All)
+        {
+            if (!userRects.TryGetValue(def.MapId, out var rect))
+                continue;
+
+            if (!ClassicEraMapProjection.TryGetCatalogEntry(def.MapId, out var entry))
+                continue;
+
+            ZoneRects.Add(new CartoZoneRectItem
+            {
+                MapId = def.MapId,
+                NameFr = entry.NameFr,
+                NameEn = entry.NameEn,
+                DisplayName = entry.DisplayName,
+                Left = rect.Left,
+                Top = rect.Top,
+                Width = rect.Width,
+                Height = rect.Height
+            });
+        }
+    }
+
+    private static bool IsWorldZonePlaced(int mapId, IEnumerable<CartoZoneRectItem> zoneRects) =>
+        zoneRects.Any(z => z.MapId == mapId);
+
+    private static bool IsCapitalPlaced(int mapId, IEnumerable<CartoZoneRectItem> zoneRects) =>
+        zoneRects.Any(z => z.MapId == mapId);
+
+    private bool IsDungeonPlaced(string key) =>
+        DungeonMarkers.Any(m =>
+            m.Key.Equals(key, StringComparison.OrdinalIgnoreCase)
+            && (m.MapX > 0 || m.MapY > 0));
+
     private void RefreshZoneCatalogItems()
     {
         ZoneCatalogItems.Clear();
         foreach (var z in ZoneCatalog
-                     .Where(z => !ClassicEraMapProjection.IsContinentMap(z.MapId))
+                     .Where(z => !ClassicEraMapProjection.IsContinentMap(z.MapId)
+                                 && !ClassicEraMapProjection.IsCapitalMap(z.MapId))
+                     .Where(z => !IsWorldZonePlaced(z.MapId, ZoneRects))
                      .OrderBy(z => z.DisplayName, StringComparer.OrdinalIgnoreCase))
         {
             ZoneCatalogItems.Add(new ZoneCatalogListItem
@@ -3056,8 +3196,25 @@ public partial class CartoViewModel : ObservableObject
             });
         }
 
+        CapitalCatalogItems.Clear();
+        foreach (var def in CapitalMapDefinitions.All)
+        {
+            if (!ClassicEraMapProjection.TryGetCatalogEntry(def.MapId, out var entry))
+                continue;
+
+            if (IsCapitalPlaced(def.MapId, ZoneRects))
+                continue;
+
+            CapitalCatalogItems.Add(new ZoneCatalogListItem
+            {
+                MapId = def.MapId,
+                DisplayName = entry.DisplayName
+            });
+        }
+
         DungeonCatalogItems.Clear();
         foreach (var d in DungeonCatalog
+                     .Where(d => !IsDungeonPlaced(d.Key))
                      .OrderBy(d => d.IsLieuDit ? 0 : 1)
                      .ThenBy(d => d.NameFr, StringComparer.OrdinalIgnoreCase))
         {
@@ -3069,6 +3226,23 @@ public partial class CartoViewModel : ObservableObject
                 IsLieuDit = d.IsLieuDit
             });
         }
+
+        SyncCatalogComboSelections();
+    }
+
+    private void SyncCatalogComboSelections()
+    {
+        if (ZoneToAddMapId is int zoneId && ZoneCatalogItems.All(i => i.MapId != zoneId))
+            ZoneToAddMapId = ZoneCatalogItems.FirstOrDefault()?.MapId;
+
+        if (CapitalToAddMapId is int capitalId && CapitalCatalogItems.All(i => i.MapId != capitalId))
+            CapitalToAddMapId = CapitalCatalogItems.FirstOrDefault()?.MapId;
+
+        if (!string.IsNullOrWhiteSpace(DungeonToPlaceKey)
+            && DungeonCatalogItems.All(i => !i.Key.Equals(DungeonToPlaceKey, StringComparison.OrdinalIgnoreCase)))
+        {
+            DungeonToPlaceKey = DungeonCatalogItems.FirstOrDefault()?.Key;
+        }
     }
 
     private void LoadDungeonMarkers()
@@ -3077,6 +3251,8 @@ public partial class CartoViewModel : ObservableObject
         foreach (var m in DungeonMarkerStore.LoadAll()
                      .OrderBy(m => m.DisplayName, StringComparer.OrdinalIgnoreCase))
             DungeonMarkers.Add(m);
+
+        RefreshZoneCatalogItems();
     }
 
     private CartoDungeonMarker? GetOrCreateDungeonMarker(string key)
@@ -3102,14 +3278,45 @@ public partial class CartoViewModel : ObservableObject
     [RelayCommand]
     private void AddWorldZoneFromPanel()
     {
-        if (!TryAddZoneAt(0.42, 0.42))
+        SuppressCapitalMapClicks();
+        SelectedZoneRect = null;
+        IsPlacingCapitalZone = false;
+
+        if (ZoneToAddMapId is not > 0)
         {
-            ZonePanelStatusMessage = "Choisissez une zone dans la liste, ou cliquez sur la carte.";
+            ZonePanelStatusMessage = "Choisissez une zone dans la liste, puis cliquez sur la carte Azeroth.";
             return;
         }
 
-        RefreshWorldZoneRects();
-        ZonePanelStatusMessage = "Rectangle ajouté — ajustez sur la carte.";
+        if (ClassicEraMapProjection.IsCapitalMap(ZoneToAddMapId.Value))
+        {
+            ZonePanelStatusMessage = "Les capitales se placent avec le ＋ sous « Capitales (6 mini-cartes) ».";
+            return;
+        }
+
+        IsPlacingWorldZone = true;
+        ShowWorldZoneRectOverlays = true;
+        ZonePanelStatusMessage = "Cliquez sur la carte Azeroth pour placer le rectangle (rien avant le clic).";
+        OnPropertyChanged(nameof(OverlayChanged));
+    }
+
+    [RelayCommand]
+    private void AddCapitalZoneFromPanel()
+    {
+        if (CapitalToAddMapId is not > 0)
+        {
+            ZonePanelStatusMessage = "Choisissez une capitale dans la liste, puis appuyez sur ＋.";
+            return;
+        }
+
+        SelectedZoneRect = null;
+        IsPlacingWorldZone = false;
+        IsPlacingCapitalZone = true;
+        var title = CapitalMapDefinitions.All.FirstOrDefault(d => d.MapId == CapitalToAddMapId.Value)?.Title
+                    ?? "cette capitale";
+        ZonePanelStatusMessage =
+            $"{title} : cliquez sur l'image des capitales. Aucun rectangle jaune avant ce clic.";
+        OnPropertyChanged(nameof(OverlayChanged));
     }
 
     [RelayCommand]
@@ -3146,6 +3353,7 @@ public partial class CartoViewModel : ObservableObject
         IsPlacingDungeonMarker = false;
         PersistDungeonMarkers();
         ApplyDungeonMarkersChanged();
+        RefreshZoneCatalogItems();
         ZonePanelStatusMessage = $"Repère placé : {marker.DisplayName}";
         OnPropertyChanged(nameof(OverlayChanged));
         return true;
@@ -3181,34 +3389,52 @@ public partial class CartoViewModel : ObservableObject
         OnPropertyChanged(nameof(OverlayChanged));
     }
 
-    /// <summary>Ajoute un rectangle par défaut sur chaque mini-carte de capitale non encore calibrée.</summary>
-    private void EnsureCapitalZoneRects()
+    /// <summary>Place un rectangle sur une mini-carte de capitale (coords 0–1 sur l'image).</summary>
+    public bool TryAddCapitalZoneAt(int mapId, double normalizedX, double normalizedY)
     {
-        var added = false;
-        foreach (var def in CapitalMapDefinitions.All)
-        {
-            if (ZoneRects.Any(z => z.MapId == def.MapId))
-                continue;
-            if (!ClassicEraMapProjection.TryGetCatalogEntry(def.MapId, out var entry))
-                continue;
+        if (!ClassicEraMapProjection.IsCapitalMap(mapId))
+            return false;
 
-            var rect = ClassicEraMapProjection.CreateDefaultRect(def.MapId);
-            ZoneRects.Add(new CartoZoneRectItem
-            {
-                MapId = def.MapId,
-                NameFr = entry.NameFr,
-                NameEn = entry.NameEn,
-                DisplayName = entry.DisplayName,
-                Left = rect.Left,
-                Top = rect.Top,
-                Width = rect.Width,
-                Height = rect.Height
-            });
-            added = true;
+        if (ZoneRects.FirstOrDefault(z => z.MapId == mapId) is { } previous)
+        {
+            if (!IsPlacingCapitalZone)
+                return false;
+
+            ZoneRects.Remove(previous);
+            if (ReferenceEquals(SelectedZoneRect, previous))
+                SelectedZoneRect = null;
         }
 
-        if (added)
-            PersistZoneRects();
+        if (!ClassicEraMapProjection.TryGetCatalogEntry(mapId, out var entry))
+            return false;
+
+        const double defaultW = 0.32;
+        const double defaultH = 0.32;
+        var left = Math.Clamp(normalizedX - defaultW / 2, 0, 1 - defaultW);
+        var top = Math.Clamp(normalizedY - defaultH / 2, 0, 1 - defaultH);
+
+        var item = new CartoZoneRectItem
+        {
+            MapId = mapId,
+            NameFr = entry.NameFr,
+            NameEn = entry.NameEn,
+            DisplayName = entry.DisplayName,
+            Left = left,
+            Top = top,
+            Width = defaultW,
+            Height = defaultH
+        };
+        ZoneRects.Add(item);
+        SelectedZoneRect = item;
+        CapitalToAddMapId = mapId;
+        IsPlacingCapitalZone = false;
+        ShowWorldZoneRectOverlays = true;
+        PersistZoneRects();
+        RefreshCapitalZoneRects();
+        RefreshZoneCatalogItems();
+        ZonePanelStatusMessage = $"{item.DisplayName} placée — glissez le rectangle pour ajuster.";
+        OnPropertyChanged(nameof(OverlayChanged));
+        return true;
     }
 
     [RelayCommand]
@@ -3246,6 +3472,9 @@ public partial class CartoViewModel : ObservableObject
         if (ZoneRects.Any(z => z.MapId == mapId))
             return false;
 
+        if (ClassicEraMapProjection.IsCapitalMap(mapId))
+            return false;
+
         if (!ClassicEraMapProjection.TryGetCatalogEntry(mapId, out var entry))
             return false;
 
@@ -3263,10 +3492,61 @@ public partial class CartoViewModel : ObservableObject
         ZoneRects.Add(item);
         SelectedZoneRect = item;
         ZoneToAddMapId = null;
+        IsPlacingWorldZone = false;
         PersistZoneRects();
         RefreshWorldZoneRects();
+        RefreshCapitalZoneRects();
+        RefreshZoneCatalogItems();
         OnPropertyChanged(nameof(OverlayChanged));
         return true;
+    }
+
+    [RelayCommand]
+    private void ResetCapitalZone(CartoZoneRectItem? zone)
+    {
+        var target = zone ?? SelectedZoneRect;
+        if (target == null || !ClassicEraMapProjection.IsCapitalMap(target.MapId))
+            return;
+
+        ApplyDefaultRect(target);
+        PersistZoneRects();
+        RefreshCapitalZoneRects();
+        SelectedZoneRect = target;
+        ZonePanelStatusMessage = $"{target.DisplayName} : rectangle réinitialisé — ajustez sur la mini-carte.";
+        OnPropertyChanged(nameof(OverlayChanged));
+    }
+
+    [RelayCommand]
+    private void ResetAllCapitalZones()
+    {
+        var capitals = ZoneRects.Where(z => ClassicEraMapProjection.IsCapitalMap(z.MapId)).ToList();
+        if (capitals.Count == 0)
+        {
+            ZonePanelStatusMessage = "Aucune capitale calibrée — choisissez-en une dans la liste puis cliquez sur sa tuile.";
+            return;
+        }
+
+        foreach (var z in capitals)
+            ZoneRects.Remove(z);
+
+        if (SelectedZoneRect != null && capitals.Any(c => ReferenceEquals(c, SelectedZoneRect)))
+            SelectedZoneRect = null;
+
+        CapitalToAddMapId = null;
+        PersistZoneRects();
+        RefreshCapitalZoneRects();
+        RefreshZoneCatalogItems();
+        ZonePanelStatusMessage = "Capitales supprimées — choisissez dans la liste et cliquez sur chaque tuile.";
+        OnPropertyChanged(nameof(OverlayChanged));
+    }
+
+    private static void ApplyDefaultRect(CartoZoneRectItem item)
+    {
+        var rect = ClassicEraMapProjection.CreateDefaultRect(item.MapId);
+        item.Left = rect.Left;
+        item.Top = rect.Top;
+        item.Width = rect.Width;
+        item.Height = rect.Height;
     }
 
     [RelayCommand]
@@ -3286,8 +3566,14 @@ public partial class CartoViewModel : ObservableObject
             SelectedZoneRect = ZoneRects.FirstOrDefault(z => !ClassicEraMapProjection.IsCapitalMap(z.MapId));
         }
 
+        var wasCapital = ClassicEraMapProjection.IsCapitalMap(target.MapId);
         PersistZoneRects();
         RefreshWorldZoneRects();
+        RefreshCapitalZoneRects();
+        RefreshZoneCatalogItems();
+        if (wasCapital)
+            ZonePanelStatusMessage = $"{target.DisplayName} supprimée — recliquez sur sa tuile pour la replacer.";
+
         OnPropertyChanged(nameof(OverlayChanged));
     }
 
@@ -3305,6 +3591,7 @@ public partial class CartoViewModel : ObservableObject
 
         PersistDungeonMarkers();
         ApplyDungeonMarkersChanged();
+        RefreshZoneCatalogItems();
         ZonePanelStatusMessage = $"{name} : repère supprimé de la liste.";
         OnPropertyChanged(nameof(OverlayChanged));
     }
@@ -3325,6 +3612,9 @@ public partial class CartoViewModel : ObservableObject
         FinishMapPlacementForDisplay();
         OnPropertyChanged(nameof(OverlayChanged));
         if (IsZonesPanelOpen)
+        {
+            RefreshZoneCatalogItems();
             RefreshUnplacedCharacters();
+        }
     }
 }

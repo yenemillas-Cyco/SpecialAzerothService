@@ -65,7 +65,10 @@ public static class CartoUserMigration
 
         var moi = EnsureUser(DefaultUserName, 0);
         var eloi = usersByName.GetValueOrDefault(EloiUserName);
-        var lucky = EnsureUser(LuckyUserName, 2);
+        var lucky = usersByName.GetValueOrDefault(LuckyUserName);
+
+        if (lucky == null && data.AccountSettings.ContainsKey(LuckyAccountFolder))
+            lucky = EnsureUser(LuckyUserName, 2);
 
         foreach (var cfg in data.AccountSettings.Values)
         {
@@ -97,6 +100,20 @@ public static class CartoUserMigration
         ReindexUsers(data);
         MigrateRerollIntoMain(data);
         CleanupAccounts(data);
+        ClearObsoleteRosterVisibilityFlags(data);
+    }
+
+    /// <summary>La visibilité carte est par personnage (<see cref="WowCharacter.IsHidden"/>) ; ces flags ne filtrent plus le roster.</summary>
+    public static void ClearObsoleteRosterVisibilityFlags(CartoData data)
+    {
+        foreach (var user in data.Users)
+            user.IsRosterSubtreeHidden = false;
+
+        foreach (var policy in data.CategoryPolicies)
+            policy.IsRosterSubtreeHidden = false;
+
+        foreach (var account in data.Accounts)
+            account.IsHidden = false;
     }
 
     /// <summary>Supprime les comptes vides (Lucky / Harrykenler fantômes) et renomme 409878243#1 → Lucky.</summary>
@@ -260,7 +277,7 @@ public static class CartoUserMigration
                 extra.Status = CharacterStatus.Main;
         }
 
-        foreach (var ch in data.Characters.Concat(data.ExternalCharacters))
+        foreach (var ch in data.Characters)
         {
             if (ch.Status == CharacterStatus.Reroll)
                 ch.Status = CharacterStatus.Main;

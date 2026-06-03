@@ -1,7 +1,9 @@
 using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using SpecialAzerothService.Core.Models.Carto;
 using WindowsOrganiserApp;
+using WindowsOrganiserApp.Controls;
 using WindowsOrganiserApp.Services;
 using SpecialAzerothService.Core.Services;
 using WindowsOrganiserApp.ViewModels;
@@ -133,13 +135,9 @@ public partial class CartoView
         if (_cachedWorldMap != null && !ReferenceEquals(MapImage.Source, _cachedWorldMap))
             MapImage.Source = _cachedWorldMap;
 
-        if (CapitalsDock != null)
-            CapitalsDock.Visibility = Visibility.Collapsed;
-
         MapImage.Width = pixelW;
         MapImage.Height = pixelH;
-        MapContainer.Width = pixelW;
-        MapContainer.Height = pixelH;
+        ApplyMapContentLayout();
 
         if (Vm != null && !_migrated)
         {
@@ -162,7 +160,7 @@ public partial class CartoView
 
     private void MapBorder_LayoutForInitialFit(object sender, SizeChangedEventArgs e)
     {
-        if (!_pendingInitialMapFit || e.NewSize.Height < 8 || e.NewSize.Width < 8)
+        if (e.NewSize.Height < 8 || e.NewSize.Width < 8)
             return;
 
         TryApplyInitialMapFit();
@@ -173,14 +171,86 @@ public partial class CartoView
             RedrawZoneEditor();
     }
 
+    /// <summary>Largeur du volet droit en surcouche (carte pleine largeur en dessous).</summary>
+    private double GetRightDockOverlayWidth()
+    {
+        if (RightDockHost == null || RightDockHost.Visibility != Visibility.Visible)
+            return 0;
+
+        return CartoRosterPanelUi.PanelWidth + 4;
+    }
+
+    private CartoMapDimensions GetMapDimensions()
+    {
+        var mapW = _worldPixelW > 0 ? _worldPixelW : 1024;
+        var mapH = _worldPixelH > 0 ? _worldPixelH : 768;
+
+        double? maxContentW = null;
+        if (MapBorder != null && MapBorder.ActualWidth > 8)
+        {
+            var padX = (MapContentFrame?.Padding.Left ?? 0) + (MapContentFrame?.Padding.Right ?? 0);
+            maxContentW = MapBorder.ActualWidth - padX;
+        }
+
+        return CartoMapDimensions.FromWorldPixels(
+            mapW,
+            mapH,
+            CartoRuntimeOptions.ShowCapitalMaps,
+            maxContentW);
+    }
+
+    /// <summary>Dimensionne monde + bloc capitales pour que la grille 3×2 ne soit pas rognée.</summary>
+    private void ApplyMapContentLayout()
+    {
+        if (MapContainer == null)
+            return;
+
+        var dims = GetMapDimensions();
+        MapContainer.Width = dims.TotalWidth;
+        MapContainer.Height = dims.TotalHeight;
+
+        if (CartoRuntimeOptions.ShowCapitalMaps)
+        {
+            WireCapitalSlots();
+            if (CapitalsDock != null)
+            {
+                CapitalsDock.Visibility = Visibility.Visible;
+                CapitalsDock.Margin = new Thickness(CapitalMapDefinitions.PanelMarginLeft, 0, 0, 0);
+                CapitalsDock.Width = dims.CapitalsWidth;
+                CapitalsDock.Height = dims.CapitalsHeight;
+            }
+
+            if (CapitalsGrid != null)
+            {
+                CapitalsGrid.Width = dims.CapitalsWidth;
+                CapitalsGrid.Height = dims.CapitalsHeight;
+            }
+        }
+        else if (CapitalsDock != null)
+        {
+            CapitalsDock.Visibility = Visibility.Collapsed;
+            CapitalsDock.ClearValue(FrameworkElement.WidthProperty);
+            CapitalsDock.ClearValue(FrameworkElement.HeightProperty);
+        }
+    }
+
+    private (double ContentW, double ContentH, double PadX, double PadY) GetMapContentFrameMetrics()
+    {
+        var dims = GetMapDimensions();
+        var padX = (MapContentFrame?.Padding.Left ?? 0) + (MapContentFrame?.Padding.Right ?? 0);
+        var padY = (MapContentFrame?.Padding.Top ?? 0) + (MapContentFrame?.Padding.Bottom ?? 0);
+        return (dims.TotalWidth, dims.TotalHeight, padX, padY);
+    }
+
     /// <summary>Zoom pour afficher la carte entière dans la zone visible (une fois la taille connue).</summary>
     private void TryApplyInitialMapFit()
     {
         if (Vm == null || MapBorder == null)
             return;
 
-        var mapH = _worldPixelH > 0 ? _worldPixelH : 768;
-        var mapW = _worldPixelW > 0 ? _worldPixelW : 1024;
+        ApplyMapContentLayout();
+
+        var (mapW, mapH, padX, padY) = GetMapContentFrameMetrics();
         var viewportH = MapBorder.ActualHeight;
         var viewportW = MapBorder.ActualWidth;
 
@@ -193,14 +263,21 @@ public partial class CartoView
 
         _pendingInitialMapFit = false;
 
-        var fitZoom = Math.Min(viewportH / mapH, viewportW / mapW);
+        var availW = Math.Max(1, viewportW - padX);
+        var availH = Math.Max(1, viewportH - padY);
+        const double fitInset = 0.98;
+
+        var zoomH = (availH / mapH) * fitInset;
+        var zoomW = (availW / mapW) * fitInset;
+        var fitZoom = Math.Min(zoomH, zoomW);
+
         if (fitZoom <= 0 || double.IsNaN(fitZoom) || double.IsInfinity(fitZoom))
             fitZoom = 0.45;
 
         Vm.MapZoom = Math.Clamp(fitZoom, CartoViewModel.MinMapZoom, CartoViewModel.MaxMapZoom);
         Vm.MapOffsetX = (viewportW - mapW * Vm.MapZoom) / 2;
         Vm.MapOffsetY = (viewportH - mapH * Vm.MapZoom) / 2;
-        Vm.ClampMapPan(viewportW, viewportH, mapW, mapH);
+        Vm.ClampMapPan(viewportW, viewportH, mapW, mapH, GetRightDockOverlayWidth());
         MapScroll?.ScrollToHorizontalOffset(0);
         MapScroll?.ScrollToVerticalOffset(0);
     }

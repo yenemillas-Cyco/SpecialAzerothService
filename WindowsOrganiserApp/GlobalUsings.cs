@@ -1,7 +1,6 @@
 global using SpecialAzerothService.Core.Models;
 global using SpecialAzerothService.Core.Models.Bounty;
 global using SpecialAzerothService.Core.Models.Carto;
-global using SpecialAzerothService.Core.Models.Conso;
 global using SpecialAzerothService.Core.Models.Craft;
 global using SpecialAzerothService.Core.Models.WowSync;
 global using SpecialAzerothService.Core.Models.Windowing;

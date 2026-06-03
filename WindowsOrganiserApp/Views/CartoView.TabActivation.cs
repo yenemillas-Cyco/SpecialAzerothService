@@ -44,7 +44,9 @@ public partial class CartoView
                 }
 
                 EnsureMapImageOnUi();
+                ApplyMapContentLayout();
                 TryApplyInitialMapFit();
+                SyncMapViewportConstraints();
                 RefreshMapCharactersWhenReady();
                 PaintMapMarkers(force: true);
                 RedrawTimerMarkers();

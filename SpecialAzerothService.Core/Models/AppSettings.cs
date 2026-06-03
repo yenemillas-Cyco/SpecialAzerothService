@@ -11,27 +11,13 @@ public sealed class AppSettings
     public string Theme { get; set; } = "Classic";
     public string Language { get; set; } = "Français";
 
-    public string UserGuid { get; set; } = Guid.NewGuid().ToString();
-    public string SyncServerUrl { get; set; } = "https://carto-sync-server.fly.dev/carto";
     public string WowPath { get; set; } = "";
-    public List<FriendEntry> Friends { get; set; } = [];
 
-    /// <summary>Révision locale dernier envoi ami (comparaison serveur).</summary>
-    public long LastPushedFriendRevision { get; set; }
+    /// <summary>Schéma données Carto — incrémenter pour reset contrôlé (voir CartoDataSchemaMigration).</summary>
+    public int DataSchemaVersion { get; set; }
 
-    /// <summary>Révision locale dernier envoi TP Boy public.</summary>
-    public long LastPushedTpBoyRevision { get; set; }
-
-    /// <summary>Révisions reçues par GUID ami (flux complet).</summary>
-    public Dictionary<string, long> ReceivedFriendRevisions { get; set; } =
-        new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>Révisions reçues par GUID (flux TP public).</summary>
-    public Dictionary<string, long> ReceivedTpBoyRevisions { get; set; } =
-        new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>Ancien format, conserve pour migration vers Friends.</summary>
-    public List<string> FriendGuids { get; set; } = [];
+    /// <summary>Obsolète — migré vers <see cref="DataSchemaVersion"/>.</summary>
+    public int SyncDataMigrationVersion { get; set; }
 
     public List<MonitorConfigSettings> MonitorConfigs { get; set; } = [];
     public List<WindowSettings> Windows { get; set; } = [];

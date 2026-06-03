@@ -35,7 +35,8 @@ public static class CartoCharacterDockCard
         WowCharacter ch,
         CartoViewModel vm,
         CartoDockCardCallbacks? callbacks = null,
-        CartoDockCardOptions? options = null)
+        CartoDockCardOptions? options = null,
+        UIElement? headerActions = null)
     {
         options ??= new CartoDockCardOptions();
         vm.ApplySyncEnrichment(ch);
@@ -58,7 +59,7 @@ public static class CartoCharacterDockCard
                 ShowQuestIcons = !options.CooldownRosterOnly && CartoCharacterPresentation.ShowQuestBody(ch),
                 QuestIconSize = 22
             },
-            null,
+            headerActions,
             sync));
         header.Margin = new Thickness(0, 0, 0, options.CooldownRosterOnly ? 2 : 4);
         root.Children.Add(header);

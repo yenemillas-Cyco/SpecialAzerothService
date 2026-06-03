@@ -148,12 +148,10 @@
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition x:Name="RootColGap" Width="0"/>
-            <ColumnDefinition x:Name="RootColDock" Width="0"/>
         </Grid.ColumnDefinitions>
 
         <!-- Barre d'outils pleine largeur (au-dessus carte + volets) -->
-        <Border x:Name="CartoToolbarHost" Grid.Row="0" Grid.ColumnSpan="3"
+        <Border x:Name="CartoToolbarHost" Grid.Row="0"
                 Background="{DynamicResource PanelBg}" Padding="6,4" Margin="0,0,0,2">
                 <DockPanel LastChildFill="True">
                     <WrapPanel DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
@@ -220,8 +218,8 @@
                 </DockPanel>
         </Border>
 
-        <!-- Carte (priorité) ou liste -->
-        <Grid Grid.Row="1" Grid.Column="0" MinHeight="120">
+        <!-- Carte pleine largeur ; volets droite en surcouche opaque -->
+        <Grid Grid.Row="1" MinHeight="120">
                 <Border x:Name="MapBorder" Background="#FF0A0A0A" ClipToBounds="True"
                         VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
                         AllowDrop="True"
@@ -240,7 +238,7 @@
                                   VerticalScrollBarVisibility="Disabled"
                                   Focusable="False"
                                   PanningMode="None">
-                        <Border x:Name="MapContentFrame" Padding="20,0,20,0"
+                        <Border x:Name="MapContentFrame" Padding="6,6,6,10"
                                 Background="Transparent"
                                 HorizontalAlignment="Left" VerticalAlignment="Top">
                         <Grid x:Name="MapContainer" Background="Transparent"
@@ -270,58 +268,16 @@
                             </Grid>
                             <!-- Capitales 3×2 -->
                             <Grid x:Name="CapitalsDock" Grid.Column="1" Visibility="Collapsed"
-                                  VerticalAlignment="Top" HorizontalAlignment="Left">
-                                <UniformGrid x:Name="CapitalsGrid" Rows="2" Columns="3"
-                                             HorizontalAlignment="Left" VerticalAlignment="Top">
-                                    <Border x:Name="CapitalHost_1454" Tag="1454" Margin="0" Padding="0"
-                                            Background="Transparent" BorderThickness="0">
-                                        <Grid x:Name="CapitalMapHost_1454">
-                                            <Image x:Name="CapitalImage_1454" Stretch="Uniform"/>
-                                            <Canvas x:Name="CapitalCanvas_1454" Background="Transparent"
-                                                    IsHitTestVisible="True"/>
-                                        </Grid>
-                                    </Border>
-                                    <Border x:Name="CapitalHost_1456" Tag="1456" Margin="0" Padding="0"
-                                            Background="Transparent" BorderThickness="0">
-                                        <Grid x:Name="CapitalMapHost_1456">
-                                            <Image x:Name="CapitalImage_1456" Stretch="Uniform"/>
-                                            <Canvas x:Name="CapitalCanvas_1456" Background="Transparent"
-                                                    IsHitTestVisible="True"/>
-                                        </Grid>
-                                    </Border>
-                                    <Border x:Name="CapitalHost_1458" Tag="1458" Margin="0" Padding="0"
-                                            Background="Transparent" BorderThickness="0">
-                                        <Grid x:Name="CapitalMapHost_1458">
-                                            <Image x:Name="CapitalImage_1458" Stretch="Uniform"/>
-                                            <Canvas x:Name="CapitalCanvas_1458" Background="Transparent"
-                                                    IsHitTestVisible="True"/>
-                                        </Grid>
-                                    </Border>
-                                    <Border x:Name="CapitalHost_1453" Tag="1453" Margin="0" Padding="0"
-                                            Background="Transparent" BorderThickness="0">
-                                        <Grid x:Name="CapitalMapHost_1453">
-                                            <Image x:Name="CapitalImage_1453" Stretch="Uniform"/>
-                                            <Canvas x:Name="CapitalCanvas_1453" Background="Transparent"
-                                                    IsHitTestVisible="True"/>
-                                        </Grid>
-                                    </Border>
-                                    <Border x:Name="CapitalHost_1455" Tag="1455" Margin="0" Padding="0"
-                                            Background="Transparent" BorderThickness="0">
-                                        <Grid x:Name="CapitalMapHost_1455">
-                                            <Image x:Name="CapitalImage_1455" Stretch="Uniform"/>
-                                            <Canvas x:Name="CapitalCanvas_1455" Background="Transparent"
-                                                    IsHitTestVisible="True"/>
-                                        </Grid>
-                                    </Border>
-                                    <Border x:Name="CapitalHost_1457" Tag="1457" Margin="0" Padding="0"
-                                            Background="Transparent" BorderThickness="0">
-                                        <Grid x:Name="CapitalMapHost_1457">
-                                            <Image x:Name="CapitalImage_1457" Stretch="Uniform"/>
-                                            <Canvas x:Name="CapitalCanvas_1457" Background="Transparent"
-                                                    IsHitTestVisible="True"/>
-                                        </Grid>
-                                    </Border>
-                                </UniformGrid>
+                                  VerticalAlignment="Stretch" HorizontalAlignment="Left" ClipToBounds="True">
+                                <Grid x:Name="CapitalsGrid" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                    <Grid x:Name="CapitalsCompositeHost" Cursor="Cross">
+                                        <Image x:Name="CapitalsCompositeImage"
+                                               Stretch="Uniform"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                        <Canvas x:Name="CapitalsCompositeCanvas" IsHitTestVisible="False"/>
+                                    </Grid>
+                                </Grid>
                             </Grid>
                         </Grid>
                         </Border>
@@ -404,8 +360,12 @@
 
         </Grid>
 
-        <!-- Volets droite : un seul volet visible à la fois -->
-        <Grid x:Name="RightDockHost" Grid.Row="1" Grid.Column="2" Visibility="Collapsed">
+        <!-- Volets droite : surcouche au-dessus de la carte (ne réduit pas la zone carte) -->
+        <Grid x:Name="RightDockHost" Grid.Row="1" Panel.ZIndex="20"
+              HorizontalAlignment="Right" VerticalAlignment="Stretch"
+              Visibility="Collapsed"
+              Width="336"
+              Background="{x:Null}">
 
                 <!-- Volet détail personnage -->
                 <Border x:Name="CharacterDetailHost" Visibility="Collapsed"
@@ -475,7 +435,8 @@
                         </Border>
                         <ScrollViewer x:Name="CharacterRosterScroller" VerticalScrollBarVisibility="Auto"
                                       HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch"
-                                      MaxHeight="720" Padding="4,4,6,6">
+                                      MaxHeight="720" Padding="4,4,6,6"
+                                      PreviewMouseWheel="CharacterRosterScroller_PreviewMouseWheel">
                             <StackPanel x:Name="CharacterRosterRoot" HorizontalAlignment="Stretch"/>
                         </ScrollViewer>
                         <ListBox x:Name="CharacterRosterList" Visibility="Collapsed"
@@ -738,12 +699,13 @@
                                     <Button DockPanel.Dock="Right" Content="＋" Style="{DynamicResource StoneButton}"
                                             FontSize="14" Padding="8,4" MinWidth="30" Margin="6,0,0,0"
                                             Command="{Binding AddWorldZoneFromPanelCommand}"
-                                            ToolTip="Ajouter une zone (ou clic sur la carte)"/>
+                                            ToolTip="Prépare le placement sur Azeroth — le rectangle n'apparaît qu'au clic sur la carte"/>
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="Zones ouvertes" FontSize="11" FontWeight="SemiBold"
+                                        <TextBlock Text="Zones ouvertes (Azeroth)" FontSize="11" FontWeight="SemiBold"
                                                    Foreground="#FFAAEE88"/>
-                                        <TextBlock Text="Liste + réglage des rectangles (si affichés)" FontSize="9"
-                                                   Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="＋ puis clic sur la grande carte — pas les mini-cartes" FontSize="9"
+                                                   Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0"
+                                                   TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </DockPanel>
                                 <ComboBox x:Name="ZoneAddCombo" Height="26" FontSize="10" Margin="0,0,0,4"
@@ -761,34 +723,69 @@
                                         FontSize="9" Padding="6,3" Margin="0,0,0,6" HorizontalAlignment="Left"
                                         Command="{Binding ClearZoneMapFocusCommand}"
                                         ToolTip="Désélectionner pour réafficher toutes les zones"/>
+                                <TextBlock Text="À placer sur Azeroth" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                           Margin="0,0,0,4"/>
                                 <ListBox x:Name="ZoneRectsListBox"
-                                         ItemsSource="{Binding WorldZoneRects}"
-                                         SelectedItem="{Binding SelectedZoneRect, Mode=TwoWay}"
+                                         ItemsSource="{Binding ZoneCatalogItems}"
+                                         SelectedValuePath="MapId"
+                                         SelectedValue="{Binding ZoneToAddMapId, Mode=TwoWay}"
                                          MaxHeight="220" Background="Transparent" BorderThickness="0"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                         PreviewMouseDown="ZoneRectsListBox_PreviewMouseDown"
+                                         PreviewMouseDown="ZoneCatalogListBox_PreviewMouseDown"
                                          ItemContainerStyle="{StaticResource CartoZoneListItem}">
                                     <ListBox.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type carto:CartoZoneRectItem}">
-                                            <DockPanel LastChildFill="True">
-                                                <Button DockPanel.Dock="Right" Content="✕"
-                                                        Style="{DynamicResource StoneButton}"
-                                                        FontSize="11" Padding="6,2" MinWidth="26" Margin="6,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        Command="{Binding DataContext.DeleteZoneCommand, ElementName=RootGrid}"
-                                                        CommandParameter="{Binding}"
-                                                        ToolTip="Supprimer cette zone"
-                                                        Click="ZoneListDelete_Click"/>
-                                                <StackPanel VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
-                                                               Foreground="{DynamicResource TextBrush}"/>
-                                                    <TextBlock FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0">
-                                                        <Run Text="Carte "/><Run Text="{Binding MapId, Mode=OneWay}"/>
-                                                        <Run Text=" · "/>
-                                                        <Run Text="{Binding Width, StringFormat={}{0:P0}, Mode=OneWay}"/>
-                                                    </TextBlock>
-                                                </StackPanel>
-                                            </DockPanel>
+                                        <DataTemplate DataType="{x:Type carto:ZoneCatalogListItem}">
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextBrush}"/>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <Border Height="1" Background="#33AA8833" Margin="0,10,0,10"/>
+
+                                <DockPanel Margin="0,0,0,6">
+                                    <Button x:Name="CapitalZoneAddButton" DockPanel.Dock="Right" Content="＋"
+                                            Style="{DynamicResource StoneButton}"
+                                            FontSize="14" Padding="8,4" MinWidth="30" Margin="6,0,0,0"
+                                            Command="{Binding AddCapitalZoneFromPanelCommand}"
+                                            ToolTip="Prépare le placement — puis cliquez sur la tuile de la capitale"/>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Capitales (6 mini-cartes)" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="#FFCCAA66"/>
+                                        <TextBlock FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                                   TextWrapping="Wrap" Margin="0,2,0,0"
+                                                   Text="＋ puis clic sur l'image des capitales (à droite). Pas de jaune avant le clic."/>
+                                    </StackPanel>
+                                </DockPanel>
+                                <ComboBox Height="26" FontSize="10" Margin="0,0,0,4"
+                                          ItemsSource="{Binding CapitalCatalogItems}"
+                                          SelectedValuePath="MapId"
+                                          SelectedValue="{Binding CapitalToAddMapId, Mode=TwoWay}"
+                                          ToolTip="Capitale à placer sur sa mini-carte">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type carto:ZoneCatalogListItem}">
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="10"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Content="Effacer toutes les capitales" Style="{DynamicResource StoneButton}"
+                                        FontSize="9" Padding="8,4" Margin="0,0,0,6" HorizontalAlignment="Left"
+                                        Command="{Binding ResetAllCapitalZonesCommand}"
+                                        ToolTip="Supprimer toutes les calibrations capitales pour les replacer au clic"/>
+                                <TextBlock Text="À placer (image capitales)" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                           Margin="0,0,0,4"/>
+                                <ListBox x:Name="CapitalZoneRectsListBox"
+                                         ItemsSource="{Binding CapitalCatalogItems}"
+                                         SelectedValuePath="MapId"
+                                         SelectedValue="{Binding CapitalToAddMapId, Mode=TwoWay}"
+                                         MaxHeight="160" Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         PreviewMouseDown="ZoneCatalogListBox_PreviewMouseDown"
+                                         ItemContainerStyle="{StaticResource CartoZoneListItem}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type carto:ZoneCatalogListItem}">
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextBrush}"/>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
@@ -823,31 +820,20 @@
                                         FontSize="9" Padding="6,3" Margin="0,0,0,6" HorizontalAlignment="Left"
                                         Command="{Binding ClearDungeonMapFocusCommand}"
                                         ToolTip="Désélectionner pour réafficher tous les repères"/>
+                                <TextBlock Text="À placer sur Azeroth" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                           Margin="0,0,0,4"/>
                                 <ListBox x:Name="DungeonMarkersListBox"
-                                         ItemsSource="{Binding DungeonMarkers}"
-                                         SelectedItem="{Binding SelectedDungeonMarker, Mode=TwoWay}"
+                                         ItemsSource="{Binding DungeonCatalogItems}"
+                                         SelectedValuePath="Key"
+                                         SelectedValue="{Binding DungeonToPlaceKey, Mode=TwoWay}"
                                          MaxHeight="240" Background="Transparent" BorderThickness="0"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                         PreviewMouseDown="DungeonMarkersListBox_PreviewMouseDown"
+                                         PreviewMouseDown="DungeonCatalogListBox_PreviewMouseDown"
                                          ItemContainerStyle="{StaticResource CartoDungeonListItem}">
                                     <ListBox.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type carto:CartoDungeonMarker}">
-                                            <DockPanel LastChildFill="True">
-                                                <Button DockPanel.Dock="Right" Content="✕"
-                                                        Style="{DynamicResource StoneButton}"
-                                                        FontSize="11" Padding="6,2" MinWidth="26" Margin="6,0,0,0"
-                                                        VerticalAlignment="Center"
-                                                        Command="{Binding DataContext.ClearDungeonMarkerCommand, ElementName=RootGrid}"
-                                                        CommandParameter="{Binding}"
-                                                        ToolTip="Retirer le repère sur la carte"
-                                                        Click="DungeonListDelete_Click"/>
-                                                <StackPanel VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
-                                                               Foreground="{DynamicResource TextBrush}"/>
-                                                    <TextBlock Text="{Binding PositionHint}" FontSize="9"
-                                                               Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0"/>
-                                                </StackPanel>
-                                            </DockPanel>
+                                        <DataTemplate DataType="{x:Type carto:DungeonCatalogListItem}">
+                                            <TextBlock Text="{Binding DisplayLabel}" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextBrush}"/>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
@@ -918,7 +904,7 @@
                                 <Button DockPanel.Dock="Right" Content="Annuler" Style="{DynamicResource StoneButton}"
                                         FontSize="10" Padding="10,5" Click="CloseSettingsPanel_Click"/>
                                 <Button Content="Rescanner" Style="{DynamicResource StoneButton}" FontSize="10" Padding="10,5"
-                                        Click="RefreshAccountSettings_Click" ToolTip="Relire la liste des comptes WoW sur ce PC"/>
+                                        Click="RefreshAccountSettings_Click" ToolTip="Relire WowSync.lua et recharger les personnages"/>
                             </DockPanel>
                         </Border>
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,6,8,8">
@@ -927,7 +913,7 @@
                                            Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,6"/>
                                 <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                            Margin="0,0,0,8">
-                                    Dossier racine du jeu (contient _classic_era_). L'addon est installé dans Interface\AddOns.
+                                    Sélectionnez le dossier « World of Warcraft » que vous choisissez (racine du jeu). Comptes et addon sont dérivés automatiquement.
                                 </TextBlock>
                                 <TextBlock Text="Dossier World of Warcraft" FontSize="11" FontWeight="SemiBold"
                                            Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
@@ -935,8 +921,8 @@
                                     <Button DockPanel.Dock="Right" Content="📁" Style="{DynamicResource StoneButton}"
                                             FontSize="12" Padding="8,4" Margin="6,0,0,0"
                                             Command="{Binding BrowseWowPathCommand}"
-                                            ToolTip="Ex. C:\Jeux\World of Warcraft"/>
-                                    <TextBox Text="{Binding WowPath, UpdateSourceTrigger=PropertyChanged}"
+                                            ToolTip="Dossier nommé « World of Warcraft »"/>
+                                    <TextBox Text="{Binding WowPath, UpdateSourceTrigger=LostFocus}"
                                              FontFamily="Consolas" FontSize="11" Padding="6,4"
                                              Background="{DynamicResource SelectionBgBrush}"
                                              Foreground="{DynamicResource TextBrush}"
@@ -956,25 +942,25 @@
                                            Foreground="#88CC88" TextWrapping="Wrap" MinHeight="28"
                                            Margin="0,0,0,12"/>
                                 <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,12"/>
-                                <TextBlock Text="Compte local" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,6"/>
+                                <TextBlock Text="Propriétaires de comptes" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
                                 <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                            Margin="0,0,0,8">
                                     Personnes dont les comptes WoW sont sur ce PC (ex. Eloi, Lucky). « Moi » regroupe vos propres comptes.
                                 </TextBlock>
-                                <ItemsControl ItemsSource="{Binding FriendCartoUsers}" Margin="0,0,0,6">
+                                <ItemsControl ItemsSource="{Binding OtherCartoOwners}" Margin="0,0,0,6">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="{x:Type carto:CartoUser}">
-                                            <Border Background="#1A2848" CornerRadius="4" Padding="8,5" Margin="0,0,0,4"
-                                                    BorderBrush="#4466AA" BorderThickness="1">
+                                            <Border Background="#1A221810" CornerRadius="4" Padding="8,5" Margin="0,0,0,4"
+                                                    BorderBrush="#44AA8833" BorderThickness="1">
                                                 <DockPanel>
                                                     <Button DockPanel.Dock="Right" Content="✕" Style="{DynamicResource StoneButton}"
                                                             FontSize="10" Padding="6,2" Foreground="OrangeRed"
-                                                            Command="{Binding DataContext.RemoveFriendCartoUserCommand, ElementName=RootGrid}"
+                                                            Command="{Binding DataContext.RemoveCartoOwnerCommand, ElementName=RootGrid}"
                                                             CommandParameter="{Binding}"
-                                                            ToolTip="Retirer cet utilisateur"/>
+                                                            ToolTip="Retirer ce propriétaire"/>
                                                     <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"
-                                                               Foreground="CornflowerBlue" VerticalAlignment="Center"/>
+                                                               Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
                                                 </DockPanel>
                                             </Border>
                                         </DataTemplate>
@@ -986,116 +972,40 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBox Grid.Column="0" FontSize="11" Padding="4,3" Margin="0,0,6,0"
-                                             Text="{Binding NewFriendUserName, UpdateSourceTrigger=PropertyChanged}"
+                                             Text="{Binding NewCartoOwnerName, UpdateSourceTrigger=PropertyChanged}"
                                              Background="{DynamicResource SelectionBgBrush}"
                                              Foreground="{DynamicResource TextBrush}"
                                              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                             ToolTip="Nom du joueur (ex. Eloi, Lucky)"/>
+                                             ToolTip="Nom du propriétaire (ex. Eloi, Lucky)"/>
                                     <Button Grid.Column="1" Content="Ajouter" Style="{DynamicResource StoneButton}"
                                             FontSize="10" Padding="10,4"
-                                            Command="{Binding AddFriendCartoUserCommand}"/>
+                                            Command="{Binding AddCartoOwnerCommand}"/>
                                 </Grid>
-                                <TextBlock Text="{Binding FriendUserStatusMessage}" FontSize="9"
+                                <TextBlock Text="{Binding CartoOwnerStatusMessage}" FontSize="9"
                                            Foreground="{DynamicResource SubtextBrush}" TextWrapping="Wrap"
-                                           Margin="0,0,0,10" MinHeight="14"/>
-
-                                <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,12"/>
-                                <TextBlock Text="Amis en ligne" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,6"/>
+                                           Margin="0,0,0,8" MinHeight="14"/>
+                                <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,10"/>
+                                <TextBlock Text="Carte &amp; tri" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
                                 <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                            Margin="0,0,0,8">
-                                    Amis mutuels : partage complet. Tous les TP Boy sont publics sur la carte (position + fragments).
+                                    Œil dans le roster : masque sur la carte uniquement. Tri auto : 60 → Personnages ; démo 20–22 → TP Boy ; 1–2 → Banque ou Clic Boys (sacs WowSync).
                                 </TextBlock>
-                                <DockPanel Margin="0,0,0,6">
-                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                        <Button Content="Synchroniser" Style="{DynamicResource StoneButton}"
-                                                FontSize="9" Padding="8,3" Margin="6,0,0,0"
-                                                Command="{Binding SyncNowCommand}"
-                                                ToolTip="Envoyer vos données et recevoir celles des autres (amis mutuels + TP Boy public)"/>
-                                        <Button Content="Reconnecter" Style="{DynamicResource StoneButton}"
-                                                FontSize="9" Padding="8,3" Margin="6,0,0,0"
-                                                Command="{Binding ConnectSyncCommand}"
-                                                ToolTip="Relancer la connexion au serveur"/>
-                                    </StackPanel>
-                                    <TextBlock Text="{Binding SyncStatus}" FontSize="10" Foreground="#88CCFF"
-                                               VerticalAlignment="Center"/>
-                                </DockPanel>
-                                <TextBlock Text="{Binding LastSyncMessage}" FontSize="9"
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <Button Content="Tri des personnages auto" Style="{DynamicResource WowButton}"
+                                            FontSize="10" Padding="10,5" Margin="0,0,8,0"
+                                            Command="{Binding AutoSortCharacterCategoriesCommand}"/>
+                                    <Button Content="Carte : TP Boy seuls" Style="{DynamicResource StoneButton}"
+                                            FontSize="10" Padding="10,5" Margin="0,0,8,0"
+                                            Command="{Binding HideAllExceptTpBoyOnMapCommand}"
+                                            ToolTip="Masque tous les marqueurs sauf la catégorie TP Boy"/>
+                                    <Button Content="Tout afficher carte" Style="{DynamicResource StoneButton}"
+                                            FontSize="10" Padding="10,5"
+                                            Command="{Binding ShowAllOnMapCommand}"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding AutoSortStatusMessage}" FontSize="9"
                                            Foreground="{DynamicResource SubtextBrush}" TextWrapping="Wrap"
-                                           Margin="0,0,0,6" MinHeight="12"/>
-                                <TextBlock Text="Mon identifiant (à partager)" FontSize="9"
-                                           Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,3"/>
-                                <DockPanel Margin="0,0,0,8">
-                                    <Button DockPanel.Dock="Right" Content="📋" Style="{DynamicResource StoneButton}"
-                                            FontSize="11" Padding="8,4" Margin="6,0,0,0"
-                                            Command="{Binding CopyMyGuidCommand}"
-                                            ToolTip="Copier mon identifiant WowSync"/>
-                                    <TextBox Text="{Binding MyGuid, Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas" FontSize="9"
-                                             Padding="4,3"
-                                             Background="{DynamicResource SelectionBgBrush}"
-                                             Foreground="{DynamicResource TextBrush}"
-                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                                </DockPanel>
-                                <ItemsControl ItemsSource="{Binding Friends}" Margin="0,0,0,6">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type carto:FriendEntry}">
-                                            <Border Background="#1A2818" CornerRadius="4" Padding="8,5" Margin="0,0,0,4"
-                                                    BorderBrush="#44AA66" BorderThickness="1">
-                                                <DockPanel>
-                                                    <Button DockPanel.Dock="Right" Content="✕" Style="{DynamicResource StoneButton}"
-                                                            FontSize="10" Padding="6,2" Foreground="OrangeRed"
-                                                            Command="{Binding DataContext.RemoveFriendCommand, ElementName=RootGrid}"
-                                                            CommandParameter="{Binding}"
-                                                            ToolTip="Retirer cet ami"/>
-                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center"
-                                                                 Fill="{Binding IsOnline, Converter={StaticResource BoolToOnlineBrush}}"
-                                                                 ToolTip="{Binding IsOnline, Converter={StaticResource BoolToOnlineTooltip}}"/>
-                                                        <StackPanel>
-                                                            <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"
-                                                                       Foreground="#88DDAA"/>
-                                                            <TextBlock Text="{Binding LinkStateDisplay}" FontSize="9"
-                                                                       Foreground="{DynamicResource SubtextBrush}"/>
-                                                            <TextBlock Text="{Binding Guid}" FontSize="8" FontFamily="Consolas"
-                                                                       Foreground="{DynamicResource SubtextBrush}"
-                                                                       TextTrimming="CharacterEllipsis" MaxWidth="200"/>
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                </DockPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                <TextBlock Text="Identifiant de l'ami" FontSize="9"
-                                           Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,3"/>
-                                <TextBox FontSize="10" FontFamily="Consolas" Padding="4,3" Margin="0,0,0,4"
-                                         Text="{Binding FriendGuidInput, UpdateSourceTrigger=PropertyChanged}"
-                                         Background="{DynamicResource SelectionBgBrush}"
-                                         Foreground="{DynamicResource TextBrush}"
-                                         BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                         ToolTip="GUID reçu de votre ami"/>
-                                <TextBlock Text="Nom affiché (optionnel)" FontSize="9"
-                                           Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,3"/>
-                                <Grid Margin="0,0,0,4">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" FontSize="11" Padding="4,3" Margin="0,0,6,0"
-                                             Text="{Binding FriendNameInput, UpdateSourceTrigger=PropertyChanged}"
-                                             Background="{DynamicResource SelectionBgBrush}"
-                                             Foreground="{DynamicResource TextBrush}"
-                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                             ToolTip="Ex. Eloi"/>
-                                    <Button Grid.Column="1" Content="Ajouter" Style="{DynamicResource StoneButton}"
-                                            FontSize="10" Padding="10,4"
-                                            Command="{Binding AddFriendCommand}"/>
-                                </Grid>
-                                <TextBlock Text="{Binding NetworkFriendStatusMessage}" FontSize="9"
-                                           Foreground="{DynamicResource SubtextBrush}" TextWrapping="Wrap"
-                                           Margin="0,0,0,10" MinHeight="14"/>
-
-                                <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,12"/>
+                                           Margin="0,0,0,12" MinHeight="14"/>
                                 <TextBlock Text="Comptes WoW" FontSize="12" FontWeight="SemiBold"
                                            Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
                                 <TextBlock Text="Chaque compte de jeu doit avoir un propriétaire : à qui rattacher les personnages joués sur ce PC."
@@ -1146,9 +1056,6 @@
                                                                 <Run Text="Propriétaire : " Foreground="{DynamicResource SubtextBrush}"/>
                                                                 <Run Text="{Binding OwnerDisplayName}" Foreground="{DynamicResource BrightGoldBrush}"/>
                                                             </TextBlock>
-                                                            <TextBlock Text="Organisation sur ce PC — distinct du partage réseau entre installations."
-                                                                       FontSize="9" Foreground="{DynamicResource SubtextBrush}"
-                                                                       TextWrapping="Wrap" Margin="0,0,0,6"/>
                                                             <TextBlock Text="Changer le propriétaire" FontSize="9"
                                                                        Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,3"/>
                                                             <ComboBox FontSize="11" Height="28" MinWidth="140"

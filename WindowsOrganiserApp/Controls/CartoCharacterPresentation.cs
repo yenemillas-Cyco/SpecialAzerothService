@@ -16,7 +16,6 @@ public static class CartoCharacterPresentation
 {
     /// <summary>Propriétaire « Moi » — distinct des catégories dorées en dessous.</summary>
     public static readonly Brush MoiUserBrush = new SolidColorBrush(Color.FromRgb(168, 198, 228));
-    public static readonly Brush FriendUserBrush = new SolidColorBrush(Color.FromRgb(100, 160, 255));
     public static readonly Brush DefaultUserBrush = new SolidColorBrush(Color.FromRgb(220, 200, 160));
     public static readonly Brush SyncDateBrush = new SolidColorBrush(Color.FromRgb(130, 125, 110));
     public static readonly Brush ZoneBrush = new SolidColorBrush(Color.FromRgb(140, 200, 170));
@@ -44,7 +43,7 @@ public static class CartoCharacterPresentation
         CartoProfessionCooldowns.QualifiesForCooldownRoster(ch, sync);
 
     /// <summary>Or du personnage (toutes catégories locales, dont Banque).</summary>
-    public static bool ShowGoldBody(WowCharacter ch) => !ch.IsExternal;
+    public static bool ShowGoldBody(WowCharacter ch) => true;
 
     /// <summary>Inventaire + banque WowSync (personnages principaux et persos Banque).</summary>
     public static bool ShowInventoryBankSection(WowCharacter ch) =>
@@ -55,17 +54,11 @@ public static class CartoCharacterPresentation
         if (user.Name.Equals(CartoUserMigration.DefaultUserName, StringComparison.OrdinalIgnoreCase))
             return MoiUserBrush;
 
-        if (vm.IsFriendUser(user))
-            return FriendUserBrush;
-
         return DefaultUserBrush;
     }
 
     public static Brush GetCharacterNameBrush(WowCharacter ch, CartoViewModel vm)
     {
-        if (ch.IsExternal)
-            return FriendUserBrush;
-
         var classColor = (Color)ColorConverter.ConvertFromString(WowClassColors.GetHexColor(ch.Class));
         return new SolidColorBrush(classColor);
     }
@@ -108,7 +101,7 @@ public static class CartoCharacterPresentation
         options ??= new CharacterHeaderOptions();
         var nameBrush = GetCharacterNameBrush(ch, vm);
         var accountName = vm.GetCharacterAccountDisplayName(ch);
-        var showAccount = !ch.IsExternal && !string.IsNullOrEmpty(accountName);
+        var showAccount = !string.IsNullOrEmpty(accountName);
 
         UIElement? questContent = null;
         if (options.ShowQuestIcons && ShowQuestBody(ch))
@@ -380,7 +373,7 @@ public static class CartoCharacterPresentation
         var panel = new StackPanel();
         panel.Children.Add(new TextBlock
         {
-            Text = "Dernière synchronisation WoW",
+            Text = "Dernière mise à jour addon (fichier local)",
             FontSize = 10,
             FontWeight = FontWeights.SemiBold,
             Foreground = DimBrush,

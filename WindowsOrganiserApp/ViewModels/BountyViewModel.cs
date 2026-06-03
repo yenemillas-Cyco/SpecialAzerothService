@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -12,52 +12,24 @@ using SpecialAzerothService.Core.Services;
 
 namespace WindowsOrganiserApp.ViewModels;
 
-public sealed class FriendBountyGroup
-{
-    public string FriendName { get; init; } = string.Empty;
-    public string FriendGuid { get; init; } = string.Empty;
-    public List<BountyEntry> Bounties { get; init; } = [];
-}
-
 public partial class BountyViewModel : ObservableObject
 {
     private readonly IBountyService _bountyService;
-    private readonly SyncService _syncService;
     private BountyData _data;
 
-    public static string[] WowClasses => ["Guerrier", "Paladin", "Chasseur", "Voleur", "Prêtre", "Chaman", "Mage", "Démoniste", "Druide"];
+    public static string[] WowClasses => ["Guerrier", "Paladin", "Chasseur", "Voleur", "Pr├¬tre", "Chaman", "Mage", "D├®moniste", "Druide"];
     public static string[] WowRaces => ["Humain", "Nain", "Elfe de la nuit", "Gnome", "Orc", "Tauren", "Troll", "Mort-vivant"];
 
-    public BountyViewModel(IBountyService bountyService, SyncService syncService)
+    public BountyViewModel(IBountyService bountyService)
     {
         _bountyService = bountyService;
-        _syncService = syncService;
         _data = _bountyService.Load();
         Bounties = new ObservableCollection<BountyEntry>(_data.Bounties);
         _rules = _data.Rules;
         RefreshStats();
-
-        _syncService.FriendBountyReceived += (guid, payload) =>
-            Application.Current?.Dispatcher.BeginInvoke(() =>
-            {
-                var friendName = _syncService.GetFriend(guid)?.Name ?? guid[..Math.Min(8, guid.Length)];
-                var existing = FriendBounties.FirstOrDefault(f => f.FriendGuid == guid);
-                if (existing != null) FriendBounties.Remove(existing);
-                FriendBounties.Add(new FriendBountyGroup
-                {
-                    FriendName = friendName,
-                    FriendGuid = guid,
-                    Bounties = payload.Bounties
-                });
-                OnPropertyChanged(nameof(FriendBounties));
-            });
-
-        _syncService.PushRequested += () =>
-            Application.Current?.Dispatcher.BeginInvoke(PushBounties);
     }
 
     public ObservableCollection<BountyEntry> Bounties { get; }
-    public ObservableCollection<FriendBountyGroup> FriendBounties { get; } = [];
 
     [ObservableProperty] private BountyEntry? _editingBounty;
     [ObservableProperty] private string _rules;
@@ -90,17 +62,6 @@ public partial class BountyViewModel : ObservableObject
         _data.Rules = Rules;
         _bountyService.Save(_data);
         RefreshStats();
-        PushBounties();
-    }
-
-    private void PushBounties()
-    {
-        var payload = new BountySyncPayload
-        {
-            Bounties = [.. Bounties],
-            Rules = Rules
-        };
-        _ = _syncService.PushBountyUpdateAsync(payload);
     }
 
     private void RefreshStats()
@@ -245,9 +206,9 @@ public partial class BountyViewModel : ObservableObject
     private void CopyDiscordRules()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("**🏴‍☠️ AVIS DE RECHERCHE — CHASSEUR DE PRIMES 🏴‍☠️**");
+        sb.AppendLine("**­ƒÅ┤ÔÇìÔÿá´©Å AVIS DE RECHERCHE ÔÇö CHASSEUR DE PRIMES ­ƒÅ┤ÔÇìÔÿá´©Å**");
         sb.AppendLine();
-        sb.AppendLine("**Règlement :**");
+        sb.AppendLine("**R├¿glement :**");
         foreach (var line in Rules.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             sb.AppendLine(line.Trim());
         Clipboard.SetText(sb.ToString());
@@ -275,7 +236,7 @@ public partial class BountyViewModel : ObservableObject
             var reasonWidth = active.Max(b => string.IsNullOrWhiteSpace(b.Reason) ? 0 : b.Reason.Length + 2);
             nameWidth = Math.Max(nameWidth, 8);
 
-            sb.AppendLine("**📋 Primes actives :**");
+            sb.AppendLine("**­ƒôï Primes actives :**");
             sb.AppendLine("```");
             foreach (var b in active)
                 sb.AppendLine(FormatBountyLineAligned(b, nameWidth, goldWidth, reasonWidth));
@@ -285,7 +246,7 @@ public partial class BountyViewModel : ObservableObject
         var completed = Bounties.Where(b => b.IsCompleted).ToList();
         if (completed.Count > 0)
         {
-            sb.AppendLine("**✅ Primes réclamées :**");
+            sb.AppendLine("**Ô£à Primes r├®clam├®es :**");
             foreach (var b in completed)
                 sb.AppendLine($"-~~{b.TargetName}~~ {b.DisplayTotal}");
         }
@@ -310,12 +271,12 @@ public partial class BountyViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(bounty.TargetClass)) raceClass.Add(bounty.TargetClass.ToLower());
         var rcText = raceClass.Count > 0 ? $"il joue un {string.Join(" ", raceClass)}" : "un personnage de WoW";
 
-        var prompt = $"Je veux créer une image style avis de recherche western vintage, " +
-                     $"parchemin brûlé, avec marqué \"AVIS DE RECHERCHE\" en haut, " +
-                     $"\"Récompense de {bounty.TotalGold} PO pour tuer {bounty.TargetName}\", " +
+        var prompt = $"Je veux cr├®er une image style avis de recherche western vintage, " +
+                     $"parchemin br├╗l├®, avec marqu├® \"AVIS DE RECHERCHE\" en haut, " +
+                     $"\"R├®compense de {bounty.TotalGold} PO pour tuer {bounty.TargetName}\", " +
                      $"mais version World of Warcraft : {rcText} pour l'image. " +
-                     $"En bas : \"{bounty.TargetName} — MORT — {bounty.TotalGold} PIÈCES D'OR — À QUI LE TUERA !\". " +
-                     $"Style épique, sombre, avec des pièces d'or.";
+                     $"En bas : \"{bounty.TargetName} ÔÇö MORT ÔÇö {bounty.TotalGold} PI├êCES D'OR ÔÇö ├Ç QUI LE TUERA !\". " +
+                     $"Style ├®pique, sombre, avec des pi├¿ces d'or.";
 
         Clipboard.SetText(prompt);
     }
@@ -379,7 +340,7 @@ public partial class BountyViewModel : ObservableObject
             if (imported == null) return;
 
             var result = MessageBox.Show(
-                $"{imported.Bounties.Count} prime(s) trouvée(s).\n\nRemplacer les primes actuelles ou les ajouter ?",
+                $"{imported.Bounties.Count} prime(s) trouv├®e(s).\n\nRemplacer les primes actuelles ou les ajouter ?",
                 "Import",
                 MessageBoxButton.YesNoCancel,
                 MessageBoxImage.Question);

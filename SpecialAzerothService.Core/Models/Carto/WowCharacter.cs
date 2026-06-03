@@ -58,10 +58,4 @@ public sealed class WowCharacter
     public int ShardCount { get; set; }
     public bool IsHidden { get; set; }
     public bool IsLocked { get; set; }
-    public bool ExcludeFromSync { get; set; }
-    public bool IsExternal { get; set; }
-    public string? ExternalSource { get; set; }
-
-    /// <summary>Flux TP public : nom de compte renommé par le propriétaire (ex. Eloi).</summary>
-    public string? ExternalAccountDisplayName { get; set; }
 }

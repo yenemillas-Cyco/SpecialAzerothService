@@ -433,8 +433,8 @@
                 </Expander>
             </Border>
 
-            <!-- FRIEND BOUNTIES -->
-            <ItemsControl ItemsSource="{Binding FriendBounties}">
+            <!-- Primes distantes (désactivé v4 local) -->
+            <ItemsControl ItemsSource="{Binding FriendBounties}" Visibility="Collapsed">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Border CornerRadius="6" Padding="4" Margin="0,0,0,6"

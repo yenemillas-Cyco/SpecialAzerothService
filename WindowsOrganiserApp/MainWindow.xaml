@@ -460,10 +460,6 @@
                                     <TextBlock Text="{Binding StatusMessage}" FontSize="11"
                                                Foreground="{DynamicResource SubtextBrush}"
                                                VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding CartoVm.FriendsSummary}" FontSize="10"
-                                               Foreground="{DynamicResource SubtextBrush}"
-                                               Margin="10,0,0,0" VerticalAlignment="Center"
-                                               Visibility="{Binding IsCartoMode, Converter={StaticResource BoolToVis}}"/>
                                 </DockPanel>
                             </Border>
                         </Grid>

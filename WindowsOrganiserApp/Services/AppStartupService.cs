@@ -18,7 +18,7 @@ public sealed class AppStartupService
 
         var settingsService = services.GetRequiredService<ISettingsService>();
         var theme = services.GetRequiredService<IThemeService>();
-        var appSettings = settingsService.Load();
+        var appSettings = services.GetRequiredService<AppSettings>();
 
         Report(12, "Thème et paramètres…");
         var themeName = string.IsNullOrWhiteSpace(appSettings.Theme) ? "Classic" : appSettings.Theme;

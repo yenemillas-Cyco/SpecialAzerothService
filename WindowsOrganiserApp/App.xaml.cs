@@ -11,6 +11,7 @@ using Serilog;
 using WindowsOrganiserApp.Controls;
 using SpecialAzerothService.Core.Models;
 using SpecialAzerothService.Core.Services;
+using WindowsOrganiserApp.Services;
 using WindowsOrganiserApp.ViewModels;
 using WindowsOrganiserApp.Views;
 
@@ -72,20 +73,24 @@ public partial class App : Application
         services.AddSingleton<IWindowService, WindowService>();
         services.AddSingleton<ILayoutService, LayoutService>();
         services.AddSingleton<ISettingsService, SettingsService>();
+        services.AddSingleton<ICartoService, CartoService>();
         services.AddSingleton(sp =>
         {
             var settings = sp.GetRequiredService<ISettingsService>().Load();
-            if (string.IsNullOrWhiteSpace(settings.UserGuid))
-                settings.UserGuid = Guid.NewGuid().ToString();
+            var storedWow = WowGameRootStore.Read();
+            if (!string.IsNullOrWhiteSpace(storedWow)
+                && WowInstallPaths.TryCompleteUserFolder(storedWow, out var resolved))
+            {
+                settings.WowPath = resolved.GameRoot;
+                sp.GetRequiredService<ISettingsService>().Save(settings);
+            }
+
             return settings;
         });
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IPresetService, PresetService>();
         services.AddSingleton<ILocalizationService, LocalizationService>();
-        services.AddSingleton<ICartoService, CartoService>();
         services.AddSingleton<IBountyService, BountyService>();
-        services.AddSingleton<SyncService>(sp =>
-            new SyncService(sp.GetRequiredService<AppSettings>(), sp.GetRequiredService<ILogger>()));
         services.AddSingleton<IWowSyncService, WowSyncService>();
         services.AddSingleton<IWowheadDataService, WowheadDataService>();
         services.AddSingleton<IWowItemLookupService, WowItemLookupService>();
@@ -96,12 +101,10 @@ public partial class App : Application
         services.AddSingleton<ICraftPickupPlanner, CraftPickupPlannerService>();
         services.AddSingleton<ICraftPlanningContext, CraftPlanningContext>();
         services.AddSingleton<ICraftStockService, CraftStockService>();
-        services.AddSingleton<IUserProfileService, UserProfileService>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<AdvancedViewModel>();
         services.AddSingleton<CartoViewModel>();
         services.AddSingleton<BountyViewModel>();
-        services.AddSingleton<ConsoViewModel>();
         services.AddSingleton<CraftViewModel>();
         services.AddSingleton<CraftCraftingViewModel>();
         services.AddSingleton<CraftShellViewModel>();
@@ -252,20 +255,6 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        try
-        {
-            var cartoVm = _serviceProvider?.GetService<CartoViewModel>();
-            if (cartoVm != null && cartoVm.CharactersLoaded)
-                cartoVm.RunNetworkSyncAsync(SyncRunTrigger.Shutdown).Wait(TimeSpan.FromSeconds(8));
-
-            var sync = _serviceProvider?.GetService<SyncService>();
-            sync?.DisconnectAsync().Wait(TimeSpan.FromSeconds(3));
-        }
-        catch
-        {
-            // Ne pas bloquer la fermeture
-        }
-
         Log.CloseAndFlush();
         _serviceProvider?.Dispose();
         base.OnExit(e);

@@ -9,6 +9,6 @@ public sealed class CartoUser
 
     public int SortOrder { get; set; }
 
-    /// <summary>Masque tout le sous-arbre roster + les persos de cet utilisateur sur la carte.</summary>
+    /// <summary>Masque les marqueurs carte de cet utilisateur (le roster reste affiché).</summary>
     public bool IsRosterSubtreeHidden { get; set; }
 }

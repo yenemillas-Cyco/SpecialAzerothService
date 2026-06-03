@@ -639,6 +639,12 @@ public static class ClassicEraMapProjection
 
     public static void ApplyUserRects(IReadOnlyDictionary<int, CartoMapRect> userRects)
     {
+        foreach (var mapId in ByMapId.Keys.ToList())
+        {
+            if (IsCapitalMap(mapId) && !userRects.ContainsKey(mapId))
+                ByMapId.Remove(mapId);
+        }
+
         foreach (var (mapId, rect) in userRects)
         {
             if (IsContinentMap(mapId)) continue;

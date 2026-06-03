@@ -69,9 +69,7 @@ public static class CartoSyncMapper
             Note = profile?.Note ?? extras?.Note ?? "",
             ShardCount = extras?.ShardCount ?? 0,
             IsHidden = extras?.IsHidden ?? false,
-            IsLocked = extras?.IsLocked ?? false,
-            ExcludeFromSync = extras?.ExcludeFromSync ?? false,
-            IsExternal = false
+            IsLocked = extras?.IsLocked ?? false
         };
     }
 
@@ -94,9 +92,8 @@ public static class CartoSyncMapper
         ShardCount = ch.ShardCount,
         IsHidden = ch.IsHidden,
         IsLocked = ch.IsLocked,
-        ExcludeFromSync = ch.ExcludeFromSync,
         IsPlacedOnMap = ch.IsPlacedOnMap,
-        HasCustomMapPosition = false,
+        HasCustomMapPosition = ch.HasCustomMapPosition,
         MapX = 0,
         MapY = 0
     };
@@ -169,7 +166,6 @@ public static class CartoSyncMapper
         ShardCount = ch.ShardCount,
         IsHidden = ch.IsHidden,
         IsLocked = ch.IsLocked,
-        ExcludeFromSync = ch.ExcludeFromSync,
         IsPlacedOnMap = ch.IsPlacedOnMap,
         HasCustomMapPosition = false,
         MapX = 0,

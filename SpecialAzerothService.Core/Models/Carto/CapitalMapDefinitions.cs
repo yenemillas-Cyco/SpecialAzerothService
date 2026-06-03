@@ -19,8 +19,8 @@ public static class CapitalMapDefinitions
     public const double PanelMarginLeft = 8;
     /// <summary>Marge gauche/droite dans le viewport (évite que les cartes touchent les bords).</summary>
     public const double ViewportPaddingHorizontal = 20;
-    /// <summary>Largeur bloc capitales = carte monde × ce facteur.</summary>
-    public const double PanelWidthScale = 2.0;
+    /// <summary>Largeur bloc capitales = carte monde × ce facteur (évite un zoom initial trop petit).</summary>
+    public const double PanelWidthScale = 0.55;
     /// <summary>Hauteur bloc capitales = carte monde (2 lignes, alignées en haut avec la carte).</summary>
     public const double PanelHeightScale = 1.0;
 

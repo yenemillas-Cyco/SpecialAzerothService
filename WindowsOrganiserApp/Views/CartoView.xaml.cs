@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -8,6 +9,8 @@ using System.Windows.Threading;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using WindowsOrganiserApp.Controls;
+using WindowsOrganiserApp.Models.Carto;
+using WindowsOrganiserApp.Services;
 using SpecialAzerothService.Core.Models.Carto;
 using WindowsOrganiserApp;
 using SpecialAzerothService.Core.Models.WowSync;
@@ -34,6 +37,7 @@ public partial class CartoView : UserControl
     private bool _suppressRosterExpandEvents;
     private static BitmapImage? _cachedWorldMap;
     private DispatcherTimer? _rosterRebuildDebounce;
+    private int _rosterPanelBuildGeneration;
     private DispatcherTimer? _mapMarkersDebounce;
     private bool _mapLayoutEventsWired;
     private bool _suppressPanelToggleEvents;
@@ -50,6 +54,8 @@ public partial class CartoView : UserControl
                     _subscribedVm.PropertyChanged -= _vmPropertyChangedHandler;
                 _subscribedVm.SecondTick -= OnViewModelSecondTick;
                 _subscribedVm.TimerExpired -= OnTimerExpired;
+                _subscribedVm.CharactersRescanned -= OnCharactersRescanned;
+                _subscribedVm.RosterRefreshRequested -= OnRosterRefreshRequested;
             }
 
             _subscribedVm = null;
@@ -62,6 +68,8 @@ public partial class CartoView : UserControl
                 vm.PropertyChanged += _vmPropertyChangedHandler;
                 vm.SecondTick += OnViewModelSecondTick;
                 vm.TimerExpired += OnTimerExpired;
+                vm.CharactersRescanned += OnCharactersRescanned;
+                vm.RosterRefreshRequested += OnRosterRefreshRequested;
                 ApplyRightPanelLayout();
             }
         };
@@ -97,6 +105,7 @@ public partial class CartoView : UserControl
         }
 
         MapBorder.AddHandler(UIElement.MouseLeftButtonDownEvent, new MouseButtonEventHandler(MapCanvas_MouseDown), true);
+        WireCapitalSlots();
         EnsureMapFitLayoutHook();
         if (MapImage != null)
         {
@@ -141,6 +150,7 @@ public partial class CartoView : UserControl
     {
         _zoneEditorRedrawTimer?.Stop();
         RedrawZoneEditor();
+        RedrawCapitalMaps();
     }
 
     private void CartoView_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -175,7 +185,7 @@ public partial class CartoView : UserControl
         if (!_cartoUiLive && !_cartoInit.IsComplete)
             return;
 
-        _mapMarkersDebounce ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        _mapMarkersDebounce ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(280) };
         _mapMarkersDebounce.Stop();
         _mapMarkersDebounce.Tick -= MapMarkersDebounce_Tick;
         _mapMarkersDebounce.Tick += MapMarkersDebounce_Tick;
@@ -235,9 +245,22 @@ public partial class CartoView : UserControl
 
     private void ScheduleMapRedraw() => RequestMapMarkersRefresh();
 
+    private DateTime _lastCooldownBarRefreshUtc = DateTime.MinValue;
+
     private void OnViewModelSecondTick(object? sender, EventArgs e)
     {
         UpdateTimerCountdowns();
+
+        if (CharacterRosterHost?.Visibility != Visibility.Visible
+            && Vm?.IsCharacterDetailOpen != true
+            && !CharPopup.IsOpen)
+            return;
+
+        var now = DateTime.UtcNow;
+        if ((now - _lastCooldownBarRefreshUtc).TotalSeconds < 2.5)
+            return;
+
+        _lastCooldownBarRefreshUtc = now;
         UpdateCooldownProgressBars();
     }
 
@@ -253,8 +276,14 @@ public partial class CartoView : UserControl
             or nameof(CartoViewModel.SelectedZoneRect)
             or nameof(CartoViewModel.SelectedDungeonMarker)
             or nameof(CartoViewModel.IsPlacingDungeonMarker)
-            or nameof(CartoViewModel.ZoneToAddMapId))
+            or nameof(CartoViewModel.ZoneToAddMapId)
+            or nameof(CartoViewModel.CapitalToAddMapId)
+            or nameof(CartoViewModel.IsPlacingCapitalZone)
+            or nameof(CartoViewModel.IsPlacingWorldZone))
         {
+            if (e.PropertyName is nameof(CartoViewModel.IsZonesPanelOpen) && vm.IsZonesPanelOpen)
+                WireCapitalSlots();
+
             if (e.PropertyName is nameof(CartoViewModel.OverlayChanged)
                 && (vm.ShowAllianceFlightPaths || vm.ShowHordeFlightPaths))
                 RedrawOverlays();
@@ -289,13 +318,11 @@ public partial class CartoView : UserControl
         if (!_cartoUiLive && !isLoadEvent)
             return;
 
-        if (e.PropertyName is nameof(CartoViewModel.FilteredCharacters)
-            or nameof(CartoViewModel.Friends))
+        if (e.PropertyName is nameof(CartoViewModel.FilteredCharacters))
         {
             RequestMapMarkersRefresh();
         }
-        else if (e.PropertyName is nameof(CartoViewModel.FriendCartoUsers)
-            or nameof(CartoViewModel.CartoUsers))
+        else if (e.PropertyName is nameof(CartoViewModel.CartoUsers))
         {
             ScheduleRosterRebuild();
         }
@@ -311,10 +338,7 @@ public partial class CartoView : UserControl
         else if (isLoadEvent)
         {
             if (vm.CharactersLoaded)
-            {
-                RebuildCharacterRoster();
-                RebuildCooldownRoster();
-            }
+                RebuildAllRosterPanels();
             TryApplyCharacterUiWhenReady();
         }
     }
@@ -337,11 +361,31 @@ public partial class CartoView : UserControl
         if (!IsVisible || Vm == null || !Vm.CharactersLoaded)
             return;
 
+        Dispatcher.BeginInvoke(RebuildAllRosterPanels, DispatcherPriority.Background);
+    }
+
+    private void OnCharactersRescanned(object? sender, EventArgs e)
+    {
+        if (Vm == null)
+            return;
+
+        ScheduleRosterRebuild();
         Dispatcher.BeginInvoke(() =>
         {
-            RebuildCharacterRoster();
-            RebuildCooldownRoster();
+            RedrawMarkers();
+            ApplyRightPanelLayout();
         }, DispatcherPriority.Background);
+    }
+
+    private void OnRosterRefreshRequested(object? sender, EventArgs e) => ScheduleRosterRebuild();
+
+    private void CharacterRosterScroller_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is not ScrollViewer scroller || e.Handled)
+            return;
+
+        scroller.ScrollToVerticalOffset(scroller.VerticalOffset - e.Delta);
+        e.Handled = true;
     }
 
     private void RedrawMapLayer()
@@ -739,52 +783,93 @@ public partial class CartoView : UserControl
             if (userExp.Tag is not string userId)
                 continue;
 
-            var userKey = RosterExpandKey(userId, null);
-            if (userExp.IsExpanded)
-            {
-                _rosterExpandedKeys.Add(userKey);
-                _rosterCollapsedKeys.Remove(userKey);
-            }
-            else
-            {
-                _rosterCollapsedKeys.Add(userKey);
-                _rosterExpandedKeys.Remove(userKey);
-            }
+            CaptureExpanderKey(userExp, RosterExpandKeys.User(userId));
 
             if (userExp.Content is not StackPanel userPanel)
                 continue;
 
             foreach (var child in userPanel.Children)
             {
-                if (child is not Border { Tag: CharacterStatus category } shell)
-                    continue;
-                if (shell.Child is not Expander catExp)
-                    continue;
-
-                var catKey = RosterExpandKey(userId, category);
-                if (catExp.IsExpanded)
+                if (child is Expander accountExp && accountExp.Tag is string accountId)
                 {
-                    _rosterExpandedKeys.Add(catKey);
-                    _rosterCollapsedKeys.Remove(catKey);
+                    CaptureExpanderKey(accountExp, RosterExpandKeys.Account(userId, accountId));
+                    if (accountExp.Content is StackPanel accountPanel)
+                        CaptureCategoryExpanders(userId, accountId, accountPanel);
                 }
-                else
+                else if (child is Border { Tag: CharacterStatus category } shell
+                         && shell.Child is Expander catExp)
                 {
-                    _rosterCollapsedKeys.Add(catKey);
-                    _rosterExpandedKeys.Remove(catKey);
+                    CaptureExpanderKey(catExp, RosterExpandKeys.Category(userId, "", category));
                 }
             }
         }
     }
 
-    private static string RosterExpandKey(string userId, CharacterStatus? category) =>
-        category == null ? $"u:{userId}" : $"u:{userId}:c:{category}";
-
-    private bool IsRosterExpanded(string userId, CharacterStatus? category, bool defaultExpanded)
+    private void CaptureCategoryExpanders(string userId, string accountId, StackPanel panel)
     {
-        var key = RosterExpandKey(userId, category);
-        if (_rosterCollapsedKeys.Contains(key))
+        foreach (var child in panel.Children)
+        {
+            if (child is not Border { Tag: CharacterStatus category } shell
+                || shell.Child is not Expander catExp)
+                continue;
+
+            CaptureExpanderKey(catExp, RosterExpandKeys.Category(userId, accountId, category));
+        }
+    }
+
+    private void CaptureExpanderKey(Expander expander, string key)
+    {
+        if (expander.IsExpanded)
+        {
+            _rosterExpandedKeys.Add(key);
+            _rosterCollapsedKeys.Remove(key);
+        }
+        else
+        {
+            _rosterCollapsedKeys.Add(key);
+            _rosterExpandedKeys.Remove(key);
+        }
+    }
+
+    private void RenderCharacterRosterFromTree(int buildId)
+    {
+        if (buildId != _rosterPanelBuildGeneration || CharacterRosterRoot == null || Vm == null)
+            return;
+
+        CaptureRosterExpandState();
+        _suppressRosterExpandEvents = true;
+        try
+        {
+            Vm.RefreshRosterTree((key, defaultExpanded) => IsRosterExpanded(key, defaultExpanded));
+        }
+        finally
+        {
+            _suppressRosterExpandEvents = false;
+        }
+
+        CartoRosterTreeRenderer.Render(
+            CharacterRosterRoot,
+            Vm.RosterTreeRoots,
+            new CartoRosterTreeRenderer.Host
+            {
+                ViewModel = Vm,
+                BuildUserExpander = BuildUserExpander,
+                BuildAccountExpander = BuildAccountExpander,
+                BuildCategoryExpander = BuildCategoryExpanderForUser,
+                StretchPanel = panel => CartoRosterPanelUi.StretchWidth(panel)
+            },
+            buildId,
+            id => id == _rosterPanelBuildGeneration);
+
+        if (buildId == _rosterPanelBuildGeneration)
+            SyncRosterListWidth();
+    }
+
+    private bool IsRosterExpanded(string expandKey, bool defaultExpanded)
+    {
+        if (_rosterCollapsedKeys.Contains(expandKey))
             return false;
-        if (_rosterExpandedKeys.Contains(key))
+        if (_rosterExpandedKeys.Contains(expandKey))
             return true;
         return defaultExpanded;
     }
@@ -795,43 +880,58 @@ public partial class CartoView : UserControl
             OpenCharacterDetail(ch);
     }
 
-    private void RebuildCharacterRoster() =>
-        RebuildRosterPanel(CharacterRosterRoot, null, cooldownCategoriesOnly: false);
+    private void RebuildCharacterRoster() => RebuildAllRosterPanels();
 
-    private void RebuildCooldownRoster() =>
+    private void RebuildCooldownRoster() => RebuildAllRosterPanels();
+
+    private void RebuildAllRosterPanels()
+    {
+        if (Vm == null || !Vm.CharactersLoaded)
+            return;
+
+        if (CartoRuntimeOptions.UseSimpleCharacterList)
+        {
+            CharacterRosterList?.Items.Refresh();
+            return;
+        }
+
+        var buildId = Interlocked.Increment(ref _rosterPanelBuildGeneration);
+        RenderCharacterRosterFromTree(buildId);
+        if (buildId != _rosterPanelBuildGeneration)
+            return;
+
         RebuildRosterPanel(
             CooldownRosterRoot,
             c =>
             {
-                if (c.IsExternal || Vm == null)
-                    return false;
                 Vm.ApplySyncEnrichment(c);
                 var sync = Vm.FindWowSyncCharacter(c);
                 return CartoCharacterPresentation.HasTrackedProfession(c, sync)
                        && CartoCooldownDisplay.HasDisplayableCooldowns(c, sync);
             },
-            cooldownCategoriesOnly: true);
+            cooldownCategoriesOnly: true,
+            buildId);
+    }
 
     private void RebuildRosterPanel(
         StackPanel? root,
         Func<WowCharacter, bool>? characterFilter,
-        bool cooldownCategoriesOnly)
+        bool cooldownCategoriesOnly,
+        int buildId)
     {
+        if (buildId != _rosterPanelBuildGeneration)
+            return;
         if (CartoRuntimeOptions.UseSimpleCharacterList)
         {
-            if (ReferenceEquals(root, CharacterRosterRoot) && CharacterRosterList != null && Vm != null)
-                CharacterRosterList.Items.Refresh();
             return;
         }
 
         if (root == null || Vm == null) return;
-        CaptureRosterExpandState();
         root.Children.Clear();
         _suppressRosterExpandEvents = true;
         try
         {
             var allLocalChars = Vm.Characters
-                .Where(c => !c.IsExternal)
                 .Where(c => characterFilter?.Invoke(c) ?? true)
                 .ToList();
 
@@ -855,6 +955,9 @@ public partial class CartoView : UserControl
 
             foreach (var user in users)
             {
+                if (buildId != _rosterPanelBuildGeneration)
+                    return;
+
                 var userCharsAll = allLocalChars
                     .Where(c => Vm.GetUserIdForCharacter(c) == user.Id)
                     .ToList();
@@ -867,11 +970,14 @@ public partial class CartoView : UserControl
 
                 var userPanel = CartoRosterPanelUi.StretchWidth(new StackPanel());
                 if (cooldownCategoriesOnly)
-                    PopulateCooldownCharacters(userPanel, userCharsAll);
+                    PopulateCooldownCharacters(userPanel, userCharsAll, buildId);
                 else
-                    PopulateUserCategories(userPanel, user, userCharsAll, cooldownCategoriesOnly: false);
+                    PopulateUserAccountsAndCategories(userPanel, user, userCharsAll, buildId);
                 root.Children.Add(BuildUserExpander(user, userCharsAll, userPanel, cooldownCategoriesOnly));
             }
+
+            if (buildId != _rosterPanelBuildGeneration)
+                return;
 
             var orphans = allLocalChars.Where(c => !assignedCharIds.Contains(c.Id)).ToList();
             if (orphans.Count > 0)
@@ -882,17 +988,34 @@ public partial class CartoView : UserControl
                 {
                     var userPanel = CartoRosterPanelUi.StretchWidth(new StackPanel());
                     if (cooldownCategoriesOnly)
-                        PopulateCooldownCharacters(userPanel, orphans);
+                        PopulateCooldownCharacters(userPanel, orphans, buildId);
                     else
-                        PopulateUserCategories(userPanel, fallbackUser, orphans, cooldownCategoriesOnly: false);
+                        PopulateUserAccountsAndCategories(userPanel, fallbackUser, orphans, buildId);
                     root.Children.Add(BuildUserExpander(fallbackUser, orphans, userPanel, cooldownCategoriesOnly));
+                }
+                else
+                {
+                    var flatPanel = CartoRosterPanelUi.StretchWidth(new StackPanel());
+                    if (cooldownCategoriesOnly)
+                        PopulateCooldownCharacters(flatPanel, orphans, buildId);
+                    else
+                    {
+                        foreach (var ch in orphans.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
+                        {
+                            if (buildId != _rosterPanelBuildGeneration)
+                                return;
+                            flatPanel.Children.Add(BuildStatusDockChip(ch, cooldownRoster: false));
+                        }
+                    }
+
+                    root.Children.Add(flatPanel);
                 }
             }
         }
         finally
         {
             _suppressRosterExpandEvents = false;
-            if (ReferenceEquals(root, CharacterRosterRoot))
+            if (buildId == _rosterPanelBuildGeneration && root == CooldownRosterRoot)
                 SyncRosterListWidth();
         }
     }
@@ -911,33 +1034,106 @@ public partial class CartoView : UserControl
         _rosterExpandedKeys.Remove(key);
     }
 
-    private void PopulateCooldownCharacters(StackPanel panel, IReadOnlyList<WowCharacter> chars)
+    private void PopulateCooldownCharacters(StackPanel panel, IReadOnlyList<WowCharacter> chars, int buildId)
     {
         foreach (var ch in chars.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
         {
+            if (buildId != _rosterPanelBuildGeneration)
+                return;
             panel.Children.Add(BuildStatusDockChip(ch, cooldownRoster: true));
         }
     }
 
-    private void PopulateUserCategories(
+    private void PopulateUserAccountsAndCategories(
         StackPanel panel,
         CartoUser user,
-        IReadOnlyList<WowCharacter> chars,
-        bool cooldownCategoriesOnly = false)
+        IReadOnlyList<WowCharacter> userChars,
+        int buildId)
     {
-        var categories = CartoViewModel.RosterCategoryStatuses;
+        var accountIds = userChars
+            .Select(c => c.AccountId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(id => Vm.Accounts.FirstOrDefault(a => a.Id == id)?.Name ?? id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        foreach (var status in categories)
+        foreach (var accountId in accountIds)
         {
+            if (buildId != _rosterPanelBuildGeneration)
+                return;
+
+            var account = Vm.Accounts.FirstOrDefault(a => a.Id == accountId);
+            if (account == null)
+                continue;
+
+            var accountChars = userChars
+                .Where(c => string.Equals(c.AccountId, accountId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var accountPanel = CartoRosterPanelUi.StretchWidth(new StackPanel());
+            PopulateAccountCategories(accountPanel, user, account, accountChars, buildId);
+            panel.Children.Add(BuildAccountExpander(user, account, accountPanel, buildId));
+        }
+    }
+
+    private void PopulateAccountCategories(
+        StackPanel panel,
+        CartoUser user,
+        WowAccount account,
+        IReadOnlyList<WowCharacter> accountChars,
+        int buildId)
+    {
+        foreach (var status in CartoViewModel.RosterCategoryStatuses)
+        {
+            if (buildId != _rosterPanelBuildGeneration)
+                return;
+
             var statuses = CartoViewModel.StatusesForRosterCategory(status).ToHashSet();
-            var inFrame = chars
+            var inFrame = accountChars
                 .Where(c => statuses.Contains(c.Status))
                 .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             var title = CartoViewModel.RosterCategoryTitle(status);
             var totalInCategory = Vm.CountLocalCharactersInCategory(user.Id, status);
-            panel.Children.Add(BuildCategoryExpanderForUser(user, title, status, inFrame, totalInCategory));
+            panel.Children.Add(BuildCategoryExpanderForUser(
+                user, title, status, inFrame, totalInCategory, account.Id, buildId));
         }
+    }
+
+    private Expander BuildAccountExpander(
+        CartoUser user,
+        WowAccount account,
+        StackPanel content,
+        int buildId)
+    {
+        var accountBrush = new SolidColorBrush(Color.FromRgb(190, 175, 130));
+        var gold = Vm.GetAccountGoldCopper(account.SourceFolder);
+        var accountMapToggle = CartoRosterIcons.CreateMapSubtreeVisibilityToggle(
+            () => Vm.IsAccountVisibleOnMap(account),
+            account.Name,
+            () =>
+            {
+                Vm.ToggleAccountMapVisibility(account);
+                RedrawMarkers();
+                CartoRosterIcons.RefreshMapVisibilityToggles(CharacterRosterRoot);
+            });
+        var header = CartoRosterPanelUi.BuildUserTitleRow(account.Name, accountBrush, null, gold, accountMapToggle);
+
+        var expandKey = RosterExpandKeys.Account(user.Id, account.Id);
+        var expander = CartoRosterPanelUi.StretchExpander(new Expander
+        {
+            Tag = account.Id,
+            Header = header,
+            Content = CartoRosterPanelUi.StretchWidth(content),
+            IsExpanded = IsRosterExpanded(expandKey, defaultExpanded: true),
+            Margin = new Thickness(6, 0, 0, 4)
+        });
+        if (Application.Current?.TryFindResource("CartoCategoryExpander") is Style style)
+            expander.Style = style;
+
+        expander.Expanded += (_, _) => TrackRosterExpanded(expandKey);
+        expander.Collapsed += (_, _) => TrackRosterCollapsed(expandKey);
+        return expander;
     }
 
     private UIElement BuildUserExpander(
@@ -961,17 +1157,16 @@ public partial class CartoView : UserControl
                 rightRail = CartoRosterPanelUi.BuildCooldownSummaryRail(inProgress, ready);
         }
 
-        UIElement? userVisToggle = cooldownPanel
+        UIElement? userMapToggle = cooldownPanel
             ? null
-            : CartoRosterIcons.CreateSubtreeVisibilityToggle(
-                () => Vm.IsUserRosterSubtreeVisible(user),
+            : CartoRosterIcons.CreateMapSubtreeVisibilityToggle(
+                () => Vm.IsUserVisibleOnMap(user),
                 user.Name,
                 () =>
                 {
-                    Vm.ToggleUserRosterSubtreeVisibility(user);
+                    Vm.ToggleUserMapVisibility(user);
                     RedrawMarkers();
-                    if (CharacterRosterRoot != null)
-                        CartoRosterIcons.RefreshSubtreeVisibilityToggles(CharacterRosterRoot);
+                    CartoRosterIcons.RefreshMapVisibilityToggles(CharacterRosterRoot);
                 });
 
         var header = CartoRosterPanelUi.BuildUserTitleRow(
@@ -979,11 +1174,12 @@ public partial class CartoView : UserControl
             userBrush,
             rightRail,
             cooldownPanel ? 0 : Vm.GetUserTotalGoldCopper(user.Id),
-            userVisToggle);
+            userMapToggle);
 
+        var userKey = RosterExpandKeys.User(user.Id);
         var expander = CartoRosterPanelUi.StretchExpander(new Expander
         {
-            IsExpanded = IsRosterExpanded(user.Id, null, defaultExpanded: true),
+            IsExpanded = IsRosterExpanded(userKey, defaultExpanded: true),
             Header = header,
             Content = content,
             Tag = user.Id
@@ -991,31 +1187,9 @@ public partial class CartoView : UserControl
         if (Application.Current?.TryFindResource("CartoUserExpander") is Style userStyle)
             expander.Style = userStyle;
 
-        var userKey = RosterExpandKey(user.Id, null);
         expander.Expanded += (_, _) => TrackRosterExpanded(userKey);
         expander.Collapsed += (_, _) => TrackRosterCollapsed(userKey);
         return CartoRosterPanelUi.WrapUserOwnerFrame(expander);
-    }
-
-    private static Expander BuildRosterSectionExpander(
-        string title,
-        Brush headerBrush,
-        UIElement content,
-        bool nested = false)
-    {
-        return new Expander
-        {
-            IsExpanded = true,
-            Margin = nested ? new Thickness(4, 0, 0, 4) : new Thickness(0, 0, 0, 6),
-            Header = new TextBlock
-            {
-                Text = title,
-                FontSize = nested ? 11 : 12,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = headerBrush
-            },
-            Content = content
-        };
     }
 
     private Border BuildCategoryExpanderForUser(
@@ -1023,15 +1197,25 @@ public partial class CartoView : UserControl
         string title,
         CharacterStatus category,
         IReadOnlyList<WowCharacter> characters,
-        int totalInCategory)
+        int totalInCategory,
+        string? accountId = null,
+        int buildId = 0)
     {
         var shell = CartoRosterPanelUi.WrapCategoryFrame(
             category,
-            BuildCategoryExpanderContent(user, title, category, characters, totalInCategory));
+            BuildCategoryExpanderContent(user, title, category, characters, totalInCategory, accountId, buildId));
         shell.Tag = category;
         shell.AllowDrop = true;
-        shell.DragOver += StatusFrame_DragOver;
-        shell.Drop += StatusFrame_Drop;
+        shell.DragOver += (_, e) =>
+        {
+            if (shell.Tag is CharacterStatus status)
+                StatusFrame_DragOver(status, e);
+        };
+        shell.Drop += (_, e) =>
+        {
+            if (shell.Tag is CharacterStatus status)
+                StatusFrame_Drop(status, e);
+        };
         shell.DragLeave += (_, _) => SetHighlightedDropFrame(null);
         return shell;
     }
@@ -1041,17 +1225,18 @@ public partial class CartoView : UserControl
         string title,
         CharacterStatus category,
         IReadOnlyList<WowCharacter> characters,
-        int totalInCategory)
+        int totalInCategory,
+        string? accountId = null,
+        int buildId = 0)
     {
-        var catVisToggle = CartoRosterIcons.CreateSubtreeVisibilityToggle(
-            () => Vm.IsCategoryRosterSubtreeVisible(user, category),
+        var catMapToggle = CartoRosterIcons.CreateMapSubtreeVisibilityToggle(
+            () => Vm.IsCategoryVisibleOnMap(user, category),
             title,
             () =>
             {
-                Vm.ToggleCategoryRosterSubtreeVisibility(user, category);
+                Vm.ToggleCategoryMapVisibility(user, category);
                 RedrawMarkers();
-                if (CharacterRosterRoot != null)
-                    CartoRosterIcons.RefreshSubtreeVisibilityToggles(CharacterRosterRoot);
+                CartoRosterIcons.RefreshMapVisibilityToggles(CharacterRosterRoot);
             });
 
         var headerPanel = CartoRosterPanelUi.StretchWidth(new StackPanel
@@ -1062,7 +1247,7 @@ public partial class CartoView : UserControl
                     category,
                     title,
                     Vm.GetCategoryGoldCopper(Vm.GetLocalCharactersForUserCategory(user.Id, category)),
-                    catVisToggle)
+                    catMapToggle)
             }
         });
 
@@ -1082,18 +1267,24 @@ public partial class CartoView : UserControl
         else
         {
             foreach (var ch in characters)
+            {
+                if (buildId != 0 && buildId != _rosterPanelBuildGeneration)
+                    break;
                 content.Children.Add(BuildStatusDockChip(ch));
+            }
         }
 
         var defaultCatExpanded = totalInCategory > 0 && category == CharacterStatus.Main;
+        var catKey = !string.IsNullOrWhiteSpace(accountId)
+            ? RosterExpandKeys.Category(user.Id, accountId, category)
+            : RosterExpandKeys.User(user.Id);
         var expander = CartoRosterPanelUi.StretchExpander(new Expander
         {
             Tag = category,
             Header = headerPanel,
             Content = content,
-            IsExpanded = IsRosterExpanded(user.Id, category, defaultCatExpanded)
+            IsExpanded = IsRosterExpanded(catKey, defaultCatExpanded)
         });
-        var catKey = RosterExpandKey(user.Id, category);
         expander.Expanded += (_, _) => TrackRosterExpanded(catKey);
         expander.Collapsed += (_, _) => TrackRosterCollapsed(catKey);
 
@@ -1114,6 +1305,14 @@ public partial class CartoView : UserControl
 
         var callbacks = new CartoDockCardCallbacks
         {
+            ToggleMapVisibility = cooldownRoster
+                ? null
+                : c =>
+                {
+                    Vm.ToggleCharacterMapVisibilityCommand.Execute(c);
+                    RedrawMarkers();
+                    CartoRosterIcons.RefreshMapVisibilityToggles(CharacterRosterRoot);
+                },
             OpenDetails = OpenDetail,
             DragStart = cooldownRoster ? null : (c, card, e) =>
             {
@@ -1148,11 +1347,16 @@ public partial class CartoView : UserControl
             }
         };
 
+        UIElement? mapEye = cooldownRoster || callbacks.ToggleMapVisibility == null
+            ? null
+            : CartoRosterIcons.CreateMapVisibilityToggle(ch, callbacks.ToggleMapVisibility);
+
         var card = CartoRosterPanelUi.StretchWidth(CartoCharacterDockCard.Build(
             ch,
             Vm,
             callbacks,
-            cooldownRoster ? new CartoDockCardOptions { CooldownRosterOnly = true } : null));
+            cooldownRoster ? new CartoDockCardOptions { CooldownRosterOnly = true } : null,
+            mapEye));
         card.Tag = ch;
 
         if (cooldownRoster)
@@ -1221,21 +1425,6 @@ public partial class CartoView : UserControl
     private static string GetMapLabelText(WowCharacter ch, CartoViewModel vm)
     {
         var lockPrefix = ch.IsLocked ? "🔒 " : "";
-        if (CartoExternalSource.IsTpBoyPublic(ch.ExternalSource))
-        {
-            var account = ch.ExternalAccountDisplayName;
-            return string.IsNullOrWhiteSpace(account)
-                ? $"{lockPrefix}{ch.Name}"
-                : $"{lockPrefix}{ch.Name} ({account})";
-        }
-
-        if (ch.IsExternal && ch.ExternalSource != null)
-        {
-            var friendName = vm.GetFriendName(ch.ExternalSource)
-                               ?? ch.ExternalSource[..Math.Min(8, ch.ExternalSource.Length)];
-            return $"{lockPrefix}[{friendName}] {ch.Name}";
-        }
-
         return vm.ShouldShowAccountNameForCharacter(ch)
                && vm.GetCharacterAccountDisplayName(ch) is { } accountName
             ? $"{lockPrefix}{ch.Name} ({accountName})"
@@ -1329,7 +1518,7 @@ public partial class CartoView : UserControl
     }
 
     private static int MapLabelPriority(WowCharacter ch, bool isSelected, bool isTpBoy) =>
-        isSelected ? 1000 : isTpBoy ? 200 : ch.IsExternal ? 80 : 0;
+        isSelected ? 1000 : isTpBoy ? 200 : 0;
 
     private static void AddMapLabelLeaderLine(
         Canvas canvas,
@@ -1424,7 +1613,6 @@ public partial class CartoView : UserControl
             var ch = item.Ch;
             Brush strokeBrush = item.IsSelected ? Brushes.White
                 : item.IsTpBoy ? TpBoyStrokeBrush
-                : ch.IsExternal ? Brushes.CornflowerBlue
                 : DefaultStrokeBrush;
 
             var marker = new Ellipse
@@ -1433,7 +1621,7 @@ public partial class CartoView : UserControl
                 Height = item.Size,
                 Fill = item.Brush,
                 Stroke = strokeBrush,
-                StrokeThickness = item.IsTpBoy ? 1.5 : (ch.IsExternal ? 1.5 : (item.IsSelected ? 1.5 : 1)),
+                StrokeThickness = item.IsTpBoy ? 1.5 : (item.IsSelected ? 1.5 : 1),
                 Cursor = Cursors.Hand,
                 Tag = ch,
                 ToolTip = ch.Name
@@ -1693,6 +1881,9 @@ public partial class CartoView : UserControl
         if (e.Handled)
             return;
 
+        if (TryProcessCapitalMapPointer(e))
+            return;
+
         if (Vm.IsPlacingDungeonMarker)
         {
             var pos = e.GetPosition(MapImage);
@@ -1704,7 +1895,7 @@ public partial class CartoView : UserControl
             }
         }
 
-        if (Vm.IsZoneEditMode)
+        if (Vm.IsZoneEditMode && !Vm.IsPlacingCapitalZone)
         {
             var mapPos = e.GetPosition(MapImage);
             if (TryHitDungeonMarker(mapPos, out var dungeonHit) && dungeonHit != null)
@@ -1738,9 +1929,11 @@ public partial class CartoView : UserControl
                 return;
             }
 
-            if (CartoRuntimeOptions.ShowWorldZoneRectOverlays
+            if (Vm.IsPlacingWorldZone
                 && Vm.TryAddZoneAt(mapPos.X / MapWidth, mapPos.Y / MapHeight))
             {
+                CartoRuntimeOptions.ShowWorldZoneRectOverlays = true;
+                Vm.ShowWorldZoneRectOverlays = true;
                 RedrawZoneEditor();
                 e.Handled = true;
                 return;
@@ -1831,6 +2024,12 @@ public partial class CartoView : UserControl
             return;
         }
 
+        if (_zoneDragItem != null && _zoneDragCapitalSlot != null)
+        {
+            ProcessCapitalZoneDrag(_zoneDragCapitalSlot, e.GetPosition(CapitalHitHost));
+            return;
+        }
+
         if (_zoneDragItem != null)
         {
             var mapPos = e.GetPosition(MapImage);
@@ -1846,7 +2045,7 @@ public partial class CartoView : UserControl
             else
             {
                 _zoneDragItem.Left = Math.Clamp(_zoneDragStartLeft + dx, 0, 1 - _zoneDragStartW);
-                _zoneDragItem.Top = Math.Clamp(_zoneDragStartTop + dy, 0, 1 - _zoneDragStartH);
+                _zoneDragItem.Top = Math.Clamp(_zoneDragStartTop + dy, 0, 1 - _zoneDragItem.Height);
             }
 
             RedrawZoneEditor();
@@ -1892,14 +2091,17 @@ public partial class CartoView : UserControl
 
         if (_zoneDragItem != null)
         {
-            Vm.PersistZoneRects();
-            _zoneDragItem = null;
-            _zoneDragCapitalSlot = null;
-            _zoneResizeDrag = false;
-            MapBorder.ReleaseMouseCapture();
-            foreach (var slot in _capitalSlots)
-                slot.Host.ReleaseMouseCapture();
-            RedrawZoneEditor();
+            if (_zoneDragCapitalSlot != null)
+                EndCapitalZoneDrag();
+            else
+            {
+                Vm.PersistZoneRects();
+                _zoneDragItem = null;
+                _zoneResizeDrag = false;
+                MapBorder.ReleaseMouseCapture();
+                RedrawZoneEditor();
+            }
+
             e.Handled = true;
             return;
         }
@@ -1964,9 +2166,9 @@ public partial class CartoView : UserControl
         if (Vm == null || MapBorder == null)
             return;
 
-        var mapW = _worldPixelW > 0 ? _worldPixelW : MapContainer?.Width ?? 1024;
-        var mapH = _worldPixelH > 0 ? _worldPixelH : MapContainer?.Height ?? 768;
-        Vm.ClampMapPan(MapBorder.ActualWidth, MapBorder.ActualHeight, mapW, mapH);
+        ApplyMapContentLayout();
+        var (mapW, mapH, _, _) = GetMapContentFrameMetrics();
+        Vm.ClampMapPan(MapBorder.ActualWidth, MapBorder.ActualHeight, mapW, mapH, GetRightDockOverlayWidth());
     }
 
     private static readonly System.Media.SoundPlayer _chimePlayer = new(@"C:\Windows\Media\chimes.wav");
@@ -2226,16 +2428,14 @@ public partial class CartoView : UserControl
         }
         finally
         {
-            if (Vm?.IsRosterOpen == true)
-                RebuildCharacterRoster();
-            if (includeCooldowns && Vm?.IsCooldownRosterOpen == true)
-                RebuildCooldownRoster();
+            if (Vm?.IsRosterOpen == true || (includeCooldowns && Vm?.IsCooldownRosterOpen == true))
+                RebuildAllRosterPanels();
         }
     }
 
     private void ShowRosterLoadingState(bool loading, bool cooldownPanel = false)
     {
-        var root = cooldownPanel ? CooldownRosterRoot : CharacterRosterRoot;
+        var root = CooldownRosterRoot;
         if (root == null)
             return;
 
@@ -2294,38 +2494,44 @@ public partial class CartoView : UserControl
         SetPanelOpen(CartoPanel.Cooldowns, false);
     }
 
-    private void ZoneRectsListBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    private void ZoneCatalogListBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (Vm == null || sender is not ListBox listBox)
             return;
 
-        var zone = GetListBoxItemDataContext<CartoZoneRectItem>(listBox, e.OriginalSource);
-        if (zone == null)
+        var item = GetListBoxItemDataContext<ZoneCatalogListItem>(listBox, e.OriginalSource);
+        if (item == null)
             return;
 
-        if (ReferenceEquals(Vm.SelectedZoneRect, zone))
+        if (listBox == ZoneRectsListBox && Vm.ZoneToAddMapId == item.MapId)
         {
-            Vm.SelectedZoneRect = null;
+            Vm.ZoneToAddMapId = null;
             listBox.SelectedItem = null;
-            ScheduleZoneEditorRedraw();
+            e.Handled = true;
+            return;
+        }
+
+        if (listBox == CapitalZoneRectsListBox && Vm.CapitalToAddMapId == item.MapId)
+        {
+            Vm.CapitalToAddMapId = null;
+            listBox.SelectedItem = null;
             e.Handled = true;
         }
     }
 
-    private void DungeonMarkersListBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    private void DungeonCatalogListBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (Vm == null || sender is not ListBox listBox)
             return;
 
-        var marker = GetListBoxItemDataContext<CartoDungeonMarker>(listBox, e.OriginalSource);
-        if (marker == null)
+        var item = GetListBoxItemDataContext<DungeonCatalogListItem>(listBox, e.OriginalSource);
+        if (item == null)
             return;
 
-        if (ReferenceEquals(Vm.SelectedDungeonMarker, marker))
+        if (string.Equals(Vm.DungeonToPlaceKey, item.Key, StringComparison.OrdinalIgnoreCase))
         {
-            Vm.SelectedDungeonMarker = null;
+            Vm.DungeonToPlaceKey = null;
             listBox.SelectedItem = null;
-            ScheduleZoneEditorRedraw();
             e.Handled = true;
         }
     }
@@ -2345,9 +2551,15 @@ public partial class CartoView : UserControl
         return null;
     }
 
-    private void ZoneListDelete_Click(object sender, RoutedEventArgs e) => e.Handled = true;
+    private void ZoneListDelete_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+    }
 
-    private void DungeonListDelete_Click(object sender, RoutedEventArgs e) => e.Handled = true;
+    private void DungeonListDelete_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+    }
 
     private void ApplyRightPanelLayout()
     {
@@ -2384,8 +2596,8 @@ public partial class CartoView : UserControl
             if (CharacterRosterList != null)
                 CharacterRosterList.Visibility = useSimpleList ? Visibility.Visible : Visibility.Collapsed;
 
-            if (Vm.CharactersLoaded && CharacterRosterRoot?.Children.Count == 0 && !useSimpleList)
-                RebuildCharacterRoster();
+            if (Vm.CharactersLoaded && Vm.RosterTreeRoots.Count == 0 && !useSimpleList)
+                Vm.RefreshRosterTree();
         }
 
         if (showCooldowns && CooldownRosterHost != null)
@@ -2402,12 +2614,15 @@ public partial class CartoView : UserControl
                            || showSettings;
 
         if (RightDockHost != null)
+        {
             RightDockHost.Visibility = anyPanelOpen ? Visibility.Visible : Visibility.Collapsed;
+            RightDockHost.Width = showZones ? 336 : CartoRosterPanelUi.PanelWidth + 4;
+            // Pas de fond (même Transparent) : sinon toute la bande droite bloque les clics sur les mini-cartes.
+            RightDockHost.Background = null;
+        }
 
-        if (RootColGap != null)
-            RootColGap.Width = anyPanelOpen ? new GridLength(8) : new GridLength(0);
-        if (RootColDock != null)
-            RootColDock.Width = anyPanelOpen ? GridLength.Auto : new GridLength(0);
+        if (ZonesPanelHost != null)
+            ZonesPanelHost.Background = new SolidColorBrush(Color.FromArgb(0xF2, 0x10, 0x18, 0x10));
 
         if (showSearch)
             Vm.UpdateItemSearch();
@@ -2446,16 +2661,18 @@ public partial class CartoView : UserControl
         row.RefreshOwnerDisplayName(Vm.GetOrderedUsers());
     }
 
-    private void RefreshAccountSettings_Click(object sender, RoutedEventArgs e) =>
-        Vm.RefreshAccountSettingRows();
+    private async void RefreshAccountSettings_Click(object sender, RoutedEventArgs e)
+    {
+        if (Vm == null) return;
+        await Vm.RescanWowFromWtfAsync();
+    }
 
     private void SaveAccountSettings_Click(object sender, RoutedEventArgs e)
     {
         if (Vm == null) return;
         Vm.CloseSettingsPanelAfterSave();
         ApplyRightPanelLayout();
-        RebuildCharacterRoster();
-        RebuildCooldownRoster();
+        RebuildAllRosterPanels();
         RedrawMarkers();
     }
 
@@ -2492,7 +2709,7 @@ public partial class CartoView : UserControl
         ApplyRightPanelLayout();
         RedrawMarkers();
 
-        if (fromMap && !ch.IsPlacedOnMap && !ch.IsExternal)
+        if (fromMap && !ch.IsPlacedOnMap)
             Vm.EnsureCharactersVisibleOnMap();
     }
 
@@ -2673,7 +2890,7 @@ public partial class CartoView : UserControl
         CharacterDetailActionsHost.Children.Clear();
         CharacterDetailHeroHost.Child = null;
 
-        var isWowSync = !ch.IsExternal && !string.IsNullOrEmpty(ch.SyncKey);
+        var isWowSync = !string.IsNullOrEmpty(ch.SyncKey);
         if (isWowSync)
             Vm.ApplySyncEnrichment(ch);
         var syncData = isWowSync ? Vm.FindWowSyncCharacter(ch) : null;
@@ -2726,18 +2943,6 @@ public partial class CartoView : UserControl
             stack.Children.Add(shardSection);
         }
 
-        if (ch.IsExternal)
-        {
-            stack.Children.Add(new TextBlock
-            {
-                Text = "Confidentialité : réglages fournis par l'émetteur du compte (prochaine mise à jour).",
-                FontSize = 10,
-                Foreground = CartoCharacterPresentation.DimBrush,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 4, 0, 0)
-            });
-        }
-
         if (ch.Class == WowClass.Demoniste)
             RedrawMarkers();
     }
@@ -2749,7 +2954,7 @@ public partial class CartoView : UserControl
 
         _notePopupCharacter.Note = box.Text;
         Vm.Save();
-        RebuildCharacterRoster();
+        Vm.RefreshRosterTree();
     }
 
     private UIElement BuildCharPopupHero(WowCharacter ch, WowCharacterData? syncData, bool isWowSync)
@@ -2782,7 +2987,7 @@ public partial class CartoView : UserControl
         }
 
         UIElement? headerActions = null;
-        if (!ch.IsExternal && isWowSync)
+        if (isWowSync)
         {
             var toggles = new StackPanel { Orientation = Orientation.Horizontal };
             toggles.Children.Add(CartoRosterIcons.CreateMapVisibilityToggle(ch, c =>
@@ -2790,7 +2995,6 @@ public partial class CartoView : UserControl
                 Vm.ToggleCharacterMapVisibilityCommand.Execute(c);
                 RebuildCharacterDetailContent(c);
                 RedrawMarkers();
-                RebuildCharacterRoster();
             }));
             headerActions = toggles;
         }
@@ -2929,8 +3133,7 @@ public partial class CartoView : UserControl
             root.Children.Add(heroCdFe);
         }
 
-        if (!ch.IsExternal)
-            root.Children.Add(BuildCharacterSettingsBlock(ch, isWowSync));
+        root.Children.Add(BuildCharacterSettingsBlock(ch, isWowSync));
 
         shell.Child = root;
         return shell;
@@ -3039,7 +3242,7 @@ public partial class CartoView : UserControl
 
             Vm.SetCharacterStatus(ch, s);
             RebuildCharacterDetailContent(ch);
-            RebuildCharacterRoster();
+            Vm.RefreshRosterTree();
             RedrawMarkers();
         };
         suppress = false;
@@ -3050,7 +3253,7 @@ public partial class CartoView : UserControl
     {
         CharacterDetailActionsHost.Children.Clear();
 
-        if (!ch.IsExternal && !isWowSync)
+        if (!isWowSync)
         {
             CharacterDetailActionsHost.Children.Add(MakeActionButton("🗑 Suppr", "#FFCC3333", () =>
             {
@@ -3259,7 +3462,7 @@ public partial class CartoView : UserControl
         }
     }
 
-    private void StatusFrame_DragOver(object sender, DragEventArgs e)
+    private void StatusFrame_DragOver(CharacterStatus status, DragEventArgs e)
     {
         if (!TryGetCharacterFromDrag(e, out _))
         {
@@ -3270,22 +3473,28 @@ public partial class CartoView : UserControl
 
         e.Effects = DragDropEffects.Move;
         e.Handled = true;
-        if (sender is Border frame)
-            SetHighlightedDropFrame(frame);
+        SetHighlightedDropFrame(FindStatusFrameByCategory(status));
     }
 
-    private void StatusFrame_Drop(object sender, DragEventArgs e)
+    private void StatusFrame_Drop(CharacterStatus status, DragEventArgs e)
     {
         SetHighlightedDropFrame(null);
         if (!TryGetCharacterFromDrag(e, out var ch) || ch == null)
             return;
 
-        if (sender is Border { Tag: CharacterStatus status })
-            Vm.MoveCharacterToCategoryFrame(ch, status);
-
+        Vm.MoveCharacterToCategoryFrame(ch, status);
         CloseCharacterTooltip();
         RedrawAll();
         e.Handled = true;
+    }
+
+    private Border? FindStatusFrameByCategory(CharacterStatus status)
+    {
+        if (CharacterRosterRoot == null)
+            return null;
+
+        return EnumerateStatusFrames(CharacterRosterRoot)
+            .FirstOrDefault(f => f.Tag is CharacterStatus s && s == status);
     }
 
     private void CharacterRoster_DragOver(object sender, DragEventArgs e)

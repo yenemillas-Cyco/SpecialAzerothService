@@ -7,15 +7,10 @@ using SpecialAzerothService.Core.Models.Carto;
 
 namespace WindowsOrganiserApp.Controls;
 
-/// <summary>Boutons roster : visibilité carte / sous-arbre.</summary>
+/// <summary>Œil carte : masque / affiche sur la carte (le roster reste affiché).</summary>
 public static class CartoRosterIcons
 {
-    private const int ToggleSize = 22;
-    private const double DiscSize = 18;
-
-    private static readonly SolidColorBrush GoldDisc = new(Color.FromRgb(204, 162, 74));
-    private static readonly SolidColorBrush HiddenDisc = new(Color.FromRgb(58, 62, 72));
-    private sealed class VisibilityToggleTag(Func<bool> isVisible, string label, Action onToggled)
+    private sealed class MapVisibilityToggleTag(Func<bool> isVisible, string label, Action onToggled)
     {
         public void Refresh(ToggleButton toggle)
         {
@@ -23,8 +18,8 @@ public static class CartoRosterIcons
             toggle.SetCurrentValue(ToggleButton.IsCheckedProperty, visible);
             toggle.Content = BuildEyeDisc(visible);
             toggle.ToolTip = visible
-                ? $"{label} visible — masquer"
-                : $"{label} masqué — afficher";
+                ? $"{label} visible sur la carte — masquer"
+                : $"{label} masqué sur la carte — afficher";
         }
 
         public void Click(ToggleButton toggle)
@@ -34,32 +29,40 @@ public static class CartoRosterIcons
         }
     }
 
-    public static void RefreshSubtreeVisibilityToggles(DependencyObject root)
+    public static void RefreshMapVisibilityToggles(DependencyObject root)
     {
         if (root == null)
             return;
 
         foreach (var toggle in EnumerateVisualChildren<ToggleButton>(root))
         {
-            if (toggle.Tag is VisibilityToggleTag tag)
+            if (toggle.Tag is MapVisibilityToggleTag tag)
                 tag.Refresh(toggle);
         }
     }
 
-    public static ToggleButton CreateSubtreeVisibilityToggle(
+    public static ToggleButton CreateMapSubtreeVisibilityToggle(
         Func<bool> isVisible,
         string scopeLabel,
         Action onToggled)
     {
-        var tag = new VisibilityToggleTag(isVisible, scopeLabel, onToggled);
-        var toggle = CreateVisibilityShell(tag);
+        var tag = new MapVisibilityToggleTag(isVisible, scopeLabel, onToggled);
+        var toggle = CreateShellBase();
+        toggle.Tag = tag;
+        WirePreviewActivate(toggle, () => tag.Click(toggle));
         tag.Refresh(toggle);
         return toggle;
     }
 
+    private const int ToggleSize = 22;
+    private const double DiscSize = 18;
+
+    private static readonly SolidColorBrush GoldDisc = new(Color.FromRgb(204, 162, 74));
+    private static readonly SolidColorBrush HiddenDisc = new(Color.FromRgb(58, 62, 72));
+
     public static ToggleButton CreateMapVisibilityToggle(WowCharacter ch, Action<WowCharacter> onToggled)
     {
-        var toggle = CreateVisibilityShell(null);
+        var toggle = CreateShellBase();
         void Refresh()
         {
             var visible = !ch.IsHidden;
@@ -76,16 +79,6 @@ public static class CartoRosterIcons
             onToggled(ch);
             Refresh();
         });
-        return toggle;
-    }
-
-    private static ToggleButton CreateVisibilityShell(VisibilityToggleTag? tag)
-    {
-        var toggle = CreateShellBase();
-        toggle.Tag = tag;
-        if (tag != null)
-            WirePreviewActivate(toggle, () => tag.Click(toggle));
-
         return toggle;
     }
 

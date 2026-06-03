@@ -23,7 +23,6 @@ public sealed class CartoCharacterExtras
     public int ShardCount { get; set; }
     public bool IsHidden { get; set; }
     public bool IsLocked { get; set; }
-    public bool ExcludeFromSync { get; set; }
 
     /// <summary>Affiché sur la carte (sinon cadre Banque/Main/Reroll/TP à gauche).</summary>
     public bool IsPlacedOnMap { get; set; }

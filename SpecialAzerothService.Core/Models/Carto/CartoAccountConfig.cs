@@ -5,7 +5,7 @@ public enum AccountScope
     /// <summary>Mon compte — tes dossiers WTF.</summary>
     Mine,
 
-    /// <summary>Compte joué chez / pour un ami (même source que sync réseau, regroupé par ami).</summary>
+    /// <summary>Obsolète — compte d'un autre utilisateur local.</summary>
     Friend
 }
 

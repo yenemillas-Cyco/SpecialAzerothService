@@ -12,7 +12,7 @@
     <AssemblyName>SpecialAzerothService</AssemblyName>
     <Product>Special Azeroth Service — Multibox Organiser</Product>
     <Description>WoW Multibox Window Organiser pour Polux</Description>
-    <Version>3.0.14</Version>
+    <Version>4.0.0</Version>
 
     <!-- Publication self-contained -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -33,6 +33,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SpecialAzerothService.Core\SpecialAzerothService.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\Capitals\*.jpg" />
   </ItemGroup>
 
   <ItemGroup>

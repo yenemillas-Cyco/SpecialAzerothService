@@ -8,10 +8,25 @@ public interface IWowSyncService
 {
     string AddonVersion { get; }
     string WowPath { get; set; }
+    WowInstallPaths.WowPathResolution ResolvedPaths { get; }
     string ResolvedWtfPath { get; }
-    void DeployAddon();
-    List<WowAccountData> ReadAllAccounts(IReadOnlyDictionary<string, CartoAccountConfig>? accountSettings = null);
+    string ResolvedAddonsDirectory { get; }
+    IReadOnlyList<string> ListWtfAccountFolderNames();
+    void DeployAddon(string? gameRoot = null);
+    List<WowAccountData> ReadAllAccounts(
+        IReadOnlyDictionary<string, CartoAccountConfig>? accountSettings = null,
+        string? gameRoot = null);
+
+    WowSyncScanDiagnostics GetScanDiagnostics(string? gameRoot = null);
 }
+
+/// <summary>Résultat du scan WTF / WowSync.lua (diagnostic affiché dans l'UI).</summary>
+public sealed record WowSyncScanDiagnostics(
+    string WtfAccountPath,
+    int WtfFolderCount,
+    int WowSyncLuaFileCount,
+    int CharactersInLuaFiles,
+    IReadOnlyList<string> Issues);
 
 public sealed class WowSyncService : IWowSyncService
 {
@@ -23,14 +38,21 @@ public sealed class WowSyncService : IWowSyncService
 
     public string WowPath
     {
-        get => WowInstallPaths.NormalizeGameRoot(_settingsService.Load().WowPath);
+        get => WowInstallPaths.NormalizeStoredPath(_settingsService.Load().WowPath);
         set
         {
+            var normalized = WowInstallPaths.NormalizeStoredPath(value);
+            if (string.IsNullOrWhiteSpace(normalized))
+                return;
+
             var s = _settingsService.Load();
-            s.WowPath = WowInstallPaths.NormalizeGameRoot(value);
+            s.WowPath = normalized;
             _settingsService.Save(s);
         }
     }
+
+    public WowInstallPaths.WowPathResolution ResolvedPaths =>
+        WowInstallPaths.Resolve(WowPath);
 
     public WowSyncService(ISettingsService settingsService, ICartoService cartoService)
     {
@@ -38,22 +60,38 @@ public sealed class WowSyncService : IWowSyncService
         _cartoService = cartoService;
     }
 
-    public void DeployAddon()
+    public void DeployAddon(string? gameRoot = null)
     {
-        var addonsDir = WowInstallPaths.GetAddonsDirectory(WowPath);
-        Directory.CreateDirectory(addonsDir);
+        var root = string.IsNullOrWhiteSpace(gameRoot)
+            ? WowPath
+            : WowInstallPaths.NormalizeStoredPath(gameRoot);
 
+        if (!WowInstallPaths.TryGetAddonDeployDirectory(root, out var addonsDir))
+            throw new InvalidOperationException(
+                string.IsNullOrWhiteSpace(root)
+                    ? "Aucun dossier World of Warcraft enregistré."
+                    : WowInstallPaths.GetValidationError(root));
+
+        Directory.CreateDirectory(addonsDir);
         File.WriteAllText(Path.Combine(addonsDir, "WowSync.toc"), TocContent);
         File.WriteAllText(Path.Combine(addonsDir, "WowSync.lua"), LuaContent);
     }
 
-    public string ResolvedWtfPath => WowInstallPaths.GetWtfAccountDirectory(WowPath);
+    public string ResolvedWtfPath => ResolvedPaths.WtfAccountPath;
 
-    public List<WowAccountData> ReadAllAccounts(IReadOnlyDictionary<string, CartoAccountConfig>? accountSettings = null)
+    public string ResolvedAddonsDirectory => ResolvedPaths.AddonsDirectory;
+
+    public IReadOnlyList<string> ListWtfAccountFolderNames() =>
+        WowInstallPaths.ListWtfAccountFolderNames(WowPath);
+
+    public List<WowAccountData> ReadAllAccounts(
+        IReadOnlyDictionary<string, CartoAccountConfig>? accountSettings = null,
+        string? gameRoot = null)
     {
         var accounts = new List<WowAccountData>();
-        var wtfPath = ResolvedWtfPath;
-        if (!Directory.Exists(wtfPath)) return accounts;
+        var root = string.IsNullOrWhiteSpace(gameRoot) ? WowPath : WowInstallPaths.NormalizeStoredPath(gameRoot);
+        if (!WowInstallPaths.TryGetWtfAccountDirectory(root, out var wtfPath))
+            return accounts;
 
         IReadOnlyDictionary<string, CartoAccountConfig> settings;
         if (accountSettings != null)
@@ -65,40 +103,127 @@ public sealed class WowSyncService : IWowSyncService
             settings = carto.AccountSettings ?? new Dictionary<string, CartoAccountConfig>(StringComparer.OrdinalIgnoreCase);
         }
 
-        foreach (var accountDir in Directory.GetDirectories(wtfPath))
-        {
-            var svFile = Path.Combine(accountDir, "SavedVariables", "WowSync.lua");
-            if (!File.Exists(svFile)) continue;
+        var byAccount = new Dictionary<string, WowAccountData>(StringComparer.OrdinalIgnoreCase);
 
-            var folderName = Path.GetFileName(accountDir);
-            var account = new WowAccountData
+        foreach (var entry in WowWtfAccountScanner.FindWowSyncLuaFiles(wtfPath))
+        {
+            if (!byAccount.TryGetValue(entry.AccountFolder, out var account))
             {
-                SourceAccountName = folderName,
-                AccountName = CartoAccountSettings.ResolveDisplayName(folderName, settings)
-            };
+                account = new WowAccountData
+                {
+                    SourceAccountName = entry.AccountFolder,
+                    AccountName = CartoAccountSettings.ResolveDisplayName(entry.AccountFolder, settings)
+                };
+                byAccount[entry.AccountFolder] = account;
+            }
 
             try
             {
-                var parsed = LuaTableParser.ParseFile(svFile);
-                if (!parsed.TryGetValue("WowSyncDB", out var dbObj) ||
-                    dbObj is not Dictionary<string, object?> db)
+                var parsed = LuaTableParser.ParseFile(entry.FilePath);
+                if (!parsed.TryGetValue("WowSyncDB", out var dbObj)
+                    || dbObj is not Dictionary<string, object?> db)
                     continue;
 
                 foreach (var (charKey, charValue) in db)
                 {
                     if (charValue is not Dictionary<string, object?> charData) continue;
+                    if (string.IsNullOrWhiteSpace(LuaTableParser.GetString(charData, "name")))
+                        continue;
+
                     var ch = ParseCharacter(charData);
                     ch.StorageKey = charKey.Trim();
-                    account.Characters.Add(ch);
+                    MergeCharacterIntoAccount(account, ch);
                 }
             }
             catch { /* skip corrupted files */ }
-
-            if (account.Characters.Count > 0)
-                accounts.Add(account);
         }
 
+        accounts.AddRange(byAccount.Values.Where(a => a.Characters.Count > 0));
         return accounts;
+    }
+
+    private static void MergeCharacterIntoAccount(WowAccountData account, WowCharacterData incoming)
+    {
+        var index = account.Characters.FindIndex(c => IsSameCharacter(c, incoming));
+        if (index < 0)
+        {
+            account.Characters.Add(incoming);
+            return;
+        }
+
+        if (IsNewerCharacter(incoming, account.Characters[index]))
+            account.Characters[index] = incoming;
+    }
+
+    private static bool IsSameCharacter(WowCharacterData a, WowCharacterData b)
+    {
+        if (!string.IsNullOrWhiteSpace(a.StorageKey)
+            && !string.IsNullOrWhiteSpace(b.StorageKey)
+            && string.Equals(a.StorageKey, b.StorageKey, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return string.Equals(a.Name, b.Name, StringComparison.OrdinalIgnoreCase)
+               && string.Equals(a.Realm, b.Realm, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsNewerCharacter(WowCharacterData candidate, WowCharacterData existing) =>
+        string.Compare(candidate.LastUpdate, existing.LastUpdate, StringComparison.OrdinalIgnoreCase) > 0
+        || (string.IsNullOrWhiteSpace(existing.LastUpdate) && !string.IsNullOrWhiteSpace(candidate.LastUpdate))
+        || candidate.Level > existing.Level;
+
+    public WowSyncScanDiagnostics GetScanDiagnostics(string? gameRoot = null)
+    {
+        var issues = new List<string>();
+        var root = string.IsNullOrWhiteSpace(gameRoot) ? WowPath : WowInstallPaths.NormalizeStoredPath(gameRoot);
+        if (!WowInstallPaths.TryGetWtfAccountDirectory(root, out var wtfPath))
+        {
+            issues.Add(WowInstallPaths.GetValidationError(root));
+            return new WowSyncScanDiagnostics("", 0, 0, 0, issues);
+        }
+
+        var accountFolders = WowWtfAccountScanner.ListAccountFolderNames(wtfPath);
+        var luaEntries = WowWtfAccountScanner.FindWowSyncLuaFiles(wtfPath);
+
+        var luaFiles = 0;
+        var charCount = 0;
+        foreach (var entry in luaEntries)
+        {
+            luaFiles++;
+            try
+            {
+                var parsed = LuaTableParser.ParseFile(entry.FilePath);
+                if (!parsed.TryGetValue("WowSyncDB", out var dbObj)
+                    || dbObj is not Dictionary<string, object?> db)
+                {
+                    issues.Add($"{entry.FilePath} : pas de table WowSyncDB (jouez + /wowsync + déconnexion).");
+                    continue;
+                }
+
+                var inFile = 0;
+                foreach (var (_, charValue) in db)
+                {
+                    if (charValue is Dictionary<string, object?> charData
+                        && !string.IsNullOrWhiteSpace(LuaTableParser.GetString(charData, "name")))
+                        inFile++;
+                }
+
+                charCount += inFile;
+                if (inFile == 0)
+                    issues.Add($"{entry.FilePath} : WowSync.lua vide.");
+            }
+            catch (Exception ex)
+            {
+                issues.Add($"{entry.FilePath} : illisible ({ex.Message}).");
+            }
+        }
+
+        if (accountFolders.Count == 0)
+            issues.Add("Aucun compte dans WTF — lancez Classic Era une fois sur ce PC.");
+        else if (luaFiles == 0)
+            issues.Add(
+                $"Aucun WowSync.lua sous {wtfPath} — déployez l'addon, /reload en jeu, /wowsync, puis déconnectez-vous.");
+
+        return new WowSyncScanDiagnostics(wtfPath, accountFolders.Count, luaFiles, charCount, issues);
     }
 
     private static WowCharacterData ParseCharacter(Dictionary<string, object?> d)

@@ -8,6 +8,7 @@ public sealed class WowAccount
     public string SourceFolder { get; set; } = string.Empty;
 
     public string Name { get; set; } = string.Empty;
+    /// <summary>Masque les marqueurs carte de ce compte WTF (roster inchangé).</summary>
     public bool IsHidden { get; set; }
     public override string ToString() => Name;
 }
