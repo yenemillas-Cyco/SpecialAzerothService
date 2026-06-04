@@ -24,7 +24,8 @@ public partial class CartoView : UserControl
     private CartoViewModel? Vm => DataContext as CartoViewModel;
     private bool _isPanning;
     private Point _panStart;
-    private double _panStartOffsetX, _panStartOffsetY;
+    private double _panStartScrollH;
+    private double _panStartScrollV;
     private WowCharacter? _tooltipCharacter;
     private bool _isDraggingCharPopup;
     private Point _charPopupDragStart;
@@ -71,6 +72,7 @@ public partial class CartoView : UserControl
                 vm.CharactersRescanned += OnCharactersRescanned;
                 vm.RosterRefreshRequested += OnRosterRefreshRequested;
                 ApplyRightPanelLayout();
+                UpdateMapCursor();
             }
         };
         Loaded += OnCartoViewLoaded;
@@ -104,7 +106,6 @@ public partial class CartoView : UserControl
             CharacterRosterHost.SizeChanged += CharacterRosterHost_SizeChanged;
         }
 
-        MapBorder.AddHandler(UIElement.MouseLeftButtonDownEvent, new MouseButtonEventHandler(MapCanvas_MouseDown), true);
         WireCapitalSlots();
         EnsureMapFitLayoutHook();
         if (MapImage != null)
@@ -215,6 +216,14 @@ public partial class CartoView : UserControl
         PaintMapMarkers();
     }
 
+    private void UpdateMapCursor()
+    {
+        if (MapWorldHost == null || Vm == null)
+            return;
+
+        MapWorldHost.Cursor = Vm.IsPlacingZone ? Cursors.Cross : Cursors.Arrow;
+    }
+
     private double MapWidth => _worldPixelW > 0 ? _worldPixelW : (MapImage.ActualWidth > 0 ? MapImage.ActualWidth : 1024);
     private double MapHeight => _worldPixelH > 0 ? _worldPixelH : (MapImage.ActualHeight > 0 ? MapImage.ActualHeight : 768);
 
@@ -271,18 +280,20 @@ public partial class CartoView : UserControl
 
         if (e.PropertyName is nameof(CartoViewModel.IsZoneEditMode)
             or nameof(CartoViewModel.IsZonesPanelOpen)
-            or nameof(CartoViewModel.ShowWorldZoneRectOverlays)
+            or nameof(CartoViewModel.ShowMapOverlays)
             or nameof(CartoViewModel.OverlayChanged)
             or nameof(CartoViewModel.SelectedZoneRect)
             or nameof(CartoViewModel.SelectedDungeonMarker)
             or nameof(CartoViewModel.IsPlacingDungeonMarker)
             or nameof(CartoViewModel.ZoneToAddMapId)
-            or nameof(CartoViewModel.CapitalToAddMapId)
-            or nameof(CartoViewModel.IsPlacingCapitalZone)
-            or nameof(CartoViewModel.IsPlacingWorldZone))
+            or nameof(CartoViewModel.IsPlacingZone)
+            or nameof(CartoViewModel.IsPlacingCharacter)
+            or nameof(CartoViewModel.IsPlacingTimer))
         {
             if (e.PropertyName is nameof(CartoViewModel.IsZonesPanelOpen) && vm.IsZonesPanelOpen)
                 WireCapitalSlots();
+
+            UpdateMapCursor();
 
             if (e.PropertyName is nameof(CartoViewModel.OverlayChanged)
                 && (vm.ShowAllianceFlightPaths || vm.ShowHordeFlightPaths))
@@ -294,11 +305,10 @@ public partial class CartoView : UserControl
             return;
         }
 
-        if (e.PropertyName is nameof(CartoViewModel.MapZoom)
-            or nameof(CartoViewModel.MapOffsetX)
-            or nameof(CartoViewModel.MapOffsetY))
+        if (e.PropertyName is nameof(CartoViewModel.MapZoom))
         {
-            SyncMapViewportConstraints();
+            if (!_isPanning)
+                Dispatcher.BeginInvoke(CenterMapInScrollViewer, DispatcherPriority.Loaded);
             return;
         }
 
@@ -510,16 +520,10 @@ public partial class CartoView : UserControl
         var h = MapHeight;
         if (w <= 0 || h <= 0) return;
 
-        if (CartoRuntimeOptions.ShowWorldZoneRectOverlays)
+        if (CartoRuntimeOptions.ShowMapOverlays || Vm.IsPlacingZone)
         {
-        var focusZone = Vm.IsZonesPanelOpen && Vm.SelectedZoneRect != null;
-        var zonesToDraw = Vm.ZoneRects
-            .Where(z => !CartoRuntimeOptions.ShowCapitalMaps || !ClassicEraMapProjection.IsCapitalMap(z.MapId))
-            .Where(z => !focusZone || ReferenceEquals(z, Vm.SelectedZoneRect))
-            .OrderBy(z => ReferenceEquals(z, Vm.SelectedZoneRect) ? 1 : 0)
-            .ToList();
-
-        foreach (var zone in zonesToDraw)
+        foreach (var zone in Vm.ZoneRects
+                     .OrderBy(z => ReferenceEquals(z, Vm.SelectedZoneRect) ? 1 : 0))
         {
             var selected = ReferenceEquals(zone, Vm.SelectedZoneRect);
             var stroke = selected ? Color.FromRgb(0xFF, 0xE0, 0x66) : Color.FromRgb(0x88, 0xDD, 0x99);
@@ -602,17 +606,17 @@ public partial class CartoView : UserControl
         if (Vm == null || !Vm.IsZonesPanelOpen)
             return;
 
+        if (!CartoRuntimeOptions.ShowMapOverlays && !Vm.IsPlacingDungeonMarker)
+            return;
+
         var w = MapWidth;
         var h = MapHeight;
         if (w <= 0 || h <= 0)
             return;
 
-        var focusDungeon = Vm.SelectedDungeonMarker != null && !Vm.IsPlacingDungeonMarker;
         foreach (var marker in Vm.DungeonMarkers)
         {
             if (marker.MapX <= 0 && marker.MapY <= 0)
-                continue;
-            if (focusDungeon && !ReferenceEquals(marker, Vm.SelectedDungeonMarker))
                 continue;
 
             var selected = ReferenceEquals(marker, Vm.SelectedDungeonMarker);
@@ -692,20 +696,17 @@ public partial class CartoView : UserControl
                && ny >= bottom - handleN && ny <= bottom + handleN * 0.35;
     }
 
-    private IEnumerable<CartoZoneRectItem> EnumerateWorldZoneRectsForHitTest()
+    private IEnumerable<CartoZoneRectItem> EnumerateZoneRectsForHitTest()
     {
         if (Vm == null)
             yield break;
 
-        if (Vm.SelectedZoneRect != null
-            && (!CartoRuntimeOptions.ShowCapitalMaps || !ClassicEraMapProjection.IsCapitalMap(Vm.SelectedZoneRect.MapId)))
+        if (Vm.SelectedZoneRect != null)
             yield return Vm.SelectedZoneRect;
 
         for (var i = Vm.ZoneRects.Count - 1; i >= 0; i--)
         {
             var z = Vm.ZoneRects[i];
-            if (CartoRuntimeOptions.ShowCapitalMaps && ClassicEraMapProjection.IsCapitalMap(z.MapId))
-                continue;
             if (ReferenceEquals(z, Vm.SelectedZoneRect))
                 continue;
             yield return z;
@@ -723,7 +724,7 @@ public partial class CartoView : UserControl
         const double handlePx = 22;
         var handleN = handlePx / Math.Max(MapWidth, MapHeight);
 
-        foreach (var z in EnumerateWorldZoneRectsForHitTest())
+        foreach (var z in EnumerateZoneRectsForHitTest())
         {
             if (!IsZoneResizeHit(z, nx, ny, handleN))
                 continue;
@@ -733,7 +734,7 @@ public partial class CartoView : UserControl
             return true;
         }
 
-        foreach (var z in EnumerateWorldZoneRectsForHitTest())
+        foreach (var z in EnumerateZoneRectsForHitTest())
         {
             var right = z.Left + z.Width;
             var bottom = z.Top + z.Height;
@@ -1873,33 +1874,58 @@ public partial class CartoView : UserControl
         }
     }
 
+    private void MapBorder_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (Vm == null || e.ChangedButton != MouseButton.Left)
+            return;
+
+        if (Vm.IsPlacingZone)
+            return;
+
+        if (!Vm.IsZonesPanelOpen && TryProcessCapitalMapPointer(e))
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (!TryShouldPanMapOnPointerDown(e))
+            return;
+
+        BeginMapPan(e);
+    }
+
     private void MapCanvas_MouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (Vm == null)
+        if (Vm == null || e.Handled)
             return;
 
-        if (e.Handled)
-            return;
+        if (Vm.IsPlacingZone && Vm.IsZoneEditMode)
+        {
+            var mapPos = e.GetPosition(MapImage);
+            if (Vm.TryAddZoneAt(mapPos.X / MapWidth, mapPos.Y / MapHeight))
+                RedrawZoneEditor();
 
-        if (TryProcessCapitalMapPointer(e))
+            e.Handled = true;
             return;
+        }
 
         if (Vm.IsPlacingDungeonMarker)
         {
             var pos = e.GetPosition(MapImage);
             if (Vm.TryPlaceDungeonMarkerAt(pos.X / MapWidth, pos.Y / MapHeight))
-            {
                 RedrawZoneEditor();
-                e.Handled = true;
-                return;
-            }
+
+            e.Handled = true;
+            return;
         }
 
-        if (Vm.IsZoneEditMode && !Vm.IsPlacingCapitalZone)
+        if (Vm.IsZoneEditMode && CartoRuntimeOptions.ShowMapOverlays)
         {
             var mapPos = e.GetPosition(MapImage);
+
             if (TryHitDungeonMarker(mapPos, out var dungeonHit) && dungeonHit != null)
             {
+                CancelMapPan();
                 Vm.SelectedDungeonMarker = dungeonHit;
                 Vm.SelectedZoneRect = null;
                 _dungeonDragMarker = dungeonHit;
@@ -1910,13 +1936,12 @@ public partial class CartoView : UserControl
                 return;
             }
 
-            if (CartoRuntimeOptions.ShowWorldZoneRectOverlays
-                && TryHitZone(mapPos, out var hit, out var resize) && hit != null)
+            if (TryHitZone(mapPos, out var hit, out var resize) && hit != null)
             {
+                CancelMapPan();
                 Vm.SelectedZoneRect = hit;
                 Vm.SelectedDungeonMarker = null;
                 _zoneDragItem = hit;
-                _zoneDragCapitalSlot = null;
                 _zoneResizeDrag = resize;
                 _zoneDragStartMap = mapPos;
                 _zoneDragStartLeft = hit.Left;
@@ -1928,48 +1953,11 @@ public partial class CartoView : UserControl
                 e.Handled = true;
                 return;
             }
-
-            if (Vm.IsPlacingWorldZone
-                && Vm.TryAddZoneAt(mapPos.X / MapWidth, mapPos.Y / MapHeight))
-            {
-                CartoRuntimeOptions.ShowWorldZoneRectOverlays = true;
-                Vm.ShowWorldZoneRectOverlays = true;
-                RedrawZoneEditor();
-                e.Handled = true;
-                return;
-            }
-
-            if (CartoRuntimeOptions.ShowWorldZoneRectOverlays)
-            {
-                Vm.SelectedZoneRect = null;
-                RedrawZoneEditor();
-            }
-
-            e.Handled = true;
-            return;
         }
 
-        if (Vm.IsPlacingTimer)
-        {
-            var pos = e.GetPosition(MapImage);
-            Vm.PlaceTimerAt(pos.X / MapWidth, pos.Y / MapHeight);
-            RedrawAll();
-            e.Handled = true;
-            return;
-        }
-
-        if (Vm.IsPlacingCharacter)
-        {
-            var pos = e.GetPosition(MapImage);
-            Vm.PlaceCharacterAt(pos.X / MapWidth, pos.Y / MapHeight);
-            RedrawAll();
-            e.Handled = true;
-            return;
-        }
-
-        // Marker click : sélection + popup (pas de déplacement manuel)
         if (GetCharacterFromEventSource(e.OriginalSource) is { } ch)
         {
+            CancelMapPan();
             if (_tooltipCharacter == ch && Vm.IsCharacterDetailOpen)
                 NavigateBackFromCharacterDetail();
             else
@@ -1983,16 +1971,39 @@ public partial class CartoView : UserControl
             return;
         }
 
-        // Timer ring: drag
         if (e.OriginalSource is Ellipse { Tag: MapTimer timer })
         {
+            CancelMapPan();
             _draggingTimer = timer;
             _isDragging = false;
             _panStart = e.GetPosition(MapBorder);
             MapBorder.CaptureMouse();
             e.Handled = true;
-            return;
         }
+    }
+
+    private bool TryShouldPanMapOnPointerDown(MouseButtonEventArgs e)
+    {
+        if (GetCharacterFromEventSource(e.OriginalSource) != null)
+            return false;
+
+        if (e.OriginalSource is Ellipse { Tag: MapTimer })
+            return false;
+
+        return true;
+    }
+
+    private void CancelMapPan()
+    {
+        _isPanning = false;
+        if (MapBorder.IsMouseCaptured)
+            MapBorder.ReleaseMouseCapture();
+    }
+
+    private void BeginMapPan(MouseButtonEventArgs e)
+    {
+        if (Vm == null || MapScroll == null)
+            return;
 
         if (Vm.IsCharacterDetailOpen)
             NavigateBackFromCharacterDetail();
@@ -2000,11 +2011,11 @@ public partial class CartoView : UserControl
             CloseCharacterTooltip();
 
         _isPanning = true;
+        _isDragging = false;
         _panStart = e.GetPosition(MapBorder);
-        _panStartOffsetX = Vm.MapOffsetX;
-        _panStartOffsetY = Vm.MapOffsetY;
+        _panStartScrollH = MapScroll.HorizontalOffset;
+        _panStartScrollV = MapScroll.VerticalOffset;
         MapBorder.CaptureMouse();
-        e.Handled = true;
     }
 
     private void MapCanvas_RightMouseDown(object sender, MouseButtonEventArgs e)
@@ -2021,12 +2032,6 @@ public partial class CartoView : UserControl
             var mapPos = e.GetPosition(MapImage);
             Vm.MoveSelectedDungeonMarker(mapPos.X / MapWidth, mapPos.Y / MapHeight);
             RedrawZoneEditor();
-            return;
-        }
-
-        if (_zoneDragItem != null && _zoneDragCapitalSlot != null)
-        {
-            ProcessCapitalZoneDrag(_zoneDragCapitalSlot, e.GetPosition(CapitalHitHost));
             return;
         }
 
@@ -2069,10 +2074,13 @@ public partial class CartoView : UserControl
             return;
         }
 
-        if (_isPanning && Vm != null)
+        if (_isPanning && MapScroll != null)
         {
-            Vm.MapOffsetX = _panStartOffsetX + (pos.X - _panStart.X);
-            Vm.MapOffsetY = _panStartOffsetY + (pos.Y - _panStart.Y);
+            var dx = pos.X - _panStart.X;
+            var dy = pos.Y - _panStart.Y;
+            MapScroll.ScrollToHorizontalOffset(Math.Max(0, _panStartScrollH - dx));
+            MapScroll.ScrollToVerticalOffset(Math.Max(0, _panStartScrollV - dy));
+            e.Handled = true;
         }
     }
 
@@ -2091,17 +2099,11 @@ public partial class CartoView : UserControl
 
         if (_zoneDragItem != null)
         {
-            if (_zoneDragCapitalSlot != null)
-                EndCapitalZoneDrag();
-            else
-            {
-                Vm.PersistZoneRects();
-                _zoneDragItem = null;
-                _zoneResizeDrag = false;
-                MapBorder.ReleaseMouseCapture();
-                RedrawZoneEditor();
-            }
-
+            Vm.PersistZoneRects();
+            _zoneDragItem = null;
+            _zoneResizeDrag = false;
+            MapBorder.ReleaseMouseCapture();
+            RedrawZoneEditor();
             e.Handled = true;
             return;
         }
@@ -2119,9 +2121,6 @@ public partial class CartoView : UserControl
             return;
         }
 
-        if (_isPanning)
-            SyncMapViewportConstraints();
-
         _isPanning = false;
         _isDragging = false;
         MapBorder.ReleaseMouseCapture();
@@ -2129,13 +2128,11 @@ public partial class CartoView : UserControl
 
     private void MapCanvas_MouseWheel(object sender, MouseWheelEventArgs e)
     {
-        if (Vm == null || MapBorder == null)
+        if (Vm == null || MapBorder == null || MapScroll == null)
             return;
 
         var pos = e.GetPosition(MapBorder);
-        var factor = CartoViewModel.WheelZoomFactorFromDelta(e.Delta);
-        Vm.ApplyZoomAt(pos.X, pos.Y, factor);
-        SyncMapViewportConstraints();
+        ApplyMapZoomAtViewportPoint(pos.X, pos.Y, CartoViewModel.WheelZoomFactorFromDelta(e.Delta));
         e.Handled = true;
     }
 
@@ -2157,18 +2154,51 @@ public partial class CartoView : UserControl
         if (Vm == null || MapBorder.ActualWidth <= 0)
             return;
 
-        Vm.ApplyZoomAt(MapBorder.ActualWidth / 2, MapBorder.ActualHeight / 2, factor);
-        SyncMapViewportConstraints();
+        ApplyMapZoomAtViewportPoint(MapBorder.ActualWidth / 2, MapBorder.ActualHeight / 2, factor);
     }
 
-    private void SyncMapViewportConstraints()
+    private void SyncMapViewportConstraints() => CenterMapInScrollViewer();
+
+    private void ApplyMapZoomAtViewportPoint(double viewportX, double viewportY, double factor)
     {
-        if (Vm == null || MapBorder == null)
+        if (Vm == null || MapScroll == null)
+            return;
+
+        var oldZoom = Vm.MapZoom;
+        var newZoom = Math.Clamp(oldZoom * factor, CartoViewModel.MinMapZoom, CartoViewModel.MaxMapZoom);
+        if (Math.Abs(newZoom - oldZoom) < 1e-9)
+            return;
+
+        var contentX = (viewportX + MapScroll.HorizontalOffset) / oldZoom;
+        var contentY = (viewportY + MapScroll.VerticalOffset) / oldZoom;
+        Vm.MapZoom = newZoom;
+
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (MapScroll == null)
+                return;
+
+            MapScroll.ScrollToHorizontalOffset(Math.Max(0, contentX * newZoom - viewportX));
+            MapScroll.ScrollToVerticalOffset(Math.Max(0, contentY * newZoom - viewportY));
+        }, DispatcherPriority.Loaded);
+    }
+
+    private void CenterMapInScrollViewer()
+    {
+        if (Vm == null || MapBorder == null || MapScroll == null)
             return;
 
         ApplyMapContentLayout();
-        var (mapW, mapH, _, _) = GetMapContentFrameMetrics();
-        Vm.ClampMapPan(MapBorder.ActualWidth, MapBorder.ActualHeight, mapW, mapH, GetRightDockOverlayWidth());
+        var (mapW, mapH, padX, padY) = GetMapContentFrameMetrics();
+        var viewportW = MapBorder.ActualWidth;
+        var viewportH = MapBorder.ActualHeight;
+        if (viewportW < 8 || viewportH < 8)
+            return;
+
+        var scaledW = mapW * Vm.MapZoom;
+        var scaledH = mapH * Vm.MapZoom;
+        MapScroll.ScrollToHorizontalOffset(Math.Max(0, (scaledW + padX - viewportW) / 2));
+        MapScroll.ScrollToVerticalOffset(Math.Max(0, (scaledH + padY - viewportH) / 2));
     }
 
     private static readonly System.Media.SoundPlayer _chimePlayer = new(@"C:\Windows\Media\chimes.wav");
@@ -2494,44 +2524,38 @@ public partial class CartoView : UserControl
         SetPanelOpen(CartoPanel.Cooldowns, false);
     }
 
-    private void ZoneCatalogListBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    private void ZoneRectsListBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (Vm == null || sender is not ListBox listBox)
             return;
 
-        var item = GetListBoxItemDataContext<ZoneCatalogListItem>(listBox, e.OriginalSource);
-        if (item == null)
+        var zone = GetListBoxItemDataContext<CartoZoneRectItem>(listBox, e.OriginalSource);
+        if (zone == null)
             return;
 
-        if (listBox == ZoneRectsListBox && Vm.ZoneToAddMapId == item.MapId)
+        if (ReferenceEquals(Vm.SelectedZoneRect, zone))
         {
-            Vm.ZoneToAddMapId = null;
+            Vm.SelectedZoneRect = null;
             listBox.SelectedItem = null;
-            e.Handled = true;
-            return;
-        }
-
-        if (listBox == CapitalZoneRectsListBox && Vm.CapitalToAddMapId == item.MapId)
-        {
-            Vm.CapitalToAddMapId = null;
-            listBox.SelectedItem = null;
+            ScheduleZoneEditorRedraw();
             e.Handled = true;
         }
     }
 
-    private void DungeonCatalogListBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    private void DungeonMarkersListBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (Vm == null || sender is not ListBox listBox)
             return;
 
-        var item = GetListBoxItemDataContext<DungeonCatalogListItem>(listBox, e.OriginalSource);
-        if (item == null)
+        var marker = GetListBoxItemDataContext<CartoDungeonMarker>(listBox, e.OriginalSource);
+        if (marker == null)
             return;
 
-        if (string.Equals(Vm.DungeonToPlaceKey, item.Key, StringComparison.OrdinalIgnoreCase))
+        if (ReferenceEquals(Vm.SelectedDungeonMarker, marker))
         {
-            Vm.DungeonToPlaceKey = null;
+            Vm.SelectedDungeonMarker = null;
             listBox.SelectedItem = null;
+            ScheduleZoneEditorRedraw();
             e.Handled = true;
         }
     }
@@ -2589,7 +2613,6 @@ public partial class CartoView : UserControl
 
         if (showRoster)
         {
-            CharacterRosterHost.Width = CartoRosterPanelUi.PanelWidth;
             var useSimpleList = CartoRuntimeOptions.UseSimpleCharacterList;
             if (CharacterRosterScroller != null)
                 CharacterRosterScroller.Visibility = useSimpleList ? Visibility.Collapsed : Visibility.Visible;
@@ -2600,26 +2623,15 @@ public partial class CartoView : UserControl
                 Vm.RefreshRosterTree();
         }
 
-        if (showCooldowns && CooldownRosterHost != null)
-        {
-            CooldownRosterHost.Width = CartoRosterPanelUi.PanelWidth;
-            if (Vm.CharactersLoaded && CooldownRosterRoot?.Children.Count == 0)
-                RebuildCooldownRoster();
-        }
-
-        if (showCharacter && CharacterDetailHost != null)
-            CharacterDetailHost.Width = CartoRosterPanelUi.PanelWidth;
+        if (showCooldowns && CooldownRosterHost != null
+            && Vm.CharactersLoaded && CooldownRosterRoot?.Children.Count == 0)
+            RebuildCooldownRoster();
 
         var anyPanelOpen = showCharacter || showCooldowns || showRoster || showSearch || showTimers || showZones
                            || showSettings;
 
         if (RightDockHost != null)
-        {
             RightDockHost.Visibility = anyPanelOpen ? Visibility.Visible : Visibility.Collapsed;
-            RightDockHost.Width = showZones ? 336 : CartoRosterPanelUi.PanelWidth + 4;
-            // Pas de fond (même Transparent) : sinon toute la bande droite bloque les clics sur les mini-cartes.
-            RightDockHost.Background = null;
-        }
 
         if (ZonesPanelHost != null)
             ZonesPanelHost.Background = new SolidColorBrush(Color.FromArgb(0xF2, 0x10, 0x18, 0x10));

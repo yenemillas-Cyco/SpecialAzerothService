@@ -6,6 +6,12 @@ var repoRoot = args.Length > 0
     ? args[0]
     : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
 
+if (args.Contains("--probe"))
+{
+    ProbeWowMap.Run(repoRoot);
+    return 0;
+}
+
 var capitalsDir = Path.Combine(repoRoot, "WindowsOrganiserApp", "Assets", "Capitals");
 var outputPath = Path.Combine(capitalsDir, CapitalMapsCompositeLayout.CompositeAssetFileName);
 

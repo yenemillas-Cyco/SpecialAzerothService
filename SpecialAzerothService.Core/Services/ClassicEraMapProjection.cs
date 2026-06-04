@@ -296,6 +296,19 @@ public static class ClassicEraMapProjection
     public static bool TryConvert(WowCharacterData character, out double mapX, out double mapY)
         => TryConvert(character.MapId, character.X, character.Y, out mapX, out mapY, character.Zone, character.SubZone);
 
+    /// <summary>Taille pixel de WowMap.png (mise à jour au chargement Carto).</summary>
+    public static int MapImagePixelWidth { get; set; } = 1024;
+
+    public static int MapImagePixelHeight { get; set; } = 768;
+
+    public static void SetMapImagePixelSize(int width, int height)
+    {
+        if (width > 0)
+            MapImagePixelWidth = width;
+        if (height > 0)
+            MapImagePixelHeight = height;
+    }
+
     public static bool TryConvert(
         int mapId,
         double zoneX,
@@ -314,13 +327,26 @@ public static class ClassicEraMapProjection
             return false;
 
         var effectiveMapId = ResolveEffectiveMapId(mapId, zone, subZone);
-        if (!TryGetRect(effectiveMapId, zone, subZone, out var rect))
-            return false;
+        if (TryGetRect(effectiveMapId, zone, subZone, out var rect))
+        {
+            var point = ZoneToCarto(rect, zoneX, zoneY);
+            mapX = Math.Clamp(point.X, 0, 1);
+            mapY = Math.Clamp(point.Y, 0, 1);
+            return true;
+        }
 
-        var point = ZoneToCarto(rect, zoneX, zoneY);
-        mapX = Math.Clamp(point.X, 0, 1);
-        mapY = Math.Clamp(point.Y, 0, 1);
-        return true;
+        if (IsCapitalMap(effectiveMapId)
+            && WowMapLayout.TryProjectCapitalZoneToFullMapNorm(
+                effectiveMapId,
+                zoneX,
+                zoneY,
+                MapImagePixelWidth,
+                MapImagePixelHeight,
+                out mapX,
+                out mapY))
+            return true;
+
+        return false;
     }
 
     /// <summary>Normalise 0–100 vers 0–1 si besoin.</summary>

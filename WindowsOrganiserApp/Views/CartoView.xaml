@@ -209,6 +209,10 @@
                             Visibility="{Binding IsPlacingDungeonMarker, Converter={StaticResource BoolToVis}}">
                         <TextBlock Text="Clic carte = repère lieu-dit" FontSize="10" Foreground="#FFCCAAFF"/>
                     </Border>
+                    <Border Background="#4428AA55" CornerRadius="3" Padding="8,3" Margin="6,0,0,0"
+                            Visibility="{Binding IsPlacingZone, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="Clic carte = placer la zone" FontSize="10" Foreground="#FFAAEE88"/>
+                    </Border>
                     <Border Background="#3322AA44" CornerRadius="3" Padding="8,3" Margin="6,0,0,0"
                             Visibility="{Binding IsZonesPanelOpen, Converter={StaticResource BoolToVis}}">
                         <TextBlock Text="{Binding ZonePanelStatusMessage}" FontSize="10" Foreground="#FFAAEE88"
@@ -218,11 +222,18 @@
                 </DockPanel>
         </Border>
 
-        <!-- Carte pleine largeur ; volets droite en surcouche opaque -->
+        <!-- Carte (col. 0) + volets (col. 1) — pas de surcouche sur les capitales -->
         <Grid Grid.Row="1" MinHeight="120">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Grid Grid.Column="0">
                 <Border x:Name="MapBorder" Background="#FF0A0A0A" ClipToBounds="True"
                         VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
                         AllowDrop="True"
+                        PreviewMouseLeftButtonDown="MapBorder_PreviewMouseLeftButtonDown"
+                        MouseLeftButtonDown="MapCanvas_MouseDown"
                         MouseRightButtonDown="MapCanvas_RightMouseDown"
                         PreviewMouseMove="MapCanvas_MouseMove"
                         PreviewMouseLeftButtonUp="MapCanvas_MouseUp"
@@ -234,8 +245,8 @@
                     <Grid x:Name="MapHostGrid">
                     <ScrollViewer x:Name="MapScroll"
                                   VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                                  HorizontalScrollBarVisibility="Disabled"
-                                  VerticalScrollBarVisibility="Disabled"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Auto"
                                   Focusable="False"
                                   PanningMode="None">
                         <Border x:Name="MapContentFrame" Padding="6,6,6,10"
@@ -243,39 +254,29 @@
                                 HorizontalAlignment="Left" VerticalAlignment="Top">
                         <Grid x:Name="MapContainer" Background="Transparent"
                               HorizontalAlignment="Left" VerticalAlignment="Top">
-                            <Grid.RenderTransform>
-                                <TransformGroup>
-                                    <ScaleTransform x:Name="MapScale"
-                                                    ScaleX="{Binding MapZoom}"
-                                                    ScaleY="{Binding MapZoom}"
-                                                    CenterX="0" CenterY="0"/>
-                                    <TranslateTransform x:Name="MapTranslate"
-                                                        X="{Binding MapOffsetX}"
-                                                        Y="{Binding MapOffsetY}"/>
-                                </TransformGroup>
-                            </Grid.RenderTransform>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid Grid.Column="0" VerticalAlignment="Top">
+                            <Grid.LayoutTransform>
+                                <ScaleTransform x:Name="MapScale"
+                                                ScaleX="{Binding MapZoom}"
+                                                ScaleY="{Binding MapZoom}"
+                                                CenterX="0" CenterY="0"/>
+                            </Grid.LayoutTransform>
+                            <Grid x:Name="MapWorldHost" VerticalAlignment="Top" Cursor="Arrow">
                                 <Image x:Name="MapImage"
                                        Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top"/>
                                 <Canvas x:Name="MapCanvas" IsHitTestVisible="True"
                                         Width="{Binding ActualWidth, ElementName=MapImage}"
                                         Height="{Binding ActualHeight, ElementName=MapImage}"
                                         HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                                <Canvas x:Name="CapitalsCompositeCanvas" IsHitTestVisible="False"
+                                        Width="{Binding ActualWidth, ElementName=MapImage}"
+                                        Height="{Binding ActualHeight, ElementName=MapImage}"
+                                        HorizontalAlignment="Left" VerticalAlignment="Top"/>
                             </Grid>
-                            <!-- Capitales 3×2 -->
-                            <Grid x:Name="CapitalsDock" Grid.Column="1" Visibility="Collapsed"
-                                  VerticalAlignment="Stretch" HorizontalAlignment="Left" ClipToBounds="True">
-                                <Grid x:Name="CapitalsGrid" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                                    <Grid x:Name="CapitalsCompositeHost" Cursor="Cross">
-                                        <Image x:Name="CapitalsCompositeImage"
-                                               Stretch="Uniform"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-                                        <Canvas x:Name="CapitalsCompositeCanvas" IsHitTestVisible="False"/>
+                            <!-- Legacy noms XAML (masqués — tout est sur WowMap.png) -->
+                            <Grid x:Name="CapitalsDock" Visibility="Collapsed" Width="0" Height="0">
+                                <Grid x:Name="CapitalsGrid" Visibility="Collapsed">
+                                    <Grid x:Name="CapitalsCompositeHost" Visibility="Collapsed">
+                                        <Image x:Name="CapitalsCompositeImage" Visibility="Collapsed"/>
                                     </Grid>
                                 </Grid>
                             </Grid>
@@ -357,19 +358,16 @@
                         </DockPanel>
                     </Border>
                 </Popup>
+            </Grid>
 
-        </Grid>
-
-        <!-- Volets droite : surcouche au-dessus de la carte (ne réduit pas la zone carte) -->
-        <Grid x:Name="RightDockHost" Grid.Row="1" Panel.ZIndex="20"
-              HorizontalAlignment="Right" VerticalAlignment="Stretch"
-              Visibility="Collapsed"
-              Width="336"
-              Background="{x:Null}">
+            <Grid x:Name="RightDockHost" Grid.Column="1"
+                  VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                  Visibility="Collapsed"
+                  Width="{x:Static cartoUi:CartoRosterPanelUi.PanelWidth}">
 
                 <!-- Volet détail personnage -->
                 <Border x:Name="CharacterDetailHost" Visibility="Collapsed"
-                        Width="{x:Static cartoUi:CartoRosterPanelUi.PanelWidth}"
+                        HorizontalAlignment="Stretch"
                         Background="#14100806" BorderThickness="1" CornerRadius="6" ClipToBounds="True"
                         BorderBrush="#44AA8833">
                     <DockPanel LastChildFill="True">
@@ -408,8 +406,7 @@
 
                 <!-- Volet personnages -->
                 <Border x:Name="CharacterRosterHost" Visibility="Collapsed"
-                        Width="{x:Static cartoUi:CartoRosterPanelUi.PanelWidth}"
-                        Margin="0,0,4,0"
+                        HorizontalAlignment="Stretch"
                         Background="#14100806" BorderThickness="1" CornerRadius="6" ClipToBounds="True"
                         BorderBrush="#44AA8833">
                     <DockPanel LastChildFill="True">
@@ -448,7 +445,7 @@
 
                 <!-- Volet cooldowns métiers -->
                 <Border x:Name="CooldownRosterHost" Visibility="Collapsed"
-                        Width="{x:Static cartoUi:CartoRosterPanelUi.PanelWidth}"
+                        HorizontalAlignment="Stretch"
                         Background="#14100806" BorderThickness="1" CornerRadius="6" ClipToBounds="True"
                         BorderBrush="#44AA8833">
                     <DockPanel LastChildFill="True">
@@ -480,7 +477,8 @@
                 </Border>
 
                 <!-- Volet recherche -->
-                <Border x:Name="ItemSearchPanel" Visibility="Collapsed" Width="336"
+                <Border x:Name="ItemSearchPanel" Visibility="Collapsed"
+                        HorizontalAlignment="Stretch"
                         Background="#18141008" BorderThickness="1" CornerRadius="6" ClipToBounds="True"
                         BorderBrush="#55AA8833">
                             <DockPanel LastChildFill="True">
@@ -551,7 +549,8 @@
                         </Border>
 
                 <!-- Volet timers (à côté des persos) -->
-                <Border x:Name="TimersPanelHost" Visibility="Collapsed" Width="348"
+                <Border x:Name="TimersPanelHost" Visibility="Collapsed"
+                        HorizontalAlignment="Stretch"
                         Background="#18141008" BorderThickness="1" CornerRadius="6" ClipToBounds="True"
                         BorderBrush="#55AA8833">
                     <DockPanel LastChildFill="True">
@@ -668,7 +667,8 @@
                 </Border>
 
                 <!-- Volet zones & lieux-dits -->
-                <Border x:Name="ZonesPanelHost" Visibility="Collapsed" Width="328"
+                <Border x:Name="ZonesPanelHost" Visibility="Collapsed"
+                        HorizontalAlignment="Stretch"
                         Background="#12181014" BorderThickness="1" CornerRadius="6" ClipToBounds="True"
                         BorderBrush="#55AAEE88">
                     <DockPanel LastChildFill="True">
@@ -691,101 +691,67 @@
                                    TextWrapping="Wrap" Margin="10,6,10,8" MinHeight="28"/>
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,6,8,4">
                             <StackPanel>
-                                <CheckBox Content="Afficher les zones sur la carte"
-                                          IsChecked="{Binding ShowWorldZoneRectOverlays, Mode=TwoWay}"
-                                          FontSize="10" Foreground="#FFAAEE88" Margin="0,0,0,8"
-                                          ToolTip="Rectangles verts de calibration (masqués par défaut pour placer les lieux-dits)"/>
+                                <Border Background="#221A1008" CornerRadius="4" Padding="8,6" Margin="0,0,0,10"
+                                        BorderBrush="#44332218" BorderThickness="1">
+                                    <StackPanel>
+                                        <CheckBox Content="Afficher mes rectangles et repères"
+                                                  IsChecked="{Binding ShowMapOverlays, Mode=TwoWay}"
+                                                  FontSize="10" Foreground="#FFAAEE88"/>
+                                        <TextBlock FontSize="8" Foreground="{DynamicResource SubtextBrush}"
+                                                   TextWrapping="Wrap" Margin="0,6,0,0"
+                                                   Text="WowMap.png = une seule image (pas de grille). Choisir une zone, ＋, clic libre partout sur l'image. Décochez pour n'afficher que la carte."/>
+                                        <Button Content="Repositionner les personnages"
+                                                  Style="{DynamicResource StoneButton}"
+                                                  FontSize="10" Padding="8,5" Margin="0,8,0,0"
+                                                  HorizontalAlignment="Stretch"
+                                                  Command="{Binding RefreshCharacterMapPositionsCommand}"
+                                                  ToolTip="Recalcule la position de chaque perso avec vos zones et les coords WowSync (addon)"/>
+                                    </StackPanel>
+                                </Border>
+
                                 <DockPanel Margin="0,0,0,6">
                                     <Button DockPanel.Dock="Right" Content="＋" Style="{DynamicResource StoneButton}"
                                             FontSize="14" Padding="8,4" MinWidth="30" Margin="6,0,0,0"
-                                            Command="{Binding AddWorldZoneFromPanelCommand}"
-                                            ToolTip="Prépare le placement sur Azeroth — le rectangle n'apparaît qu'au clic sur la carte"/>
-                                    <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="Zones ouvertes (Azeroth)" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="#FFAAEE88"/>
-                                        <TextBlock Text="＋ puis clic sur la grande carte — pas les mini-cartes" FontSize="9"
-                                                   Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0"
-                                                   TextWrapping="Wrap"/>
-                                    </StackPanel>
+                                            Command="{Binding AddZoneFromPanelCommand}"
+                                            ToolTip="Choisir une zone, ＋, puis clic sur la carte"/>
+                                    <TextBlock Text="Zones" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="#FFAAEE88" VerticalAlignment="Center"/>
                                 </DockPanel>
                                 <ComboBox x:Name="ZoneAddCombo" Height="26" FontSize="10" Margin="0,0,0,4"
                                           ItemsSource="{Binding ZoneCatalogItems}"
                                           SelectedValuePath="MapId"
-                                          SelectedValue="{Binding ZoneToAddMapId, Mode=TwoWay}"
-                                          ToolTip="Zone à ajouter sur la carte">
+                                          SelectedValue="{Binding ZoneToAddMapId, Mode=TwoWay}">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate DataType="{x:Type carto:ZoneCatalogListItem}">
                                             <TextBlock Text="{Binding DisplayName}" FontSize="10"/>
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
-                                <Button Content="Tout afficher sur la carte" Style="{DynamicResource StoneButton}"
-                                        FontSize="9" Padding="6,3" Margin="0,0,0,6" HorizontalAlignment="Left"
-                                        Command="{Binding ClearZoneMapFocusCommand}"
-                                        ToolTip="Désélectionner pour réafficher toutes les zones"/>
-                                <TextBlock Text="À placer sur Azeroth" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                <TextBlock Text="Placées" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
                                            Margin="0,0,0,4"/>
                                 <ListBox x:Name="ZoneRectsListBox"
-                                         ItemsSource="{Binding ZoneCatalogItems}"
-                                         SelectedValuePath="MapId"
-                                         SelectedValue="{Binding ZoneToAddMapId, Mode=TwoWay}"
-                                         MaxHeight="220" Background="Transparent" BorderThickness="0"
+                                         ItemsSource="{Binding ZoneRects}"
+                                         SelectedItem="{Binding SelectedZoneRect, Mode=TwoWay}"
+                                         MaxHeight="200" Background="Transparent" BorderThickness="0"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                         PreviewMouseDown="ZoneCatalogListBox_PreviewMouseDown"
+                                         PreviewMouseDown="ZoneRectsListBox_PreviewMouseDown"
                                          ItemContainerStyle="{StaticResource CartoZoneListItem}">
                                     <ListBox.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type carto:ZoneCatalogListItem}">
-                                            <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource TextBrush}"/>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-
-                                <Border Height="1" Background="#33AA8833" Margin="0,10,0,10"/>
-
-                                <DockPanel Margin="0,0,0,6">
-                                    <Button x:Name="CapitalZoneAddButton" DockPanel.Dock="Right" Content="＋"
-                                            Style="{DynamicResource StoneButton}"
-                                            FontSize="14" Padding="8,4" MinWidth="30" Margin="6,0,0,0"
-                                            Command="{Binding AddCapitalZoneFromPanelCommand}"
-                                            ToolTip="Prépare le placement — puis cliquez sur la tuile de la capitale"/>
-                                    <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="Capitales (6 mini-cartes)" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="#FFCCAA66"/>
-                                        <TextBlock FontSize="9" Foreground="{DynamicResource SubtextBrush}"
-                                                   TextWrapping="Wrap" Margin="0,2,0,0"
-                                                   Text="＋ puis clic sur l'image des capitales (à droite). Pas de jaune avant le clic."/>
-                                    </StackPanel>
-                                </DockPanel>
-                                <ComboBox Height="26" FontSize="10" Margin="0,0,0,4"
-                                          ItemsSource="{Binding CapitalCatalogItems}"
-                                          SelectedValuePath="MapId"
-                                          SelectedValue="{Binding CapitalToAddMapId, Mode=TwoWay}"
-                                          ToolTip="Capitale à placer sur sa mini-carte">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type carto:ZoneCatalogListItem}">
-                                            <TextBlock Text="{Binding DisplayName}" FontSize="10"/>
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                                <Button Content="Effacer toutes les capitales" Style="{DynamicResource StoneButton}"
-                                        FontSize="9" Padding="8,4" Margin="0,0,0,6" HorizontalAlignment="Left"
-                                        Command="{Binding ResetAllCapitalZonesCommand}"
-                                        ToolTip="Supprimer toutes les calibrations capitales pour les replacer au clic"/>
-                                <TextBlock Text="À placer (image capitales)" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
-                                           Margin="0,0,0,4"/>
-                                <ListBox x:Name="CapitalZoneRectsListBox"
-                                         ItemsSource="{Binding CapitalCatalogItems}"
-                                         SelectedValuePath="MapId"
-                                         SelectedValue="{Binding CapitalToAddMapId, Mode=TwoWay}"
-                                         MaxHeight="160" Background="Transparent" BorderThickness="0"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                         PreviewMouseDown="ZoneCatalogListBox_PreviewMouseDown"
-                                         ItemContainerStyle="{StaticResource CartoZoneListItem}">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type carto:ZoneCatalogListItem}">
-                                            <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource TextBrush}"/>
+                                        <DataTemplate DataType="{x:Type carto:CartoZoneRectItem}">
+                                            <DockPanel LastChildFill="True">
+                                                <Button DockPanel.Dock="Right" Content="✕"
+                                                        Style="{DynamicResource StoneButton}"
+                                                        FontSize="11" Padding="6,2" MinWidth="26" Margin="6,0,0,0"
+                                                        VerticalAlignment="Center"
+                                                        Command="{Binding DataContext.DeleteZoneCommand, ElementName=RootGrid}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="Supprimer"
+                                                        Click="ZoneListDelete_Click"/>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource TextBrush}"/>
+                                                </StackPanel>
+                                            </DockPanel>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
@@ -796,14 +762,9 @@
                                     <Button DockPanel.Dock="Right" Content="＋" Style="{DynamicResource StoneButton}"
                                             FontSize="14" Padding="8,4" MinWidth="30" Margin="6,0,0,0"
                                             Command="{Binding StartPlaceDungeonMarkerCommand}"
-                                            ToolTip="Placer un repère lieu-dit sur la carte"/>
-                                    <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="Lieux-dits" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="#FFBBAAEE"/>
-                                        <TextBlock FontSize="9" Foreground="{DynamicResource SubtextBrush}"
-                                                   Margin="0,2,0,0" TextWrapping="Wrap"
-                                                   Text="Instances + lieux-dits — combo + ＋ puis clic sur la pastille violette."/>
-                                    </StackPanel>
+                                            ToolTip="＋ puis clic sur la carte"/>
+                                    <TextBlock Text="Lieux-dits" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="#FFBBAAEE" VerticalAlignment="Center"/>
                                 </DockPanel>
                                 <ComboBox x:Name="DungeonAddCombo" Height="26" FontSize="10" Margin="0,0,0,4"
                                           ItemsSource="{Binding DungeonCatalogItems}"
@@ -816,24 +777,33 @@
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
-                                <Button Content="Tout afficher sur la carte" Style="{DynamicResource StoneButton}"
-                                        FontSize="9" Padding="6,3" Margin="0,0,0,6" HorizontalAlignment="Left"
-                                        Command="{Binding ClearDungeonMapFocusCommand}"
-                                        ToolTip="Désélectionner pour réafficher tous les repères"/>
-                                <TextBlock Text="À placer sur Azeroth" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
+                                <TextBlock Text="Placés" FontSize="9" Foreground="{DynamicResource SubtextBrush}"
                                            Margin="0,0,0,4"/>
                                 <ListBox x:Name="DungeonMarkersListBox"
-                                         ItemsSource="{Binding DungeonCatalogItems}"
-                                         SelectedValuePath="Key"
-                                         SelectedValue="{Binding DungeonToPlaceKey, Mode=TwoWay}"
+                                         ItemsSource="{Binding PlacedDungeonMarkers}"
+                                         SelectedItem="{Binding SelectedDungeonMarker, Mode=TwoWay}"
                                          MaxHeight="240" Background="Transparent" BorderThickness="0"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                         PreviewMouseDown="DungeonCatalogListBox_PreviewMouseDown"
+                                         PreviewMouseDown="DungeonMarkersListBox_PreviewMouseDown"
                                          ItemContainerStyle="{StaticResource CartoDungeonListItem}">
                                     <ListBox.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type carto:DungeonCatalogListItem}">
-                                            <TextBlock Text="{Binding DisplayLabel}" FontSize="11" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource TextBrush}"/>
+                                        <DataTemplate DataType="{x:Type carto:CartoDungeonMarker}">
+                                            <DockPanel LastChildFill="True">
+                                                <Button DockPanel.Dock="Right" Content="✕"
+                                                        Style="{DynamicResource StoneButton}"
+                                                        FontSize="11" Padding="6,2" MinWidth="26" Margin="6,0,0,0"
+                                                        VerticalAlignment="Center"
+                                                        Command="{Binding DataContext.ClearDungeonMarkerCommand, ElementName=RootGrid}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="Retirer le repère"
+                                                        Click="DungeonListDelete_Click"/>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource TextBrush}"/>
+                                                    <TextBlock Text="{Binding PositionHint}" FontSize="9"
+                                                               Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                            </DockPanel>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
@@ -885,7 +855,8 @@
                 </Border>
 
                 <!-- Volet paramètres (comptes WoW) -->
-                <Border x:Name="SettingsPanelHost" Visibility="Collapsed" Width="400"
+                <Border x:Name="SettingsPanelHost" Visibility="Collapsed"
+                        HorizontalAlignment="Stretch"
                         Background="#18141008" BorderThickness="1" CornerRadius="6" ClipToBounds="True"
                         BorderBrush="#55AA8833">
                     <DockPanel LastChildFill="True">
@@ -1082,6 +1053,7 @@
                         </ScrollViewer>
                     </DockPanel>
                 </Border>
+            </Grid>
         </Grid>
 
         <!-- Add Character Popup -->

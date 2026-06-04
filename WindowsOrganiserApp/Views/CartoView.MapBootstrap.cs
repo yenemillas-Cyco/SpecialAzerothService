@@ -120,13 +120,21 @@ public partial class CartoView
         if (!ReferenceEquals(MapImage.Source, _cachedWorldMap))
         {
             MapImage.Source = _cachedWorldMap;
-            MapImage.Width = _worldPixelW > 0 ? _worldPixelW : _cachedWorldMap.PixelWidth;
-            MapImage.Height = _worldPixelH > 0 ? _worldPixelH : _cachedWorldMap.PixelHeight;
+            if (_worldPixelW <= 0 || _worldPixelH <= 0)
+            {
+                _worldPixelW = _cachedWorldMap.PixelWidth;
+                _worldPixelH = _cachedWorldMap.PixelHeight;
+            }
+
+            MapImage.Width = _worldPixelW;
+            MapImage.Height = _worldPixelH;
+            MapImage.Clip = null;
         }
     }
 
     private void ApplyWorldMapToUi(int pixelW, int pixelH)
     {
+        ClassicEraMapProjection.SetMapImagePixelSize(pixelW, pixelH);
         _worldPixelW = pixelW;
         _worldPixelH = pixelH;
 
@@ -137,6 +145,9 @@ public partial class CartoView
 
         MapImage.Width = pixelW;
         MapImage.Height = pixelH;
+        if (MapImage != null)
+            MapImage.Clip = null;
+
         ApplyMapContentLayout();
 
         if (Vm != null && !_migrated)
@@ -163,21 +174,14 @@ public partial class CartoView
         if (e.NewSize.Height < 8 || e.NewSize.Width < 8)
             return;
 
-        TryApplyInitialMapFit();
-        SyncMapViewportConstraints();
+        if (_pendingInitialMapFit)
+            TryApplyInitialMapFit();
+        else
+            SyncMapViewportConstraints();
         if (_cartoUiLive || _cartoInit.IsComplete)
             RequestMapMarkersRefresh();
         if (Vm?.IsZoneEditMode == true)
             RedrawZoneEditor();
-    }
-
-    /// <summary>Largeur du volet droit en surcouche (carte pleine largeur en dessous).</summary>
-    private double GetRightDockOverlayWidth()
-    {
-        if (RightDockHost == null || RightDockHost.Visibility != Visibility.Visible)
-            return 0;
-
-        return CartoRosterPanelUi.PanelWidth + 4;
     }
 
     private CartoMapDimensions GetMapDimensions()
@@ -185,21 +189,10 @@ public partial class CartoView
         var mapW = _worldPixelW > 0 ? _worldPixelW : 1024;
         var mapH = _worldPixelH > 0 ? _worldPixelH : 768;
 
-        double? maxContentW = null;
-        if (MapBorder != null && MapBorder.ActualWidth > 8)
-        {
-            var padX = (MapContentFrame?.Padding.Left ?? 0) + (MapContentFrame?.Padding.Right ?? 0);
-            maxContentW = MapBorder.ActualWidth - padX;
-        }
-
-        return CartoMapDimensions.FromWorldPixels(
-            mapW,
-            mapH,
-            CartoRuntimeOptions.ShowCapitalMaps,
-            maxContentW);
+        return CartoMapDimensions.FromWorldPixels(mapW, mapH, includeCapitals: false);
     }
 
-    /// <summary>Dimensionne monde + bloc capitales pour que la grille 3×2 ne soit pas rognée.</summary>
+    /// <summary>WowMap.png entier (Azeroth + capitales intégrées) — pas de colonne capitales séparée.</summary>
     private void ApplyMapContentLayout()
     {
         if (MapContainer == null)
@@ -210,28 +203,7 @@ public partial class CartoView
         MapContainer.Height = dims.TotalHeight;
 
         if (CartoRuntimeOptions.ShowCapitalMaps)
-        {
             WireCapitalSlots();
-            if (CapitalsDock != null)
-            {
-                CapitalsDock.Visibility = Visibility.Visible;
-                CapitalsDock.Margin = new Thickness(CapitalMapDefinitions.PanelMarginLeft, 0, 0, 0);
-                CapitalsDock.Width = dims.CapitalsWidth;
-                CapitalsDock.Height = dims.CapitalsHeight;
-            }
-
-            if (CapitalsGrid != null)
-            {
-                CapitalsGrid.Width = dims.CapitalsWidth;
-                CapitalsGrid.Height = dims.CapitalsHeight;
-            }
-        }
-        else if (CapitalsDock != null)
-        {
-            CapitalsDock.Visibility = Visibility.Collapsed;
-            CapitalsDock.ClearValue(FrameworkElement.WidthProperty);
-            CapitalsDock.ClearValue(FrameworkElement.HeightProperty);
-        }
     }
 
     private (double ContentW, double ContentH, double PadX, double PadY) GetMapContentFrameMetrics()
@@ -275,11 +247,11 @@ public partial class CartoView
             fitZoom = 0.45;
 
         Vm.MapZoom = Math.Clamp(fitZoom, CartoViewModel.MinMapZoom, CartoViewModel.MaxMapZoom);
-        Vm.MapOffsetX = (viewportW - mapW * Vm.MapZoom) / 2;
-        Vm.MapOffsetY = (viewportH - mapH * Vm.MapZoom) / 2;
-        Vm.ClampMapPan(viewportW, viewportH, mapW, mapH, GetRightDockOverlayWidth());
+        Vm.MapOffsetX = 0;
+        Vm.MapOffsetY = 0;
         MapScroll?.ScrollToHorizontalOffset(0);
         MapScroll?.ScrollToVerticalOffset(0);
+        Dispatcher.BeginInvoke(CenterMapInScrollViewer, DispatcherPriority.Loaded);
     }
 
     private void FinishCartoInitOnUi()

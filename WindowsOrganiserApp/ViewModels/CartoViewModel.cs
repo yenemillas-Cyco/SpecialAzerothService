@@ -43,6 +43,7 @@ public partial class CartoViewModel : ObservableObject
     public event EventHandler? CharactersRescanned;
     public event EventHandler? RosterRefreshRequested;
     private bool _zoneCalibrationLoaded;
+    private bool _zonePanelDataLoaded;
     private int _mapPlacementStamp;
     private int _appliedMapPlacementStamp;
     private bool _mapPositionsReady;
@@ -420,7 +421,7 @@ public partial class CartoViewModel : ObservableObject
         foreach (var ch in Characters.Where(IsEligibleForStartupMapPlacement))
             ch.IsPlacedOnMap = true;
 
-        ApplyZonePositionsFromWowSync();
+        var _ = ApplyZonePositionsFromWowSync();
         ReorganizePlacedOnMapStacks();
         _appliedMapPlacementStamp = _mapPlacementStamp;
         _mapPositionsReady = true;
@@ -433,6 +434,9 @@ public partial class CartoViewModel : ObservableObject
 
     private void RebuildPrecomputedMapPositions()
     {
+        if (CartoMapPreloader.GetBitmap() is { PixelWidth: > 0, PixelHeight: > 0 } bmp)
+            ClassicEraMapProjection.SetMapImagePixelSize(bmp.PixelWidth, bmp.PixelHeight);
+
         var accounts = GetCachedWowSyncAccounts();
         _precomputedPlacements = CartoMapPositionPrecompute.ComputeForAccounts(accounts);
         ApplyPrecomputedMapPositions();
@@ -1578,12 +1582,6 @@ public partial class CartoViewModel : ObservableObject
         RefreshUnplacedCharacters();
         OnPropertyChanged(nameof(OverlayChanged));
 
-        if (ClassicEraMapProjection.IsCapitalMap(sync.MapId) && CartoRuntimeOptions.ShowCapitalMaps)
-        {
-            return "Placé sur la mini-carte de capitale (ex. Orgrimmar). "
-                   + "Les marqueurs monde sont masqués tant que les capitales sont affichées à droite.";
-        }
-
         return null;
     }
 
@@ -1592,7 +1590,8 @@ public partial class CartoViewModel : ObservableObject
         if (_zoneCalibrationLoaded)
             return;
 
-        var calibrated = ZoneMapCalibration.LoadAll();
+        var user = ZoneMapCalibration.LoadUserOverrides();
+        var calibrated = ZoneMapCalibration.BuildProjectionCalibration(user);
         if (calibrated.Count > 0)
             ClassicEraMapProjection.ApplyUserRects(calibrated);
         _zoneCalibrationLoaded = true;
@@ -1607,18 +1606,26 @@ public partial class CartoViewModel : ObservableObject
 
     private static void ReloadZoneCalibration()
     {
-        var calibrated = ZoneMapCalibration.LoadAll();
+        var user = ZoneMapCalibration.LoadUserOverrides();
+        var calibrated = ZoneMapCalibration.BuildProjectionCalibration(user);
         if (calibrated.Count > 0)
             ClassicEraMapProjection.ApplyUserRects(calibrated);
     }
 
     /// <summary>Recalcule MapX/MapY uniquement depuis WowSync (addon).</summary>
-    private void ApplyZonePositionsFromWowSync()
+    private int ApplyZonePositionsFromWowSync()
     {
-        EnsureZoneCalibrationLoaded();
-
+        var placed = 0;
         foreach (var ch in Characters.Where(c => !c.IsHidden))
-            TryApplyWowSyncMapPosition(ch);
+        {
+            if (TryApplyWowSyncMapPosition(ch))
+            {
+                ch.IsPlacedOnMap = true;
+                placed++;
+            }
+        }
+
+        return placed;
     }
 
     /// <summary>Position carte depuis l'addon ; false si pas de coords / zone non calibrée.</summary>
@@ -2679,13 +2686,19 @@ public partial class CartoViewModel : ObservableObject
         var scaledH = mapPixelH * MapZoom;
         const double edgePad = 24;
 
-        if (scaledW <= viewportW)
-            MapOffsetX = (viewportW - scaledW) / 2;
+        if (scaledW <= visW)
+        {
+            var maxX = visW - scaledW;
+            MapOffsetX = Math.Clamp(MapOffsetX, -edgePad, maxX + edgePad);
+        }
         else
             MapOffsetX = Math.Clamp(MapOffsetX, visW - scaledW - edgePad, edgePad);
 
         if (scaledH <= viewportH)
-            MapOffsetY = (viewportH - scaledH) / 2;
+        {
+            var maxY = viewportH - scaledH;
+            MapOffsetY = Math.Clamp(MapOffsetY, -edgePad, maxY + edgePad);
+        }
         else
             MapOffsetY = Math.Clamp(MapOffsetY, viewportH - scaledH - edgePad, edgePad);
     }
@@ -2874,6 +2887,9 @@ public partial class CartoViewModel : ObservableObject
 
     public ObservableCollection<CartoDungeonMarker> DungeonMarkers { get; } = [];
 
+    /// <summary>Lieux-dits déjà posés sur Azeroth (liste du volet Zones).</summary>
+    public ObservableCollection<CartoDungeonMarker> PlacedDungeonMarkers { get; } = [];
+
     public IReadOnlyList<ClassicEraMapProjection.ZoneCatalogEntry> ZoneCatalog
         => ClassicEraMapProjection.GetZoneCatalog();
 
@@ -2881,9 +2897,6 @@ public partial class CartoViewModel : ObservableObject
         => CartoDungeonCatalog.All;
 
     public ObservableCollection<ZoneCatalogListItem> ZoneCatalogItems { get; } = [];
-
-    /// <summary>Capitales disponibles à placer (mini-cartes).</summary>
-    public ObservableCollection<ZoneCatalogListItem> CapitalCatalogItems { get; } = [];
 
     public ObservableCollection<DungeonCatalogListItem> DungeonCatalogItems { get; } = [];
 
@@ -2902,16 +2915,9 @@ public partial class CartoViewModel : ObservableObject
     [ObservableProperty]
     private int? _zoneToAddMapId;
 
+    /// <summary>True après ＋ zones : le rectangle n'est créé qu'au clic sur la carte.</summary>
     [ObservableProperty]
-    private int? _capitalToAddMapId;
-
-    /// <summary>True après ＋ capitales : le rectangle n'est créé qu'au clic sur la tuile.</summary>
-    [ObservableProperty]
-    private bool _isPlacingCapitalZone;
-
-    /// <summary>True après ＋ zones ouvertes : le rectangle n'est créé qu'au clic sur Azeroth.</summary>
-    [ObservableProperty]
-    private bool _isPlacingWorldZone;
+    private bool _isPlacingZone;
 
     /// <summary>Ignore les clics carte juste après changement de combo (évite le clic fantôme à la fermeture).</summary>
     public DateTime SuppressCapitalMapClickUntilUtc { get; private set; }
@@ -2929,17 +2935,15 @@ public partial class CartoViewModel : ObservableObject
     private string? _zonePanelStatusMessage;
 
     [ObservableProperty]
-    private bool _showWorldZoneRectOverlays = CartoRuntimeOptions.ShowWorldZoneRectOverlays;
+    private bool _showMapOverlays = CartoRuntimeOptions.ShowMapOverlays;
 
-    partial void OnShowWorldZoneRectOverlaysChanged(bool value)
+    partial void OnShowMapOverlaysChanged(bool value)
     {
-        CartoRuntimeOptions.ShowWorldZoneRectOverlays = value;
-        if (!value)
-            SelectedZoneRect = null;
+        CartoRuntimeOptions.ShowMapOverlays = value;
         if (IsZonesPanelOpen)
             ZonePanelStatusMessage = value
-                ? "Rectangles de zones affichés sur la carte."
-                : "Rectangles masqués — pastilles lieux-dits visibles.";
+                ? "Zones et repères visibles sur la carte."
+                : "Calques masqués — cochez pour afficher.";
         OnPropertyChanged(nameof(OverlayChanged));
     }
 
@@ -2950,16 +2954,19 @@ public partial class CartoViewModel : ObservableObject
         {
             IsPlacingCharacter = false;
             IsPlacingTimer = false;
-            LoadZoneRects();
+            if (!_zonePanelDataLoaded)
+            {
+                LoadZoneRects();
+                _zonePanelDataLoaded = true;
+            }
+
             LoadDungeonMarkers();
             RefreshZoneCatalogItems();
-            if (CapitalToAddMapId is not > 0 && CapitalCatalogItems.Count > 0)
-                CapitalToAddMapId = CapitalCatalogItems[0].MapId;
             SyncSelectedZoneFromCombo();
-            ShowWorldZoneRectOverlays = CartoRuntimeOptions.ShowWorldZoneRectOverlays;
-            ZonePanelStatusMessage = ShowWorldZoneRectOverlays
-                ? "Rectangles de zones affichés sur la carte."
-                : "Rectangles masqués — cochez « Afficher les zones » pour calibrer.";
+            ShowMapOverlays = CartoRuntimeOptions.ShowMapOverlays;
+            ZonePanelStatusMessage = ShowMapOverlays
+                ? "Calques visibles sur WowMap.png (une seule image)."
+                : "Carte nue : cochez « Afficher sur la carte » pour voir vos rectangles et repères.";
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(
                 RefreshUnplacedCharacters,
                 System.Windows.Threading.DispatcherPriority.Background);
@@ -2979,7 +2986,6 @@ public partial class CartoViewModel : ObservableObject
         {
             IsPlacingCharacter = false;
             IsPlacingTimer = false;
-            LoadZoneRects();
             SyncSelectedZoneFromCombo();
         }
 
@@ -2992,12 +2998,10 @@ public partial class CartoViewModel : ObservableObject
         {
             ZoneToAddMapId = value.MapId;
             SelectedDungeonMarker = null;
-            ZonePanelStatusMessage = ClassicEraMapProjection.IsCapitalMap(value.MapId)
-                ? $"Capitale : {value.DisplayName} — glisser le jaune ; coin rond = taille"
-                : $"Zone : {value.DisplayName} — les autres sont masquées";
+            ZonePanelStatusMessage = $"Zone : {value.DisplayName}";
         }
         else if (IsZonesPanelOpen)
-            ZonePanelStatusMessage = "Toutes les zones visibles sur la carte";
+            ZonePanelStatusMessage = null;
 
         OnPropertyChanged(nameof(OverlayChanged));
     }
@@ -3007,25 +3011,12 @@ public partial class CartoViewModel : ObservableObject
         if (value != null)
         {
             SelectedZoneRect = null;
-            ZonePanelStatusMessage = $"Lieu-dit : {value.DisplayName} — les autres repères sont masqués";
+            ZonePanelStatusMessage = $"Lieu-dit : {value.DisplayName}";
         }
         else if (IsZonesPanelOpen && SelectedZoneRect == null)
-            ZonePanelStatusMessage = "Tous les repères lieux-dits visibles";
+            ZonePanelStatusMessage = null;
 
         OnPropertyChanged(nameof(OverlayChanged));
-    }
-
-    [RelayCommand]
-    private void ClearZoneMapFocus()
-    {
-        SelectedZoneRect = null;
-    }
-
-    [RelayCommand]
-    private void ClearDungeonMapFocus()
-    {
-        SelectedDungeonMarker = null;
-        IsPlacingDungeonMarker = false;
     }
 
     partial void OnIsPlacingDungeonMarkerChanged(bool value)
@@ -3042,23 +3033,16 @@ public partial class CartoViewModel : ObservableObject
 
     partial void OnZoneToAddMapIdChanged(int? value) => SyncSelectedZoneFromCombo();
 
-    partial void OnCapitalToAddMapIdChanged(int? value)
+    partial void OnIsPlacingZoneChanged(bool value)
     {
-        SyncSelectedCapitalFromCombo();
-    }
-
-    partial void OnIsPlacingCapitalZoneChanged(bool value)
-    {
-        if (!value || !IsZonesPanelOpen)
+        if (!value || !IsZonesPanelOpen || ZoneToAddMapId is not int mapId)
             return;
 
-        if (CapitalToAddMapId is not > 0)
-            return;
-
-        var title = CapitalMapDefinitions.All.FirstOrDefault(d => d.MapId == CapitalToAddMapId.Value)?.Title
-                    ?? "la capitale";
+        var name = ClassicEraMapProjection.TryGetCatalogEntry(mapId, out var entry)
+            ? entry.DisplayName
+            : "la zone";
         ZonePanelStatusMessage =
-            $"{title} : cliquez sur l'image des capitales (à droite d'Azeroth). Aucun rectangle avant ce clic.";
+            $"{name} : ＋ puis clic où vous voulez sur la carte (Azeroth ou capitales — libre).";
         OnPropertyChanged(nameof(OverlayChanged));
     }
 
@@ -3067,62 +3051,62 @@ public partial class CartoViewModel : ObservableObject
         if (ZoneToAddMapId is not > 0)
             return;
 
-        if (ClassicEraMapProjection.IsCapitalMap(ZoneToAddMapId.Value))
-            return;
-
         var match = ZoneRects.FirstOrDefault(z => z.MapId == ZoneToAddMapId.Value);
         if (match != null && !ReferenceEquals(SelectedZoneRect, match))
             SelectedZoneRect = match;
     }
 
-    private void SyncSelectedCapitalFromCombo()
-    {
-        if (CapitalToAddMapId is not > 0 || !IsZonesPanelOpen)
-            return;
-
-        var title = CapitalMapDefinitions.All.FirstOrDefault(d => d.MapId == CapitalToAddMapId.Value)?.Title
-                    ?? "cette capitale";
-        var match = ZoneRects.FirstOrDefault(z => z.MapId == CapitalToAddMapId.Value);
-        ZonePanelStatusMessage = match != null
-            ? $"{match.DisplayName} : déjà sur la carte — cliquez sa tuile pour déplacer, ou ✕ pour supprimer."
-            : $"{title} : appuyez sur ＋ puis cliquez sur sa tuile (aucun rectangle avant le clic).";
-    }
-
+    /// <summary>Zones placées par l'utilisateur (fichier local uniquement — pas de rectangles intégrés).</summary>
     private void LoadZoneRects()
     {
         ZoneRects.Clear();
-        var rects = ZoneMapCalibration.LoadAllRaw();
-
-        foreach (var entry in ZoneCatalog)
+        var userRects = ZoneMapCalibration.LoadUserOverrides();
+        var mapW = 1024;
+        var mapH = 768;
+        if (CartoMapPreloader.GetBitmap() is { PixelWidth: > 0, PixelHeight: > 0 } bmp)
         {
-            if (ClassicEraMapProjection.IsContinentMap(entry.MapId)
-                || ClassicEraMapProjection.IsCapitalMap(entry.MapId))
+            mapW = bmp.PixelWidth;
+            mapH = bmp.PixelHeight;
+        }
+
+        foreach (var (mapId, rect) in userRects.OrderBy(kv => kv.Key))
+        {
+            if (ClassicEraMapProjection.IsContinentMap(mapId))
                 continue;
 
-            if (!rects.TryGetValue(entry.MapId, out var rect))
+            if (!ClassicEraMapProjection.TryGetCatalogEntry(mapId, out var entry))
                 continue;
+
+            var left = rect.Left;
+            var top = rect.Top;
+            var width = rect.Width;
+            var height = rect.Height;
+            if (ClassicEraMapProjection.IsCapitalMap(mapId)
+                && WowMapLayout.LooksLikeTileRelativeCapitalRect(left, top, width, height))
+            {
+                (left, top, width, height) = WowMapLayout.TileRelativeToFullMapNorm(
+                    mapW, mapH, mapId, left, top, width, height);
+            }
 
             ZoneRects.Add(new CartoZoneRectItem
             {
-                MapId = entry.MapId,
+                MapId = mapId,
                 NameFr = entry.NameFr,
                 NameEn = entry.NameEn,
                 DisplayName = entry.DisplayName,
-                Left = rect.Left,
-                Top = rect.Top,
-                Width = rect.Width,
-                Height = rect.Height
+                Left = left,
+                Top = top,
+                Width = width,
+                Height = height
             });
         }
-
-        LoadSavedCapitalZoneRects();
 
         RefreshWorldZoneRects();
         RefreshCapitalZoneRects();
         RefreshZoneCatalogItems();
 
         if (SelectedZoneRect == null || ZoneRects.All(z => !ReferenceEquals(z, SelectedZoneRect)))
-            SelectedZoneRect = ZoneRects.FirstOrDefault(z => !ClassicEraMapProjection.IsCapitalMap(z.MapId));
+            SelectedZoneRect = ZoneRects.FirstOrDefault();
     }
 
     private void RefreshWorldZoneRects()
@@ -3143,32 +3127,6 @@ public partial class CartoViewModel : ObservableObject
             CapitalZoneRects.Add(z);
     }
 
-    /// <summary>Capitales : uniquement le fichier utilisateur (pas les rects intégrés / embarqués).</summary>
-    private void LoadSavedCapitalZoneRects()
-    {
-        var userRects = ZoneMapCalibration.LoadUserOverrides();
-        foreach (var def in CapitalMapDefinitions.All)
-        {
-            if (!userRects.TryGetValue(def.MapId, out var rect))
-                continue;
-
-            if (!ClassicEraMapProjection.TryGetCatalogEntry(def.MapId, out var entry))
-                continue;
-
-            ZoneRects.Add(new CartoZoneRectItem
-            {
-                MapId = def.MapId,
-                NameFr = entry.NameFr,
-                NameEn = entry.NameEn,
-                DisplayName = entry.DisplayName,
-                Left = rect.Left,
-                Top = rect.Top,
-                Width = rect.Width,
-                Height = rect.Height
-            });
-        }
-    }
-
     private static bool IsWorldZonePlaced(int mapId, IEnumerable<CartoZoneRectItem> zoneRects) =>
         zoneRects.Any(z => z.MapId == mapId);
 
@@ -3184,31 +3142,14 @@ public partial class CartoViewModel : ObservableObject
     {
         ZoneCatalogItems.Clear();
         foreach (var z in ZoneCatalog
-                     .Where(z => !ClassicEraMapProjection.IsContinentMap(z.MapId)
-                                 && !ClassicEraMapProjection.IsCapitalMap(z.MapId))
-                     .Where(z => !IsWorldZonePlaced(z.MapId, ZoneRects))
+                     .Where(z => !ClassicEraMapProjection.IsContinentMap(z.MapId))
                      .OrderBy(z => z.DisplayName, StringComparer.OrdinalIgnoreCase))
         {
+            var placed = ZoneRects.Any(r => r.MapId == z.MapId);
             ZoneCatalogItems.Add(new ZoneCatalogListItem
             {
                 MapId = z.MapId,
-                DisplayName = z.DisplayName
-            });
-        }
-
-        CapitalCatalogItems.Clear();
-        foreach (var def in CapitalMapDefinitions.All)
-        {
-            if (!ClassicEraMapProjection.TryGetCatalogEntry(def.MapId, out var entry))
-                continue;
-
-            if (IsCapitalPlaced(def.MapId, ZoneRects))
-                continue;
-
-            CapitalCatalogItems.Add(new ZoneCatalogListItem
-            {
-                MapId = def.MapId,
-                DisplayName = entry.DisplayName
+                DisplayName = placed ? $"{z.DisplayName} ✓" : z.DisplayName
             });
         }
 
@@ -3235,9 +3176,6 @@ public partial class CartoViewModel : ObservableObject
         if (ZoneToAddMapId is int zoneId && ZoneCatalogItems.All(i => i.MapId != zoneId))
             ZoneToAddMapId = ZoneCatalogItems.FirstOrDefault()?.MapId;
 
-        if (CapitalToAddMapId is int capitalId && CapitalCatalogItems.All(i => i.MapId != capitalId))
-            CapitalToAddMapId = CapitalCatalogItems.FirstOrDefault()?.MapId;
-
         if (!string.IsNullOrWhiteSpace(DungeonToPlaceKey)
             && DungeonCatalogItems.All(i => !i.Key.Equals(DungeonToPlaceKey, StringComparison.OrdinalIgnoreCase)))
         {
@@ -3253,6 +3191,16 @@ public partial class CartoViewModel : ObservableObject
             DungeonMarkers.Add(m);
 
         RefreshZoneCatalogItems();
+        RefreshPlacedDungeonMarkers();
+    }
+
+    private void RefreshPlacedDungeonMarkers()
+    {
+        PlacedDungeonMarkers.Clear();
+        foreach (var m in DungeonMarkers
+                     .Where(m => m.MapX > 0 || m.MapY > 0)
+                     .OrderBy(m => m.DisplayName, StringComparer.OrdinalIgnoreCase))
+            PlacedDungeonMarkers.Add(m);
     }
 
     private CartoDungeonMarker? GetOrCreateDungeonMarker(string key)
@@ -3276,46 +3224,18 @@ public partial class CartoViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void AddWorldZoneFromPanel()
+    private void AddZoneFromPanel()
     {
         SuppressCapitalMapClicks();
         SelectedZoneRect = null;
-        IsPlacingCapitalZone = false;
 
         if (ZoneToAddMapId is not > 0)
         {
-            ZonePanelStatusMessage = "Choisissez une zone dans la liste, puis cliquez sur la carte Azeroth.";
+            ZonePanelStatusMessage = "Choisissez une zone dans la liste, puis ＋.";
             return;
         }
 
-        if (ClassicEraMapProjection.IsCapitalMap(ZoneToAddMapId.Value))
-        {
-            ZonePanelStatusMessage = "Les capitales se placent avec le ＋ sous « Capitales (6 mini-cartes) ».";
-            return;
-        }
-
-        IsPlacingWorldZone = true;
-        ShowWorldZoneRectOverlays = true;
-        ZonePanelStatusMessage = "Cliquez sur la carte Azeroth pour placer le rectangle (rien avant le clic).";
-        OnPropertyChanged(nameof(OverlayChanged));
-    }
-
-    [RelayCommand]
-    private void AddCapitalZoneFromPanel()
-    {
-        if (CapitalToAddMapId is not > 0)
-        {
-            ZonePanelStatusMessage = "Choisissez une capitale dans la liste, puis appuyez sur ＋.";
-            return;
-        }
-
-        SelectedZoneRect = null;
-        IsPlacingWorldZone = false;
-        IsPlacingCapitalZone = true;
-        var title = CapitalMapDefinitions.All.FirstOrDefault(d => d.MapId == CapitalToAddMapId.Value)?.Title
-                    ?? "cette capitale";
-        ZonePanelStatusMessage =
-            $"{title} : cliquez sur l'image des capitales. Aucun rectangle jaune avant ce clic.";
+        IsPlacingZone = true;
         OnPropertyChanged(nameof(OverlayChanged));
     }
 
@@ -3354,6 +3274,7 @@ public partial class CartoViewModel : ObservableObject
         PersistDungeonMarkers();
         ApplyDungeonMarkersChanged();
         RefreshZoneCatalogItems();
+        RefreshPlacedDungeonMarkers();
         ZonePanelStatusMessage = $"Repère placé : {marker.DisplayName}";
         OnPropertyChanged(nameof(OverlayChanged));
         return true;
@@ -3389,54 +3310,6 @@ public partial class CartoViewModel : ObservableObject
         OnPropertyChanged(nameof(OverlayChanged));
     }
 
-    /// <summary>Place un rectangle sur une mini-carte de capitale (coords 0–1 sur l'image).</summary>
-    public bool TryAddCapitalZoneAt(int mapId, double normalizedX, double normalizedY)
-    {
-        if (!ClassicEraMapProjection.IsCapitalMap(mapId))
-            return false;
-
-        if (ZoneRects.FirstOrDefault(z => z.MapId == mapId) is { } previous)
-        {
-            if (!IsPlacingCapitalZone)
-                return false;
-
-            ZoneRects.Remove(previous);
-            if (ReferenceEquals(SelectedZoneRect, previous))
-                SelectedZoneRect = null;
-        }
-
-        if (!ClassicEraMapProjection.TryGetCatalogEntry(mapId, out var entry))
-            return false;
-
-        const double defaultW = 0.32;
-        const double defaultH = 0.32;
-        var left = Math.Clamp(normalizedX - defaultW / 2, 0, 1 - defaultW);
-        var top = Math.Clamp(normalizedY - defaultH / 2, 0, 1 - defaultH);
-
-        var item = new CartoZoneRectItem
-        {
-            MapId = mapId,
-            NameFr = entry.NameFr,
-            NameEn = entry.NameEn,
-            DisplayName = entry.DisplayName,
-            Left = left,
-            Top = top,
-            Width = defaultW,
-            Height = defaultH
-        };
-        ZoneRects.Add(item);
-        SelectedZoneRect = item;
-        CapitalToAddMapId = mapId;
-        IsPlacingCapitalZone = false;
-        ShowWorldZoneRectOverlays = true;
-        PersistZoneRects();
-        RefreshCapitalZoneRects();
-        RefreshZoneCatalogItems();
-        ZonePanelStatusMessage = $"{item.DisplayName} placée — glissez le rectangle pour ajuster.";
-        OnPropertyChanged(nameof(OverlayChanged));
-        return true;
-    }
-
     [RelayCommand]
     private void AddZone()
     {
@@ -3453,30 +3326,36 @@ public partial class CartoViewModel : ObservableObject
     /// <summary>Ajoute un rectangle (coords 0–1 sur WowMap.png). Retourne false si la zone existe déjà.</summary>
     public bool TryAddZoneAt(double normalizedX, double normalizedY)
     {
+        if (ZoneToAddMapId is not > 0)
+        {
+            ZonePanelStatusMessage = "Choisissez une zone dans la liste (ex. Orgrimmar), puis ＋.";
+            return false;
+        }
+
+        if (!IsPlacingZone)
+        {
+            ZonePanelStatusMessage = "Appuyez sur ＋ avant de cliquer sur la carte.";
+            return false;
+        }
+
+        var mapId = ZoneToAddMapId.Value;
         const double defaultW = 0.085;
         const double defaultH = 0.090;
         var left = Math.Clamp(normalizedX - defaultW / 2, 0, 1 - defaultW);
         var top = Math.Clamp(normalizedY - defaultH / 2, 0, 1 - defaultH);
 
-        int mapId;
-        if (ZoneToAddMapId is > 0)
-            mapId = ZoneToAddMapId.Value;
-        else
+        if (ZoneRects.FirstOrDefault(z => z.MapId == mapId) is { } previous)
         {
-            var next = ZoneCatalog.FirstOrDefault(z => ZoneRects.All(r => r.MapId != z.MapId));
-            if (next.MapId == 0)
-                return false;
-            mapId = next.MapId;
+            ZoneRects.Remove(previous);
+            if (ReferenceEquals(SelectedZoneRect, previous))
+                SelectedZoneRect = null;
         }
 
-        if (ZoneRects.Any(z => z.MapId == mapId))
-            return false;
-
-        if (ClassicEraMapProjection.IsCapitalMap(mapId))
-            return false;
-
         if (!ClassicEraMapProjection.TryGetCatalogEntry(mapId, out var entry))
+        {
+            ZonePanelStatusMessage = $"Zone {mapId} introuvable dans le catalogue.";
             return false;
+        }
 
         var item = new CartoZoneRectItem
         {
@@ -3491,62 +3370,15 @@ public partial class CartoViewModel : ObservableObject
         };
         ZoneRects.Add(item);
         SelectedZoneRect = item;
-        ZoneToAddMapId = null;
-        IsPlacingWorldZone = false;
+        ZoneToAddMapId = mapId;
+        IsPlacingZone = false;
         PersistZoneRects();
         RefreshWorldZoneRects();
         RefreshCapitalZoneRects();
         RefreshZoneCatalogItems();
+        ZonePanelStatusMessage = $"{item.DisplayName} placée — glissez le rectangle pour ajuster.";
         OnPropertyChanged(nameof(OverlayChanged));
         return true;
-    }
-
-    [RelayCommand]
-    private void ResetCapitalZone(CartoZoneRectItem? zone)
-    {
-        var target = zone ?? SelectedZoneRect;
-        if (target == null || !ClassicEraMapProjection.IsCapitalMap(target.MapId))
-            return;
-
-        ApplyDefaultRect(target);
-        PersistZoneRects();
-        RefreshCapitalZoneRects();
-        SelectedZoneRect = target;
-        ZonePanelStatusMessage = $"{target.DisplayName} : rectangle réinitialisé — ajustez sur la mini-carte.";
-        OnPropertyChanged(nameof(OverlayChanged));
-    }
-
-    [RelayCommand]
-    private void ResetAllCapitalZones()
-    {
-        var capitals = ZoneRects.Where(z => ClassicEraMapProjection.IsCapitalMap(z.MapId)).ToList();
-        if (capitals.Count == 0)
-        {
-            ZonePanelStatusMessage = "Aucune capitale calibrée — choisissez-en une dans la liste puis cliquez sur sa tuile.";
-            return;
-        }
-
-        foreach (var z in capitals)
-            ZoneRects.Remove(z);
-
-        if (SelectedZoneRect != null && capitals.Any(c => ReferenceEquals(c, SelectedZoneRect)))
-            SelectedZoneRect = null;
-
-        CapitalToAddMapId = null;
-        PersistZoneRects();
-        RefreshCapitalZoneRects();
-        RefreshZoneCatalogItems();
-        ZonePanelStatusMessage = "Capitales supprimées — choisissez dans la liste et cliquez sur chaque tuile.";
-        OnPropertyChanged(nameof(OverlayChanged));
-    }
-
-    private static void ApplyDefaultRect(CartoZoneRectItem item)
-    {
-        var rect = ClassicEraMapProjection.CreateDefaultRect(item.MapId);
-        item.Left = rect.Left;
-        item.Top = rect.Top;
-        item.Width = rect.Width;
-        item.Height = rect.Height;
     }
 
     [RelayCommand]
@@ -3562,17 +3394,13 @@ public partial class CartoViewModel : ObservableObject
 
         ZoneRects.RemoveAt(idx);
         if (ReferenceEquals(SelectedZoneRect, target))
-        {
-            SelectedZoneRect = ZoneRects.FirstOrDefault(z => !ClassicEraMapProjection.IsCapitalMap(z.MapId));
-        }
+            SelectedZoneRect = ZoneRects.FirstOrDefault();
 
-        var wasCapital = ClassicEraMapProjection.IsCapitalMap(target.MapId);
         PersistZoneRects();
         RefreshWorldZoneRects();
         RefreshCapitalZoneRects();
         RefreshZoneCatalogItems();
-        if (wasCapital)
-            ZonePanelStatusMessage = $"{target.DisplayName} supprimée — recliquez sur sa tuile pour la replacer.";
+        ZonePanelStatusMessage = $"{target.DisplayName} supprimée.";
 
         OnPropertyChanged(nameof(OverlayChanged));
     }
@@ -3592,21 +3420,40 @@ public partial class CartoViewModel : ObservableObject
         PersistDungeonMarkers();
         ApplyDungeonMarkersChanged();
         RefreshZoneCatalogItems();
+        RefreshPlacedDungeonMarkers();
         ZonePanelStatusMessage = $"{name} : repère supprimé de la liste.";
         OnPropertyChanged(nameof(OverlayChanged));
     }
 
+    private Dictionary<int, ClassicEraMapProjection.CartoMapRect> BuildUserZoneOverridesFromPanel()
+    {
+        var user = ZoneMapCalibration.LoadUserOverrides();
+        foreach (var def in CapitalMapDefinitions.All)
+            user.Remove(def.MapId);
+
+        foreach (var z in ZoneRects)
+        {
+            user[z.MapId] = ClassicEraMapProjection.SanitizeZoneRect(
+                new ClassicEraMapProjection.CartoMapRect(z.Left, z.Top, z.Width, z.Height));
+        }
+
+        return user;
+    }
+
+    private void ApplyZoneProjectionFromPanel(bool saveToDisk)
+    {
+        var user = BuildUserZoneOverridesFromPanel();
+        if (saveToDisk)
+            ZoneMapCalibration.SaveAll(user);
+
+        var projection = ZoneMapCalibration.BuildProjectionCalibration(user);
+        ClassicEraMapProjection.ApplyUserRects(projection);
+        _zoneCalibrationLoaded = true;
+    }
+
     public void PersistZoneRects()
     {
-        var dict = ZoneRects.ToDictionary(
-            z => z.MapId,
-            z => ClassicEraMapProjection.SanitizeZoneRect(
-                new ClassicEraMapProjection.CartoMapRect(z.Left, z.Top, z.Width, z.Height)));
-
-        ZoneMapCalibration.SaveAll(dict);
-        ClassicEraMapProjection.ApplyUserRects(dict);
-        InvalidateZoneCalibration();
-        _zoneCalibrationLoaded = true;
+        ApplyZoneProjectionFromPanel(saveToDisk: true);
         BumpMapPlacementStamp();
         RebuildPrecomputedMapPositions();
         FinishMapPlacementForDisplay();
@@ -3616,5 +3463,31 @@ public partial class CartoViewModel : ObservableObject
             RefreshZoneCatalogItems();
             RefreshUnplacedCharacters();
         }
+    }
+
+    /// <summary>Enregistre les zones, puis recalcule toutes les positions persos (addon + rectangles).</summary>
+    [RelayCommand]
+    private void RefreshCharacterMapPositions()
+    {
+        if (CartoMapPreloader.GetBitmap() is { PixelWidth: > 0, PixelHeight: > 0 } bmp)
+            ClassicEraMapProjection.SetMapImagePixelSize(bmp.PixelWidth, bmp.PixelHeight);
+
+        ApplyZoneProjectionFromPanel(saveToDisk: true);
+        var placed = ApplyZonePositionsFromWowSync();
+        ReorganizePlacedOnMapStacks();
+        BumpMapPlacementStamp();
+        _mapPositionsReady = true;
+        _appliedMapPlacementStamp = _mapPlacementStamp;
+
+        Save();
+        if (ApplyFiltersChanged())
+            OnPropertyChanged(nameof(FilteredCharacters));
+
+        RefreshUnplacedCharacters();
+        var total = Characters.Count(c => !c.IsHidden);
+        ZonePanelStatusMessage = placed == total
+            ? $"{placed} personnage(s) repositionné(s) sur la carte."
+            : $"{placed}/{total} personnage(s) repositionné(s) — les autres manquent coords ou zone non calibrée.";
+        OnPropertyChanged(nameof(OverlayChanged));
     }
 }

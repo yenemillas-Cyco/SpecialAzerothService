@@ -14,8 +14,6 @@ namespace WindowsOrganiserApp.Views;
 
 public partial class CartoView
 {
-    private const string CapitalSelectionTag = "capital-cell-selection";
-
     private sealed class CapitalMapSlot
     {
         public required CapitalMapDefinition Definition { get; init; }
@@ -23,33 +21,46 @@ public partial class CartoView
     }
 
     private readonly List<CapitalMapSlot> _capitalSlots = [];
-    private CapitalMapSlot? _zoneDragCapitalSlot;
     private bool _capitalCompositeWired;
 
     private readonly record struct CapitalContentRect(double X, double Y, double Width, double Height);
 
-    private Canvas CapitalOverlayCanvas => CapitalsCompositeCanvas;
-    private Grid CapitalHitHost => CapitalsCompositeHost;
+    private Canvas? CapitalOverlayCanvas => CapitalsCompositeCanvas;
 
-    private bool TryGetCompositeContentRect(out CapitalContentRect content)
+    private Image? CapitalHitHost => MapImage;
+
+    private bool TryGetMapPixelSize(out int mapW, out int mapH)
+    {
+        mapW = 0;
+        mapH = 0;
+        if (MapImage != null && MapImage.ActualWidth > 1 && MapImage.ActualHeight > 1)
+        {
+            mapW = (int)Math.Round(MapImage.ActualWidth);
+            mapH = (int)Math.Round(MapImage.ActualHeight);
+            return true;
+        }
+
+        mapW = (int)Math.Round(MapWidth);
+        mapH = (int)Math.Round(MapHeight);
+        return mapW > 1 && mapH > 1;
+    }
+
+    private bool TryGetCapitalsBandRect(out CapitalContentRect content)
     {
         content = default;
-        if (CapitalsCompositeHost == null || CapitalsCompositeImage?.Source is not BitmapSource bmp)
+        if (MapImage == null)
             return false;
 
-        var hostW = CapitalsCompositeHost.ActualWidth;
-        var hostH = CapitalsCompositeHost.ActualHeight;
-        if (hostW <= 1 || hostH <= 1 || bmp.PixelWidth < 1 || bmp.PixelHeight < 1)
+        if (!TryGetMapPixelSize(out var mapW, out var mapH))
             return false;
 
-        var imgW = (double)bmp.PixelWidth;
-        var imgH = (double)bmp.PixelHeight;
-        var scale = Math.Min(hostW / imgW, hostH / imgH);
-        var cw = imgW * scale;
-        var ch = imgH * scale;
-        content = new((hostW - cw) / 2, (hostH - ch) / 2, cw, ch);
-        return cw > 1 && ch > 1;
+        var (x, y, w, h) = WowMapLayout.GetCapitalsBandRect(mapW, mapH);
+        content = new(x, y, w, h);
+        return w > 1 && h > 1;
     }
+
+    private bool TryGetCompositeContentRect(out CapitalContentRect content) =>
+        TryGetCapitalsBandRect(out content);
 
     private static bool TryGetCapitalCellRect(CapitalMapDefinition def, CapitalContentRect composite, out CapitalContentRect cell)
     {
@@ -62,27 +73,8 @@ public partial class CartoView
         return cell.Width > 1 && cell.Height > 1;
     }
 
-    private bool TryGetCapitalContentRect(CapitalMapSlot slot, out CapitalContentRect content)
-    {
-        content = default;
-        if (!TryGetCompositeContentRect(out var composite))
-            return false;
-
-        if (!TryGetCapitalCellRect(slot.Definition, composite, out var cell))
-            return false;
-
-        var bmp = slot.Source;
-        if (bmp.PixelWidth < 1 || bmp.PixelHeight < 1)
-            return false;
-
-        var imgW = (double)bmp.PixelWidth;
-        var imgH = (double)bmp.PixelHeight;
-        var scale = Math.Min(cell.Width / imgW, cell.Height / imgH);
-        var cw = imgW * scale;
-        var ch = imgH * scale;
-        content = new(cell.X + (cell.Width - cw) / 2, cell.Y + (cell.Height - ch) / 2, cw, ch);
-        return cw > 1 && ch > 1;
-    }
+    private bool TryGetCapitalContentRect(CapitalMapSlot slot, out CapitalContentRect content) =>
+        TryGetCapitalCellPixels(slot.Definition, out content);
 
     private static bool TryMapHostPointToNormalized(
         CapitalContentRect content,
@@ -112,23 +104,36 @@ public partial class CartoView
             WireCapitalSlots();
     }
 
+    private bool TryGetCapitalCellPixels(CapitalMapDefinition def, out CapitalContentRect cell) =>
+        TryGetCapitalCellPixels(def.GridColumn, def.GridRow, out cell);
+
+    private bool TryGetCapitalCellPixels(int gridColumn, int gridRow, out CapitalContentRect cell)
+    {
+        cell = default;
+        if (!TryGetMapPixelSize(out var mapW, out var mapH))
+            return false;
+
+        var (cx, cy, cw, ch) = WowMapLayout.GetCapitalCellRect(mapW, mapH, gridColumn, gridRow);
+        cell = new(cx, cy, cw, ch);
+        return cw > 1 && ch > 1;
+    }
+
     private bool TryResolveSlotFromPoint(Point hostPos, out CapitalMapSlot? slot)
     {
         slot = null;
-        if (!TryGetCompositeContentRect(out var composite))
+        if (!TryGetMapPixelSize(out var mapW, out var mapH))
             return false;
 
-        if (hostPos.X < composite.X || hostPos.Y < composite.Y
-            || hostPos.X > composite.X + composite.Width || hostPos.Y > composite.Y + composite.Height)
+        var (bx, by, bw, bh) = WowMapLayout.GetCapitalsBandRect(mapW, mapH);
+        if (hostPos.X < bx || hostPos.Y < by || hostPos.X > bx + bw || hostPos.Y > by + bh)
             return false;
-
         foreach (var def in CapitalMapDefinitions.All)
         {
-            var (nx, ny, nw, nh) = CapitalMapsCompositeLayout.GetCellNormalizedRect(def.GridColumn, def.GridRow);
-            var cellX = composite.X + nx * composite.Width;
-            var cellY = composite.Y + ny * composite.Height;
-            var cellW = nw * composite.Width;
-            var cellH = nh * composite.Height;
+            var (cellX, cellY, cellW, cellH) = WowMapLayout.GetCapitalCellRect(
+                mapW,
+                mapH,
+                def.GridColumn,
+                def.GridRow);
             if (hostPos.X < cellX || hostPos.Y < cellY || hostPos.X > cellX + cellW || hostPos.Y > cellY + cellH)
                 continue;
 
@@ -139,52 +144,8 @@ public partial class CartoView
         return false;
     }
 
-    private void SyncCapitalHostSelectionHighlight()
-    {
-        if (CapitalOverlayCanvas == null)
-            return;
-
-        for (var i = CapitalOverlayCanvas.Children.Count - 1; i >= 0; i--)
-        {
-            if (CapitalOverlayCanvas.Children[i] is FrameworkElement { Tag: string tag } && tag == CapitalSelectionTag)
-                CapitalOverlayCanvas.Children.RemoveAt(i);
-        }
-
-        if (Vm == null || !Vm.IsZonesPanelOpen || Vm.SelectedZoneRect?.MapId is not int selectedMapId)
-            return;
-
-        var slot = _capitalSlots.FirstOrDefault(s => s.Definition.MapId == selectedMapId);
-        if (slot == null
-            || !TryGetCompositeContentRect(out var composite)
-            || !TryGetCapitalCellRect(slot.Definition, composite, out var cell))
-            return;
-
-        var frame = new Rectangle
-        {
-            Width = Math.Max(2, cell.Width),
-            Height = Math.Max(2, cell.Height),
-            Stroke = new SolidColorBrush(Color.FromRgb(0xFF, 0xE0, 0x66)),
-            StrokeThickness = 2,
-            Fill = Brushes.Transparent,
-            IsHitTestVisible = false,
-            Tag = CapitalSelectionTag
-        };
-        Canvas.SetLeft(frame, cell.X);
-        Canvas.SetTop(frame, cell.Y);
-        Panel.SetZIndex(frame, 5);
-        CapitalOverlayCanvas.Children.Add(frame);
-    }
-
     private void WireCapitalSlots()
     {
-        if (CapitalsGrid?.Parent is ScrollViewer capitalsScroll && CapitalsDock != null
-            && capitalsScroll != MapScroll)
-        {
-            capitalsScroll.Content = null;
-            CapitalsDock.Children.Clear();
-            CapitalsDock.Children.Add(CapitalsGrid);
-        }
-
         EnsureMapScrollTree();
 
         if (_capitalCompositeWired && _capitalSlots.Count == CapitalMapDefinitions.All.Count)
@@ -217,39 +178,21 @@ public partial class CartoView
 
     private void LoadCapitalCompositeUi()
     {
-        if (CapitalsCompositeImage == null || CapitalOverlayCanvas == null || CapitalHitHost == null)
+        if (CapitalOverlayCanvas == null || CapitalHitHost == null)
             return;
 
         IReadOnlyDictionary<int, BitmapSource> sources;
-        BitmapSource composite;
         try
         {
             sources = CapitalMapsCompositeBuilder.LoadCapitalSourcesFromPack();
-            try
-            {
-                composite = CapitalMapsCompositeBuilder.LoadCompositeFromPackResource();
-            }
-            catch
-            {
-                composite = CapitalMapsCompositeBuilder.Build().Composite;
-            }
         }
         catch (Exception ex)
         {
-            Vm?.ZonePanelStatusMessage = $"Image capitales indisponible : {ex.Message}";
+            Vm?.ZonePanelStatusMessage = $"Images capitales indisponibles : {ex.Message}";
             return;
         }
 
-        CapitalsCompositeImage.Source = composite;
-        Panel.SetZIndex(CapitalsCompositeImage, 0);
-        Panel.SetZIndex(CapitalOverlayCanvas, 1);
-
-        CapitalOverlayCanvas.SetBinding(
-            WidthProperty,
-            new System.Windows.Data.Binding("ActualWidth") { Source = CapitalHitHost });
-        CapitalOverlayCanvas.SetBinding(
-            HeightProperty,
-            new System.Windows.Data.Binding("ActualHeight") { Source = CapitalHitHost });
+        Panel.SetZIndex(CapitalOverlayCanvas, 2);
 
         _capitalSlots.Clear();
         foreach (var def in CapitalMapDefinitions.All)
@@ -272,37 +215,9 @@ public partial class CartoView
 
     private void WireCapitalCompositeInput()
     {
-        void OnPreviewDown(object _, MouseButtonEventArgs ev)
-        {
-            if (TryProcessCapitalMapPointer(ev))
-                ev.Handled = true;
-        }
+        if (CapitalHitHost == null)
+            return;
 
-        CapitalHitHost.AddHandler(
-            UIElement.PreviewMouseLeftButtonDownEvent,
-            new MouseButtonEventHandler(OnPreviewDown),
-            true);
-        CapitalsCompositeImage.AddHandler(
-            UIElement.PreviewMouseLeftButtonDownEvent,
-            new MouseButtonEventHandler(OnPreviewDown),
-            true);
-
-        MapBorder?.AddHandler(
-            UIElement.PreviewMouseLeftButtonDownEvent,
-            new MouseButtonEventHandler(OnPreviewDown),
-            true);
-
-        CapitalHitHost.MouseMove += (_, ev) =>
-        {
-            if (_zoneDragCapitalSlot == null)
-                return;
-
-            if (!CapitalHitHost.IsMouseCaptured)
-                return;
-
-            ProcessCapitalZoneDrag(_zoneDragCapitalSlot, ev.GetPosition(CapitalHitHost));
-        };
-        CapitalHitHost.MouseLeftButtonUp += (_, _) => EndCapitalZoneDrag();
     }
 
     /// <summary>Route un clic vers la mosaïque capitales (contourne volet droit / canvas overlay).</summary>
@@ -311,29 +226,42 @@ public partial class CartoView
         if (Vm == null || e.Handled)
             return false;
 
-        if (CapitalsDock?.Visibility != Visibility.Visible || CapitalHitHost == null)
+        if (DateTime.UtcNow < Vm.SuppressCapitalMapClickUntilUtc)
+            return false;
+
+        if (!CartoRuntimeOptions.ShowCapitalMaps || CapitalHitHost == null)
             return false;
 
         if (CapitalHitHost.ActualWidth < 2 || CapitalHitHost.ActualHeight < 2)
             return false;
 
+        if (e.OriginalSource is DependencyObject src && IsZonesPanelChrome(src))
+            return false;
+
         var hostPos = e.GetPosition(CapitalHitHost);
-        if (VisualTreeHelper.HitTest(CapitalHitHost, hostPos) == null)
+
+        if (!TryGetCapitalsBandRect(out var band)
+            || hostPos.X < band.X || hostPos.Y < band.Y
+            || hostPos.X > band.X + band.Width || hostPos.Y > band.Y + band.Height)
             return false;
 
         if (!TryResolveSlotFromPoint(hostPos, out var slot) || slot == null)
-        {
-            if (Vm.IsZonesPanelOpen && Vm.IsPlacingCapitalZone)
-            {
-                Vm.ZonePanelStatusMessage =
-                    "Cliquez sur la capitale choisie dans l'image (à droite d'Azeroth), pas sur Azeroth.";
-            }
-
-            return Vm.IsPlacingCapitalZone;
-        }
+            return false;
 
         CapitalHost_MouseDown(slot, hostPos, e);
         return e.Handled;
+    }
+
+    private static bool IsZonesPanelChrome(DependencyObject node)
+    {
+        while (node != null)
+        {
+            if (node is FrameworkElement { Name: "ZonesPanelHost" or "RightDockHost" })
+                return true;
+            node = VisualTreeHelper.GetParent(node);
+        }
+
+        return false;
     }
 
     private static bool TryGetCharacterCapitalMapId(WowCharacter ch, CartoViewModel vm, out int mapId)
@@ -363,8 +291,6 @@ public partial class CartoView
         if (_capitalSlots.Count == 0)
             return;
 
-        SyncCapitalHostSelectionHighlight();
-
         foreach (var slot in _capitalSlots)
         {
             RedrawCapitalZoneEditor(slot);
@@ -374,106 +300,16 @@ public partial class CartoView
 
     private void RedrawCapitalZoneEditor(CapitalMapSlot slot)
     {
-        if (Vm == null || CapitalOverlayCanvas == null)
+        if (CapitalOverlayCanvas == null)
             return;
 
         var mapId = slot.Definition.MapId;
         for (var i = CapitalOverlayCanvas.Children.Count - 1; i >= 0; i--)
         {
-            if (CapitalOverlayCanvas.Children[i] is not FrameworkElement fe)
-                continue;
-            if (fe.Tag as string == CapitalSelectionTag)
-                continue;
-            if (fe.Tag is CartoZoneRectItem z && z.MapId == mapId)
+            if (CapitalOverlayCanvas.Children[i] is FrameworkElement fe
+                && fe.Tag is CartoZoneRectItem z
+                && z.MapId == mapId)
                 CapitalOverlayCanvas.Children.RemoveAt(i);
-            else if (fe is Border { Tag: CartoZoneRectItem lz } && lz.MapId == mapId)
-                CapitalOverlayCanvas.Children.RemoveAt(i);
-        }
-
-        if (!Vm.IsZoneEditMode || !CartoRuntimeOptions.ShowWorldZoneRectOverlays || Vm.IsPlacingCapitalZone)
-            return;
-
-        if (!TryGetCapitalContentRect(slot, out var content))
-            return;
-
-        var focusZone = Vm.IsZonesPanelOpen && Vm.SelectedZoneRect != null;
-        var zones = Vm.ZoneRects
-            .Where(z => z.MapId == mapId)
-            .Where(z => !focusZone || ReferenceEquals(z, Vm.SelectedZoneRect))
-            .OrderBy(z => ReferenceEquals(z, Vm.SelectedZoneRect) ? 1 : 0);
-        foreach (var zone in zones)
-            DrawZoneRectOnCanvas(CapitalOverlayCanvas, zone, content.Width, content.Height, Vm.SelectedZoneRect, content.X, content.Y);
-    }
-
-    private void DrawZoneRectOnCanvas(
-        Canvas canvas,
-        CartoZoneRectItem zone,
-        double w,
-        double h,
-        CartoZoneRectItem? selectedZone,
-        double offsetX = 0,
-        double offsetY = 0)
-    {
-        var selected = ReferenceEquals(zone, selectedZone);
-        var stroke = selected ? Color.FromRgb(0xFF, 0xE0, 0x66) : Color.FromRgb(0x88, 0xDD, 0x99);
-        var fill = selected
-            ? Color.FromArgb(0x44, 0xFF, 0xE0, 0x66)
-            : Color.FromArgb(0x33, 0x88, 0xDD, 0x99);
-
-        var rect = new Rectangle
-        {
-            Width = Math.Max(4, zone.Width * w),
-            Height = Math.Max(4, zone.Height * h),
-            Stroke = new SolidColorBrush(stroke),
-            StrokeThickness = selected ? 2.5 : 1.5,
-            Fill = new SolidColorBrush(fill),
-            Tag = zone,
-            IsHitTestVisible = selected,
-            Cursor = selected ? Cursors.SizeAll : Cursors.Arrow
-        };
-        Canvas.SetLeft(rect, offsetX + zone.Left * w);
-        Canvas.SetTop(rect, offsetY + zone.Top * h);
-        Panel.SetZIndex(rect, selected ? 80 : 15);
-        canvas.Children.Add(rect);
-
-        var label = new Border
-        {
-            Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x10, 0x18, 0x10)),
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(4, 1, 4, 1),
-            Child = new TextBlock
-            {
-                Text = string.IsNullOrEmpty(zone.DisplayName) ? zone.NameFr : zone.DisplayName,
-                FontSize = 9,
-                Foreground = Brushes.White
-            },
-            Tag = zone,
-            IsHitTestVisible = false
-        };
-        Canvas.SetLeft(label, offsetX + zone.Left * w + 2);
-        Canvas.SetTop(label, offsetY + zone.Top * h + 2);
-        Panel.SetZIndex(label, selected ? 81 : 16);
-        canvas.Children.Add(label);
-
-        if (selected)
-        {
-            const double handleSize = 22;
-            var handle = new Ellipse
-            {
-                Width = handleSize,
-                Height = handleSize,
-                Fill = new SolidColorBrush(Color.FromRgb(0xFF, 0xE0, 0x66)),
-                Stroke = Brushes.Black,
-                StrokeThickness = 1.5,
-                Tag = zone,
-                IsHitTestVisible = true,
-                Cursor = Cursors.SizeNWSE,
-                ToolTip = "Glisser pour redimensionner"
-            };
-            Canvas.SetLeft(handle, offsetX + (zone.Left + zone.Width) * w - handleSize / 2);
-            Canvas.SetTop(handle, offsetY + (zone.Top + zone.Height) * h - handleSize / 2);
-            Panel.SetZIndex(handle, 90);
-            canvas.Children.Add(handle);
         }
     }
 
@@ -512,22 +348,25 @@ public partial class CartoView
 
         var chars = Vm.FilteredCharacters
             .Where(c => c.IsPlacedOnMap)
-            .Where(c => TryGetCapitalLocalPosition(c, Vm, mapId, out _, out _))
+            .Where(c => TryGetCharacterCapitalMapId(c, Vm, out var mid) && mid == mapId)
+            .Where(c => Vm.TryGetMarkerPosition(c, out _, out _))
             .ToList();
 
+        var mapW = MapWidth;
+        var mapH = MapHeight;
         var labelRequests = new List<CartoMapLabelLayout.LabelRequest>();
-        var drawItems = new List<(WowCharacter Ch, double MapX, double MapY)>();
+        var drawItems = new List<(WowCharacter Ch, double PixX, double PixY)>();
 
         foreach (var ch in chars)
         {
-            if (!TryGetCapitalLocalPosition(ch, Vm, mapId, out var mapX, out var mapY))
+            if (!Vm.TryGetMarkerPosition(ch, out var mapX, out var mapY))
                 continue;
 
             var isTpBoy = ch.Status == CharacterStatus.TpBoy;
             var isSelected = ch == Vm.SelectedCharacter;
             var size = GetMapMarkerDotSize(isSelected, isTpBoy);
-            var pixX = content.X + mapX * content.Width;
-            var pixY = content.Y + mapY * content.Height;
+            var pixX = mapX * mapW;
+            var pixY = mapY * mapH;
             var inlineShard = isTpBoy && ch.Class == WowClass.Demoniste && ch.ShardCount > 0;
             var labelW = EstimateLabelWidth(GetMapLabelText(ch, Vm), inlineShard);
 
@@ -541,7 +380,7 @@ public partial class CartoView
                 DotRadius = size / 2,
                 Priority = MapLabelPriority(ch, isSelected, isTpBoy)
             });
-            drawItems.Add((ch, mapX, mapY));
+            drawItems.Add((ch, pixX, pixY));
         }
 
         var labelPositions = CartoMapLabelLayout.Resolve(
@@ -550,18 +389,19 @@ public partial class CartoView
                 CapitalOverlayCanvas.ActualHeight)
             .ToDictionary(p => p.Key, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (ch, mapX, mapY) in drawItems)
-            AddCapitalCharacterMarker(CapitalOverlayCanvas, ch, content, mapX, mapY, labelPositions);
+        foreach (var (ch, pixX, pixY) in drawItems)
+            AddCapitalCharacterMarker(CapitalOverlayCanvas, ch, content, pixX, pixY, labelPositions);
     }
 
     private void AddCapitalCharacterMarker(
         Canvas canvas,
         WowCharacter ch,
         CapitalContentRect content,
-        double mapX,
-        double mapY,
+        double pixX,
+        double pixY,
         IReadOnlyDictionary<string, CartoMapLabelLayout.LabelPosition> labelPositions)
     {
+        _ = content;
         var isTpBoy = ch.Status == CharacterStatus.TpBoy;
         var brush = GetClassBrush(WowClassColors.GetHexColor(ch.Class));
         var isSelected = ch == Vm.SelectedCharacter;
@@ -587,8 +427,6 @@ public partial class CartoView
         };
         Panel.SetZIndex(marker, isTpBoy ? 14 : 10);
 
-        var pixX = content.X + mapX * content.Width;
-        var pixY = content.Y + mapY * content.Height;
         Canvas.SetLeft(marker, pixX - size / 2);
         Canvas.SetTop(marker, pixY - size / 2);
         canvas.Children.Add(marker);
@@ -623,132 +461,10 @@ public partial class CartoView
         Panel.SetZIndex(label, isTpBoy ? 18 : 15);
     }
 
-    private bool TryHitZoneOnCanvas(
-        Point mapPos,
-        int mapId,
-        out CartoZoneRectItem? zone,
-        out bool isResizeHandle)
-    {
-        zone = null;
-        isResizeHandle = false;
-        if (Vm == null || !Vm.IsZonesPanelOpen)
-            return false;
-
-        var slot = _capitalSlots.FirstOrDefault(s => s.Definition.MapId == mapId);
-        if (slot == null || !TryGetCapitalContentRect(slot, out var content))
-            return false;
-
-        var norm = MapHostPointToNormalizedClamped(content, mapPos);
-        var nx = norm.X;
-        var ny = norm.Y;
-        const double handlePx = 44;
-        var handleN = handlePx / Math.Max(content.Width, content.Height);
-        const double edgeSlop = 0.04;
-
-        IEnumerable<CartoZoneRectItem> Ordered()
-        {
-            if (Vm.SelectedZoneRect != null && Vm.SelectedZoneRect.MapId == mapId)
-                yield return Vm.SelectedZoneRect;
-            for (var i = Vm.ZoneRects.Count - 1; i >= 0; i--)
-            {
-                var z = Vm.ZoneRects[i];
-                if (z.MapId != mapId || ReferenceEquals(z, Vm.SelectedZoneRect))
-                    continue;
-                yield return z;
-            }
-        }
-
-        foreach (var z in Ordered())
-        {
-            var right = z.Left + z.Width;
-            var bottom = z.Top + z.Height;
-            if (nx >= right - handleN && nx <= right + handleN * 0.35
-                && ny >= bottom - handleN && ny <= bottom + handleN * 0.35)
-            {
-                zone = z;
-                isResizeHandle = true;
-                return true;
-            }
-        }
-
-        foreach (var z in Ordered())
-        {
-            var right = z.Left + z.Width;
-            var bottom = z.Top + z.Height;
-            if (nx < z.Left - edgeSlop || nx > right + edgeSlop || ny < z.Top - edgeSlop || ny > bottom + edgeSlop)
-                continue;
-
-            zone = z;
-            isResizeHandle = false;
-            return true;
-        }
-
-        return false;
-    }
-
     private void CapitalHost_MouseDown(CapitalMapSlot slot, Point mapPos, MouseButtonEventArgs e)
     {
-        if (Vm == null)
+        if (Vm == null || Vm.IsZonesPanelOpen)
             return;
-
-        var mapId = slot.Definition.MapId;
-
-        if (Vm.IsZonesPanelOpen)
-        {
-            if (TryHitZoneOnCanvas(mapPos, mapId, out var hit, out var resize) && hit != null)
-            {
-                Vm.ShowWorldZoneRectOverlays = true;
-                CartoRuntimeOptions.ShowWorldZoneRectOverlays = true;
-                BeginCapitalZoneDrag(slot, hit, mapPos, resize);
-                e.Handled = true;
-                return;
-            }
-
-            if (!Vm.IsZoneEditMode)
-                return;
-
-            if (Vm.IsPlacingCapitalZone)
-            {
-                var wanted = Vm.CapitalToAddMapId;
-                if (wanted is int pick && pick != mapId)
-                {
-                    var title = CapitalMapDefinitions.All.FirstOrDefault(d => d.MapId == pick)?.Title;
-                    Vm.ZonePanelStatusMessage = string.IsNullOrEmpty(title)
-                        ? "Cliquez sur la capitale choisie dans l'image."
-                        : $"Cliquez sur {title} dans l'image.";
-                }
-                else if (TryGetCapitalContentRect(slot, out var content))
-                {
-                    var norm = MapHostPointToNormalizedClamped(content, mapPos);
-                    if (Vm.TryAddCapitalZoneAt(mapId, norm.X, norm.Y))
-                    {
-                        Vm.ShowWorldZoneRectOverlays = true;
-                        CartoRuntimeOptions.ShowWorldZoneRectOverlays = true;
-                        RedrawCapitalMaps();
-                        var created = Vm.ZoneRects.First(z => z.MapId == mapId);
-                        BeginCapitalZoneDrag(slot, created, mapPos, false);
-                    }
-                    else
-                    {
-                        Vm.ZonePanelStatusMessage =
-                            $"{slot.Definition.Title} : impossible de créer la zone — réessayez.";
-                    }
-                }
-                else
-                {
-                    Vm.ZonePanelStatusMessage =
-                        $"{slot.Definition.Title} : carte en chargement ou clic hors image.";
-                }
-
-                e.Handled = true;
-            }
-            else
-            {
-                Vm.CapitalToAddMapId = mapId;
-            }
-
-            return;
-        }
 
         if (e.OriginalSource is Ellipse { Tag: WowCharacter ch })
         {
@@ -758,66 +474,4 @@ public partial class CartoView
         }
     }
 
-    private void BeginCapitalZoneDrag(
-        CapitalMapSlot slot,
-        CartoZoneRectItem hit,
-        Point mapPos,
-        bool resize)
-    {
-        Vm!.SelectedZoneRect = hit;
-        _zoneDragItem = hit;
-        _zoneResizeDrag = resize;
-        _zoneDragCapitalSlot = slot;
-        _zoneDragStartMap = mapPos;
-        _zoneDragStartLeft = hit.Left;
-        _zoneDragStartTop = hit.Top;
-        _zoneDragStartW = hit.Width;
-        _zoneDragStartH = hit.Height;
-        CapitalHitHost.CaptureMouse();
-        RedrawCapitalZoneEditor(slot);
-    }
-
-    private void ProcessCapitalZoneDrag(CapitalMapSlot slot, Point mapPos)
-    {
-        if (_zoneDragItem == null || _zoneDragCapitalSlot != slot)
-            return;
-
-        if (!TryGetCapitalContentRect(slot, out var content))
-            return;
-
-        var startNorm = MapHostPointToNormalizedClamped(content, _zoneDragStartMap);
-        var currentNorm = MapHostPointToNormalizedClamped(content, mapPos);
-        var dx = currentNorm.X - startNorm.X;
-        var dy = currentNorm.Y - startNorm.Y;
-
-        if (_zoneResizeDrag)
-        {
-            var (minW, minH) = ClassicEraMapProjection.GetEditorMinimumZoneSize(_zoneDragItem.MapId);
-            _zoneDragItem.Width = Math.Clamp(_zoneDragStartW + dx, minW, 1 - _zoneDragItem.Left);
-            _zoneDragItem.Height = Math.Clamp(_zoneDragStartH + dy, minH, 1 - _zoneDragItem.Top);
-        }
-        else
-        {
-            _zoneDragItem.Left = Math.Clamp(_zoneDragStartLeft + dx, 0, 1 - _zoneDragItem.Width);
-            _zoneDragItem.Top = Math.Clamp(_zoneDragStartTop + dy, 0, 1 - _zoneDragItem.Height);
-        }
-
-        RedrawCapitalZoneEditor(slot);
-    }
-
-    private void EndCapitalZoneDrag()
-    {
-        if (_zoneDragItem == null)
-            return;
-
-        if (Vm != null)
-            Vm.IsPlacingCapitalZone = false;
-
-        Vm?.PersistZoneRects();
-        _zoneDragItem = null;
-        _zoneDragCapitalSlot = null;
-        _zoneResizeDrag = false;
-        CapitalHitHost.ReleaseMouseCapture();
-        RedrawCapitalMaps();
-    }
 }

@@ -51,6 +51,33 @@ public static class ZoneMapCalibration
         return result;
     }
 
+    /// <summary>Calibration pour projection persos : monde (défaut + utilisateur), capitales uniquement si présentes dans <paramref name="userOverrides"/>.</summary>
+    public static Dictionary<int, ClassicEraMapProjection.CartoMapRect> BuildProjectionCalibration(
+        IReadOnlyDictionary<int, ClassicEraMapProjection.CartoMapRect> userOverrides)
+    {
+        var result = new Dictionary<int, ClassicEraMapProjection.CartoMapRect>();
+        foreach (var (mapId, rect) in LoadAllRaw())
+        {
+            if (ClassicEraMapProjection.IsContinentMap(mapId))
+                continue;
+            if (ClassicEraMapProjection.IsCapitalMap(mapId))
+                continue;
+
+            result[mapId] = userOverrides.TryGetValue(mapId, out var user)
+                ? ClassicEraMapProjection.SanitizeZoneRect(user)
+                : ClassicEraMapProjection.SanitizeZoneRect(rect);
+        }
+
+        foreach (var (mapId, rect) in userOverrides)
+        {
+            if (!ClassicEraMapProjection.IsCapitalMap(mapId))
+                continue;
+            result[mapId] = ClassicEraMapProjection.SanitizeZoneRect(rect);
+        }
+
+        return result;
+    }
+
     public static void SaveAll(IReadOnlyDictionary<int, ClassicEraMapProjection.CartoMapRect> rects)
     {
         try

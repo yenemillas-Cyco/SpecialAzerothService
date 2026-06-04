@@ -1,6 +1,6 @@
 namespace WindowsOrganiserApp;
 
-/// <summary>Carte unique Carto (monde + capitales sur une image).</summary>
+/// <summary>Image Carto : Azeroth + bande capitales (seule la partie Azeroth est affichée si le dock capitales est actif).</summary>
 public static class CartoMapAssets
 {
     public const string FileName = "WowMap.png";
