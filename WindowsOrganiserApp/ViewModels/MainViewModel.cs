@@ -75,6 +75,8 @@ public partial class MainViewModel : ObservableObject
             IsBountyMode = false;
             IsCraftMode = false;
         }
+
+        CartoVm?.SetLiveUpdatesEnabled(value);
     }
 
     partial void OnIsBountyModeChanged(bool value)

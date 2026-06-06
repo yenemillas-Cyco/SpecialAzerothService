@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -32,6 +33,11 @@ public partial class CartoViewModel : ObservableObject
     private bool _wowFolderPromptShownThisSession;
     private bool _startupWtfScanDone;
     private readonly SemaphoreSlim _wowSyncRefreshLock = new(1, 1);
+    private DispatcherTimer? _filterNameDebounce;
+    private DispatcherTimer? _itemSearchDebounce;
+    private DispatcherTimer? _saveDebounce;
+    private int _saveGeneration;
+    private bool _liveUpdatesEnabled;
 
     private enum WowWtfScanMode
     {
@@ -81,13 +87,7 @@ public partial class CartoViewModel : ObservableObject
         Timers = new ObservableCollection<MapTimer>(_data.Timers);
 
         _cooldownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _cooldownTimer.Tick += (_, _) =>
-        {
-            SecondTick?.Invoke(this, EventArgs.Empty);
-            CheckTimerAlerts();
-            CheckCooldownNotifications();
-        };
-        _cooldownTimer.Start();
+        _cooldownTimer.Tick += OnLiveUpdateTick;
 
         ApplyFilters();
         CharacterSyncGoldConverter.Vm = this;
@@ -492,10 +492,9 @@ public partial class CartoViewModel : ObservableObject
             var loaded = await ScanWowFromWtfAtStartupAsync().ConfigureAwait(false);
             if (loaded)
             {
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    IsRosterOpen = true;
-                }, DispatcherPriority.Normal);
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(
+                    OpenDefaultCartoSidePanel,
+                    DispatcherPriority.Normal);
             }
         }
         else
@@ -562,8 +561,10 @@ public partial class CartoViewModel : ObservableObject
     [ObservableProperty]
     private string _filterName = string.Empty;
 
+    public const double DefaultMapZoom = 1.4;
+
     [ObservableProperty]
-    private double _mapZoom = 1.0;
+    private double _mapZoom = DefaultMapZoom;
 
     [ObservableProperty]
     private double _mapOffsetX;
@@ -602,7 +603,7 @@ public partial class CartoViewModel : ObservableObject
     private bool _isRosterOpen;
 
     [ObservableProperty]
-    private bool _isCooldownRosterOpen;
+    private bool _isCooldownRosterOpen = true;
 
     /// <summary>Volet détail personnage (remplace la popup).</summary>
     [ObservableProperty]
@@ -625,7 +626,7 @@ public partial class CartoViewModel : ObservableObject
 
     public ObservableCollection<WowItemSearchResult> ItemSearchResults { get; } = [];
 
-    partial void OnItemSearchQueryChanged(string value) => UpdateItemSearch();
+    partial void OnItemSearchQueryChanged(string value) => ScheduleItemSearchUpdate();
 
     partial void OnRightPanelModeChanged(CartoRightPanelMode value)
     {
@@ -724,6 +725,57 @@ public partial class CartoViewModel : ObservableObject
         OnPropertyChanged(nameof(ItemSearchResults));
     }
 
+    /// <summary>Active le tick 1 Hz (onglet Carto uniquement).</summary>
+    public void SetLiveUpdatesEnabled(bool enabled)
+    {
+        if (_liveUpdatesEnabled == enabled)
+            return;
+
+        _liveUpdatesEnabled = enabled;
+        if (enabled)
+            _cooldownTimer.Start();
+        else
+            _cooldownTimer.Stop();
+    }
+
+    private void OnLiveUpdateTick(object? sender, EventArgs e)
+    {
+        SecondTick?.Invoke(this, EventArgs.Empty);
+        CheckTimerAlerts();
+        if (IsCooldownRosterOpen || IsCharacterDetailOpen)
+            CheckCooldownNotifications();
+    }
+
+    private void ScheduleFilterApply()
+    {
+        _filterNameDebounce ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        _filterNameDebounce.Stop();
+        _filterNameDebounce.Tick -= FilterNameDebounce_Tick;
+        _filterNameDebounce.Tick += FilterNameDebounce_Tick;
+        _filterNameDebounce.Start();
+    }
+
+    private void FilterNameDebounce_Tick(object? sender, EventArgs e)
+    {
+        _filterNameDebounce?.Stop();
+        ApplyFilters();
+    }
+
+    private void ScheduleItemSearchUpdate()
+    {
+        _itemSearchDebounce ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(280) };
+        _itemSearchDebounce.Stop();
+        _itemSearchDebounce.Tick -= ItemSearchDebounce_Tick;
+        _itemSearchDebounce.Tick += ItemSearchDebounce_Tick;
+        _itemSearchDebounce.Start();
+    }
+
+    private void ItemSearchDebounce_Tick(object? sender, EventArgs e)
+    {
+        _itemSearchDebounce?.Stop();
+        UpdateItemSearch();
+    }
+
     [ObservableProperty]
     private int _newTimerHours;
 
@@ -758,7 +810,7 @@ public partial class CartoViewModel : ObservableObject
     partial void OnFilterLevelMinChanged(int? value) => ApplyFilters();
     partial void OnFilterLevelMaxChanged(int? value) => ApplyFilters();
     partial void OnFilterAccountIdChanged(string? value) => ApplyFilters();
-    partial void OnFilterNameChanged(string value) => ApplyFilters();
+    partial void OnFilterNameChanged(string value) => ScheduleFilterApply();
     partial void OnFilterStatusChanged(CharacterStatus? value) => ApplyFilters();
 
     partial void OnSelectedCharacterChanged(WowCharacter? value)
@@ -836,7 +888,7 @@ public partial class CartoViewModel : ObservableObject
     public void ToggleUserMapVisibility(CartoUser user)
     {
         user.IsRosterSubtreeHidden = !user.IsRosterSubtreeHidden;
-        Save();
+        SaveVisibilityState();
         ApplyFilters();
         OnPropertyChanged(nameof(OverlayChanged));
     }
@@ -844,7 +896,7 @@ public partial class CartoViewModel : ObservableObject
     public void ToggleAccountMapVisibility(WowAccount account)
     {
         account.IsHidden = !account.IsHidden;
-        Save();
+        SaveVisibilityState();
         ApplyFilters();
         OnPropertyChanged(nameof(OverlayChanged));
     }
@@ -853,7 +905,7 @@ public partial class CartoViewModel : ObservableObject
     {
         var policy = GetCategoryPolicy(user.Id, category);
         policy.IsRosterSubtreeHidden = !policy.IsRosterSubtreeHidden;
-        Save();
+        SaveVisibilityState();
         ApplyFilters();
         OnPropertyChanged(nameof(OverlayChanged));
     }
@@ -956,12 +1008,13 @@ public partial class CartoViewModel : ObservableObject
         }
     }
 
-    public void RefreshRosterTree(Func<string, bool, bool>? resolveExpanded = null)
+    public void RefreshRosterTree(Func<string, bool, bool>? resolveExpanded = null, bool requestViewRefresh = true)
     {
         EnsureAccountsAssignedToDefaultUser();
         CartoRosterTreeBuilder.Rebuild(this, RosterTreeRoots, resolveExpanded);
         OnPropertyChanged(nameof(RosterTreeRoots));
-        RosterRefreshRequested?.Invoke(this, EventArgs.Empty);
+        if (requestViewRefresh)
+            RosterRefreshRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public string? GetDefaultUserId() =>
@@ -1696,10 +1749,9 @@ public partial class CartoViewModel : ObservableObject
             var accountSettings = _data.AccountSettings;
             var (scan, syncAccounts, placements) = await Task.Run(() =>
             {
-                var diagnostics = _wowSyncService.GetScanDiagnostics(gameRoot);
-                var accounts = _wowSyncService.ReadAllAccounts(accountSettings, gameRoot);
-                var computed = CartoMapPositionPrecompute.ComputeForAccounts(accounts);
-                return (diagnostics, accounts, computed);
+                var read = _wowSyncService.ReadAllAccountsWithDiagnostics(accountSettings, gameRoot);
+                var computed = CartoMapPositionPrecompute.ComputeForAccounts(read.Accounts);
+                return (read.Diagnostics, read.Accounts, computed);
             }).ConfigureAwait(true);
 
             ApplyWowSyncScanResults(scan, syncAccounts, placements);
@@ -1707,8 +1759,6 @@ public partial class CartoViewModel : ObservableObject
 
             var localCount = Characters.Count;
             AddonStatusText = BuildWowSyncStatusText(scan, _wowSyncService.ListWtfAccountFolderNames(), localCount);
-            if (localCount > 0)
-                IsRosterOpen = true;
             return localCount > 0;
         }
         catch (Exception ex)
@@ -1759,10 +1809,18 @@ public partial class CartoViewModel : ObservableObject
         CharactersRescanned?.Invoke(this, EventArgs.Empty);
 
         if (localCount > 0)
-        {
-            IsCooldownRosterOpen = false;
-            IsRosterOpen = true;
-        }
+            OpenDefaultCartoSidePanel();
+    }
+
+    /// <summary>Volet par défaut à l'ouverture Carto : cooldowns (pas la liste personnages).</summary>
+    public void OpenDefaultCartoSidePanel()
+    {
+        IsCooldownRosterOpen = true;
+        IsRosterOpen = false;
+        IsItemSearchOpen = false;
+        IsTimersPanelOpen = false;
+        IsZonesPanelOpen = false;
+        IsSettingsPanelOpen = false;
     }
 
     private static string BuildWowSyncStatusText(
@@ -2085,8 +2143,6 @@ public partial class CartoViewModel : ObservableObject
 
             if (!string.IsNullOrWhiteSpace(cfg.DisplayName))
                 account.Name = cfg.DisplayName;
-
-            account.IsHidden = false;
         }
     }
 
@@ -2370,6 +2426,13 @@ public partial class CartoViewModel : ObservableObject
 
     public static bool IsDefaultCartoUser(CartoUser user) =>
         user.Name.Equals(CartoUserMigration.DefaultUserName, StringComparison.OrdinalIgnoreCase);
+
+    public bool IsCharacterOwnedByDefaultUser(WowCharacter ch)
+    {
+        var moiId = GetDefaultUserId();
+        return moiId != null
+               && string.Equals(GetUserIdForCharacter(ch), moiId, StringComparison.OrdinalIgnoreCase);
+    }
 
     public string? GetCharacterSyncLabel(WowCharacter ch)
     {
@@ -2718,6 +2781,9 @@ public partial class CartoViewModel : ObservableObject
     {
         foreach (var character in Characters)
         {
+            if (!IsCharacterOwnedByDefaultUser(character))
+                continue;
+
             foreach (var cd in character.Cooldowns)
             {
                 if (cd.LastUsed == null || !cd.IsReady) continue;
@@ -2835,12 +2901,48 @@ public partial class CartoViewModel : ObservableObject
         Save();
     }
 
-    public void Save()
+    public void Save() => ScheduleSave();
+
+    public void SaveNow()
     {
+        _saveDebounce?.Stop();
+        Interlocked.Increment(ref _saveGeneration);
         PersistDataBeforeSave();
         AccountIdToNameConverter.Accounts = [.. Accounts];
         CharacterSyncGoldConverter.Vm = this;
         _cartoService.Save(BuildDiskSnapshot());
+    }
+
+    private void SaveVisibilityState() => SaveNow();
+
+    private void ScheduleSave()
+    {
+        _saveDebounce ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
+        _saveDebounce.Stop();
+        _saveDebounce.Tick -= SaveDebounce_Tick;
+        _saveDebounce.Tick += SaveDebounce_Tick;
+        _saveDebounce.Start();
+    }
+
+    private void SaveDebounce_Tick(object? sender, EventArgs e)
+    {
+        _saveDebounce?.Stop();
+        FlushSaveToDisk();
+    }
+
+    private void FlushSaveToDisk()
+    {
+        PersistDataBeforeSave();
+        AccountIdToNameConverter.Accounts = [.. Accounts];
+        CharacterSyncGoldConverter.Vm = this;
+        var snapshot = BuildDiskSnapshot();
+        var generation = Interlocked.Increment(ref _saveGeneration);
+        _ = Task.Run(() =>
+        {
+            if (generation != Volatile.Read(ref _saveGeneration))
+                return;
+            _cartoService.Save(snapshot);
+        });
     }
 
     private CartoData BuildDiskSnapshot() => new()
@@ -2865,7 +2967,7 @@ public partial class CartoViewModel : ObservableObject
         ApplyFilters();
         OnPropertyChanged(nameof(FilteredCharacters));
         OnPropertyChanged(nameof(OverlayChanged));
-        Save();
+        SaveVisibilityState();
     }
 
     [RelayCommand]

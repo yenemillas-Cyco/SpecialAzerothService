@@ -186,8 +186,8 @@
                             Click="MapZoomIn_Click" ToolTip="Zoom avant (molette vers le haut)"/>
                     <Button Content="－" Style="{DynamicResource StoneButton}" FontSize="12" Padding="8,4" Margin="0,0,2,0"
                             Click="MapZoomOut_Click" ToolTip="Zoom arrière (molette vers le bas)"/>
-                    <Button Content="Centrer" Style="{DynamicResource StoneButton}" FontSize="10" Padding="8,4" Margin="0,0,6,0"
-                            Click="MapResetView_Click" ToolTip="Vue d'ensemble — carte entière centrée"/>
+                    <Button Content="Réinitialiser" Style="{DynamicResource StoneButton}" FontSize="10" Padding="8,4" Margin="0,0,6,0"
+                            Click="MapResetView_Click" ToolTip="Zoom ×1.4 et coin haut-gauche"/>
                     <TextBlock Text="{Binding MapZoom, StringFormat='×{0:F1}'}" FontSize="10"
                                Foreground="{DynamicResource SubtextBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
 

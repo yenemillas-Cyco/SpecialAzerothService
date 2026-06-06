@@ -214,7 +214,7 @@ public partial class CartoView
         return (dims.TotalWidth, dims.TotalHeight, padX, padY);
     }
 
-    /// <summary>Zoom pour afficher la carte entière dans la zone visible (une fois la taille connue).</summary>
+    /// <summary>Zoom initial Carto ×1.4, coin haut-gauche (pas de centrage).</summary>
     private void TryApplyInitialMapFit()
     {
         if (Vm == null || MapBorder == null)
@@ -222,7 +222,6 @@ public partial class CartoView
 
         ApplyMapContentLayout();
 
-        var (mapW, mapH, padX, padY) = GetMapContentFrameMetrics();
         var viewportH = MapBorder.ActualHeight;
         var viewportW = MapBorder.ActualWidth;
 
@@ -235,23 +234,14 @@ public partial class CartoView
 
         _pendingInitialMapFit = false;
 
-        var availW = Math.Max(1, viewportW - padX);
-        var availH = Math.Max(1, viewportH - padY);
-        const double fitInset = 0.98;
-
-        var zoomH = (availH / mapH) * fitInset;
-        var zoomW = (availW / mapW) * fitInset;
-        var fitZoom = Math.Min(zoomH, zoomW);
-
-        if (fitZoom <= 0 || double.IsNaN(fitZoom) || double.IsInfinity(fitZoom))
-            fitZoom = 0.45;
-
-        Vm.MapZoom = Math.Clamp(fitZoom, CartoViewModel.MinMapZoom, CartoViewModel.MaxMapZoom);
+        Vm.MapZoom = Math.Clamp(
+            CartoViewModel.DefaultMapZoom,
+            CartoViewModel.MinMapZoom,
+            CartoViewModel.MaxMapZoom);
         Vm.MapOffsetX = 0;
         Vm.MapOffsetY = 0;
         MapScroll?.ScrollToHorizontalOffset(0);
         MapScroll?.ScrollToVerticalOffset(0);
-        Dispatcher.BeginInvoke(CenterMapInScrollViewer, DispatcherPriority.Loaded);
     }
 
     private void FinishCartoInitOnUi()

@@ -20,6 +20,23 @@ public sealed class WowCharacterData
     public int Level { get; set; }
     /// <summary>Pourcentage XP vers prochain niveau (0–100), fourni par l'addon.</summary>
     public double XpPercent { get; set; } = -1;
+
+    /// <summary>ID interne WoW (<see cref="UnitPVPRank"/>), 5–18 ou 0.</summary>
+    public int PvpRankId { get; set; }
+
+    /// <summary>Rang JcJ affiché (1–14), 0 si non classé.</summary>
+    public int PvpRank { get; set; }
+
+    /// <summary>Nom localisé du rang (ex. « Sergent »).</summary>
+    public string PvpRankName { get; set; } = "";
+
+    /// <summary>Progression vers le rang suivant (0–100), -1 si indisponible.</summary>
+    public double PvpRankProgress { get; set; } = -1;
+
+    /// <summary>Rang affiché (1–14), avec repli sur <see cref="PvpRankId"/> si besoin.</summary>
+    public int DisplayPvpRank => PvpRank > 0 ? PvpRank : PvpRankId >= 5 ? PvpRankId - 4 : 0;
+
+    public bool HasPvpRank => DisplayPvpRank > 0;
     public string Class { get; set; } = "";
     public string Race { get; set; } = "";
     public long Gold { get; set; }

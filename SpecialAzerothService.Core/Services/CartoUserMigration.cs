@@ -100,7 +100,6 @@ public static class CartoUserMigration
         ReindexUsers(data);
         MigrateRerollIntoMain(data);
         CleanupAccounts(data);
-        ClearObsoleteRosterVisibilityFlags(data);
     }
 
     /// <summary>La visibilité carte est par personnage (<see cref="WowCharacter.IsHidden"/>) ; ces flags ne filtrent plus le roster.</summary>

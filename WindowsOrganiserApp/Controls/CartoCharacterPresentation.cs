@@ -21,6 +21,7 @@ public static class CartoCharacterPresentation
     public static readonly Brush ZoneBrush = new SolidColorBrush(Color.FromRgb(140, 200, 170));
     public static readonly Brush NoteBrush = new SolidColorBrush(Color.FromRgb(200, 195, 175));
     public static readonly Brush DimBrush = new SolidColorBrush(Color.FromRgb(150, 142, 125));
+    public static readonly Brush PvpRankYellowBrush = new SolidColorBrush(Color.FromRgb(255, 214, 0));
     public static bool IsPersonnagesCategory(CharacterStatus status) =>
         status is CharacterStatus.Main or CharacterStatus.Reroll;
 
@@ -87,6 +88,9 @@ public static class CartoCharacterPresentation
         public bool ShowQuestIcons { get; init; }
         public int QuestIconSize { get; init; } = 22;
         public bool ShowAccountName { get; init; } = true;
+        /// <summary>Rang JcJ sur la ligne nom (roster personnages uniquement).</summary>
+        public bool ShowPvpRankOnNameLine { get; init; }
+        public bool ShowXpOnNameLine { get; init; }
         public bool ShowCooldownBarsOnPortrait { get; init; }
     }
 
@@ -131,18 +135,23 @@ public static class CartoCharacterPresentation
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         }
 
-        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
+        var pvpLine = options.ShowPvpRankOnNameLine
+            ? BuildPvpRankProminentLine(sync, options.LevelFontSize + 1)
+            : null;
         var metaLine = BuildSyncZoneLine(ch, vm, options);
+
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        if (pvpLine != null)
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         if (metaLine != null)
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var rowSpan = metaLine != null ? 2 : 1;
+        var textRowCount = 1 + (pvpLine != null ? 1 : 0) + (metaLine != null ? 1 : 0);
 
         var iconColumn = BuildClassIconColumn(ch, options.IconWidth, options.ShowCooldownBarsOnPortrait, sync);
         Grid.SetRow(iconColumn, 0);
         Grid.SetColumn(iconColumn, 0);
-        Grid.SetRowSpan(iconColumn, rowSpan);
+        Grid.SetRowSpan(iconColumn, textRowCount);
         grid.Children.Add(iconColumn);
 
         var nameLine = new TextBlock
@@ -170,14 +179,26 @@ public static class CartoCharacterPresentation
             });
         }
 
-        AppendXpToNameLine(nameLine, vm.GetCharacterXpPercent(ch), ch.Level);
-        Grid.SetRow(nameLine, 0);
+        if (options.ShowXpOnNameLine)
+            AppendXpToNameLine(nameLine, vm.GetCharacterXpPercent(ch), ch.Level);
+
+        var textRow = 0;
+        Grid.SetRow(nameLine, textRow);
         Grid.SetColumn(nameLine, 1);
         grid.Children.Add(nameLine);
 
+        if (pvpLine != null)
+        {
+            textRow++;
+            Grid.SetRow(pvpLine, textRow);
+            Grid.SetColumn(pvpLine, 1);
+            grid.Children.Add(pvpLine);
+        }
+
         if (metaLine != null)
         {
-            Grid.SetRow(metaLine, 1);
+            textRow++;
+            Grid.SetRow(metaLine, textRow);
             Grid.SetColumn(metaLine, 1);
             grid.Children.Add(metaLine);
         }
@@ -186,7 +207,7 @@ public static class CartoCharacterPresentation
         {
             Grid.SetRow(questContent!, 0);
             Grid.SetColumn(questContent!, questCol);
-            Grid.SetRowSpan(questContent!, rowSpan);
+            Grid.SetRowSpan(questContent!, textRowCount);
             questContent!.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
             questContent.SetValue(FrameworkElement.MarginProperty, new Thickness(8, 0, hasActions ? 6 : 0, 0));
             grid.Children.Add(questContent);
@@ -196,7 +217,7 @@ public static class CartoCharacterPresentation
         {
             Grid.SetRow(actionsContent!, 0);
             Grid.SetColumn(actionsContent!, actionsCol);
-            Grid.SetRowSpan(actionsContent!, rowSpan);
+            Grid.SetRowSpan(actionsContent!, textRowCount);
             actionsContent!.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
             actionsContent.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Right);
             actionsContent.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 0, 0));
@@ -545,6 +566,37 @@ public static class CartoCharacterPresentation
         return line;
     }
 
+    public static string FormatPvpRankLabel(WowCharacterData sync) =>
+        $"Grade {sync.DisplayPvpRank}";
+
+    public static UIElement? BuildPvpRankProminentLine(WowCharacterData? sync, double fontSize = 14)
+    {
+        if (sync is not { HasPvpRank: true })
+            return null;
+
+        return new TextBlock
+        {
+            Text = FormatPvpRankLabel(sync),
+            FontSize = fontSize,
+            FontWeight = FontWeights.Bold,
+            Foreground = PvpRankYellowBrush,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            Margin = new Thickness(0, 2, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = BuildPvpRankTooltip(sync)
+        };
+    }
+
+    private static string BuildPvpRankTooltip(WowCharacterData sync)
+    {
+        var rank = sync.DisplayPvpRank;
+        var rankName = string.IsNullOrWhiteSpace(sync.PvpRankName) ? null : sync.PvpRankName.Trim();
+        var tip = rankName != null ? $"{rankName} — Grade {rank}" : FormatPvpRankLabel(sync);
+        if (rank < 14 && sync.PvpRankProgress is >= 0)
+            tip += $" ({sync.PvpRankProgress:F1} % vers grade {rank + 1})";
+        return tip;
+    }
+
     public static void AppendXpToNameLine(TextBlock line, double? xpPercent, int level)
     {
         if (level >= 60 || xpPercent is not >= 0)
@@ -555,6 +607,137 @@ public static class CartoCharacterPresentation
             FontSize = 10,
             Foreground = new SolidColorBrush(Color.FromRgb(180, 220, 255))
         });
+    }
+
+    public static Brush GetPvpRankAccentBrush(int rank)
+    {
+        var color = rank switch
+        {
+            >= 11 => Color.FromRgb(255, 204, 51),
+            >= 6 => Color.FromRgb(196, 196, 210),
+            _ => Color.FromRgb(176, 132, 88)
+        };
+        return new SolidColorBrush(color);
+    }
+
+    public static Border BuildPvpRankBadge(int rank, double portraitSize = 40)
+    {
+        var fontSize = portraitSize >= 56 ? 12.0 : portraitSize >= 40 ? 10.0 : 8.0;
+        return new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(230, 28, 18, 12)),
+            BorderBrush = GetPvpRankAccentBrush(rank),
+            BorderThickness = new Thickness(1.2),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(3, 1, 3, 1),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, -3, -3),
+            ToolTip = $"Rang JcJ {rank}",
+            Child = new TextBlock
+            {
+                Text = rank.ToString(CultureInfo.InvariantCulture),
+                FontSize = fontSize,
+                FontWeight = FontWeights.Bold,
+                Foreground = GetPvpRankAccentBrush(rank),
+                TextAlignment = TextAlignment.Center
+            }
+        };
+    }
+
+    public static UIElement? BuildPvpRankDetailPanel(WowCharacterData? sync)
+    {
+        if (sync is not { HasPvpRank: true })
+            return null;
+
+        var rank = sync.DisplayPvpRank;
+        var rankName = string.IsNullOrWhiteSpace(sync.PvpRankName) ? null : sync.PvpRankName.Trim();
+        var root = new StackPanel();
+
+        var prominent = BuildPvpRankProminentLine(sync, 17);
+        if (prominent != null)
+            root.Children.Add(prominent);
+
+        if (rankName != null)
+        {
+            root.Children.Add(new TextBlock
+            {
+                Text = rankName,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = PvpRankYellowBrush,
+                Margin = new Thickness(0, 4, 0, 0),
+                TextWrapping = TextWrapping.Wrap
+            });
+        }
+
+        if (rank < 14 && sync.PvpRankProgress is >= 0 and <= 100)
+        {
+            root.Children.Add(new ProgressBar
+            {
+                Value = sync.PvpRankProgress,
+                Minimum = 0,
+                Maximum = 100,
+                Height = 10,
+                Margin = new Thickness(0, 8, 0, 4),
+                Foreground = PvpRankYellowBrush,
+                Background = new SolidColorBrush(Color.FromArgb(90, 0, 0, 0)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(80, 255, 255, 255)),
+                BorderThickness = new Thickness(1)
+            });
+
+            root.Children.Add(new TextBlock
+            {
+                Text = $"Progression vers grade {rank + 1} : {sync.PvpRankProgress:F1} %",
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(210, 200, 170))
+            });
+        }
+
+        return new Border
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Background = new SolidColorBrush(Color.FromArgb(56, 48, 28, 12)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(120, 255, 196, 64)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(10, 8, 10, 8),
+            Child = root
+        };
+    }
+
+    public static UIElement? BuildCharacterLocationSection(string? zoneLabel, string? positionText)
+    {
+        if (string.IsNullOrWhiteSpace(zoneLabel) && string.IsNullOrWhiteSpace(positionText))
+            return null;
+
+        var panel = new StackPanel();
+        if (!string.IsNullOrWhiteSpace(zoneLabel))
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = zoneLabel.Trim(),
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = ZoneBrush,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(positionText))
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = positionText.Trim(),
+                FontSize = 10,
+                Foreground = ZoneBrush,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, zoneLabel != null ? 3 : 0, 0, 0),
+                Opacity = 0.9
+            });
+        }
+
+        return panel;
     }
 
     private static string FormatTimeRemaining(TimeSpan? ts)

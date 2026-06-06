@@ -55,6 +55,8 @@ public static class CartoCharacterDockCard
                 IconWidth = 40,
                 ShowZone = false,
                 ShowSyncDate = false,
+                ShowAccountName = false,
+                ShowPvpRankOnNameLine = !options.CooldownRosterOnly,
                 ShowCooldownBarsOnPortrait = false,
                 ShowQuestIcons = !options.CooldownRosterOnly && CartoCharacterPresentation.ShowQuestBody(ch),
                 QuestIconSize = 22

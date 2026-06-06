@@ -219,7 +219,8 @@ public static class CartoRosterPanelUi
         {
             Background = accent,
             CornerRadius = new CornerRadius(2),
-            Margin = new Thickness(0, 2, 6, 2)
+            Margin = new Thickness(0, 2, 6, 2),
+            IsHitTestVisible = false
         };
         Grid.SetColumn(stripe, 0);
         grid.Children.Add(stripe);
@@ -230,7 +231,8 @@ public static class CartoRosterPanelUi
             FontSize = 12,
             Foreground = accent,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 4, 0)
+            Margin = new Thickness(0, 0, 4, 0),
+            IsHitTestVisible = false
         };
         Grid.SetColumn(glyph, 1);
         grid.Children.Add(glyph);
@@ -241,7 +243,8 @@ public static class CartoRosterPanelUi
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
             Foreground = accent,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
+            IsHitTestVisible = false
         };
         Grid.SetColumn(titleBlock, 2);
         grid.Children.Add(titleBlock);
@@ -249,6 +252,7 @@ public static class CartoRosterPanelUi
         var right = BuildTitleRightRail(totalGoldCopper, visibilityToggle);
         if (right != null)
         {
+            MakeHeaderPassthroughExcept(right, visibilityToggle);
             Grid.SetColumn(right, 3);
             grid.Children.Add(right);
         }
@@ -298,6 +302,23 @@ public static class CartoRosterPanelUi
         }
 
         return StretchWidth(grid);
+    }
+
+    /// <summary>Laisse le clic atteindre l'expander ; seul le bouton œil reste interactif.</summary>
+    private static void MakeHeaderPassthroughExcept(UIElement root, UIElement? interactive)
+    {
+        if (ReferenceEquals(root, interactive))
+            return;
+
+        if (root is Panel panel)
+        {
+            foreach (UIElement child in panel.Children)
+                MakeHeaderPassthroughExcept(child, interactive);
+        }
+
+        root.IsHitTestVisible = false;
+        if (interactive != null)
+            interactive.IsHitTestVisible = true;
     }
 
     private static UIElement? BuildTitleRightRail(long totalGoldCopper, UIElement? visibilityToggle)

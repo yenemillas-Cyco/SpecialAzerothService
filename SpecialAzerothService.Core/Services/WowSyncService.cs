@@ -17,8 +17,17 @@ public interface IWowSyncService
         IReadOnlyDictionary<string, CartoAccountConfig>? accountSettings = null,
         string? gameRoot = null);
 
+    WowSyncReadResult ReadAllAccountsWithDiagnostics(
+        IReadOnlyDictionary<string, CartoAccountConfig>? accountSettings = null,
+        string? gameRoot = null);
+
     WowSyncScanDiagnostics GetScanDiagnostics(string? gameRoot = null);
 }
+
+/// <summary>Lecture WTF en une passe (comptes + diagnostic).</summary>
+public sealed record WowSyncReadResult(
+    List<WowAccountData> Accounts,
+    WowSyncScanDiagnostics Diagnostics);
 
 /// <summary>Résultat du scan WTF / WowSync.lua (diagnostic affiché dans l'UI).</summary>
 public sealed record WowSyncScanDiagnostics(
@@ -30,7 +39,7 @@ public sealed record WowSyncScanDiagnostics(
 
 public sealed class WowSyncService : IWowSyncService
 {
-    public const string AddonVersionValue = "1.4.0";
+    public const string AddonVersionValue = "1.5.0";
     public string AddonVersion => AddonVersionValue;
 
     private readonly ISettingsService _settingsService;
@@ -86,12 +95,21 @@ public sealed class WowSyncService : IWowSyncService
 
     public List<WowAccountData> ReadAllAccounts(
         IReadOnlyDictionary<string, CartoAccountConfig>? accountSettings = null,
+        string? gameRoot = null) =>
+        ReadAllAccountsWithDiagnostics(accountSettings, gameRoot).Accounts;
+
+    public WowSyncReadResult ReadAllAccountsWithDiagnostics(
+        IReadOnlyDictionary<string, CartoAccountConfig>? accountSettings = null,
         string? gameRoot = null)
     {
+        var issues = new List<string>();
         var accounts = new List<WowAccountData>();
         var root = string.IsNullOrWhiteSpace(gameRoot) ? WowPath : WowInstallPaths.NormalizeStoredPath(gameRoot);
         if (!WowInstallPaths.TryGetWtfAccountDirectory(root, out var wtfPath))
-            return accounts;
+        {
+            issues.Add(WowInstallPaths.GetValidationError(root));
+            return new WowSyncReadResult(accounts, new WowSyncScanDiagnostics("", 0, 0, 0, issues));
+        }
 
         IReadOnlyDictionary<string, CartoAccountConfig> settings;
         if (accountSettings != null)
@@ -103,10 +121,14 @@ public sealed class WowSyncService : IWowSyncService
             settings = carto.AccountSettings ?? new Dictionary<string, CartoAccountConfig>(StringComparer.OrdinalIgnoreCase);
         }
 
+        var accountFolders = WowWtfAccountScanner.ListAccountFolderNames(wtfPath);
         var byAccount = new Dictionary<string, WowAccountData>(StringComparer.OrdinalIgnoreCase);
+        var luaFiles = 0;
+        var charCount = 0;
 
         foreach (var entry in WowWtfAccountScanner.FindWowSyncLuaFiles(wtfPath))
         {
+            luaFiles++;
             if (!byAccount.TryGetValue(entry.AccountFolder, out var account))
             {
                 account = new WowAccountData
@@ -122,8 +144,12 @@ public sealed class WowSyncService : IWowSyncService
                 var parsed = LuaTableParser.ParseFile(entry.FilePath);
                 if (!parsed.TryGetValue("WowSyncDB", out var dbObj)
                     || dbObj is not Dictionary<string, object?> db)
+                {
+                    issues.Add($"{entry.FilePath} : pas de table WowSyncDB (jouez + /wowsync + déconnexion).");
                     continue;
+                }
 
+                var inFile = 0;
                 foreach (var (charKey, charValue) in db)
                 {
                     if (charValue is not Dictionary<string, object?> charData) continue;
@@ -133,13 +159,29 @@ public sealed class WowSyncService : IWowSyncService
                     var ch = ParseCharacter(charData);
                     ch.StorageKey = charKey.Trim();
                     MergeCharacterIntoAccount(account, ch);
+                    inFile++;
                 }
+
+                charCount += inFile;
+                if (inFile == 0)
+                    issues.Add($"{entry.FilePath} : WowSync.lua vide.");
             }
-            catch { /* skip corrupted files */ }
+            catch (Exception ex)
+            {
+                issues.Add($"{entry.FilePath} : illisible ({ex.Message}).");
+            }
         }
 
+        if (accountFolders.Count == 0)
+            issues.Add("Aucun compte dans WTF — lancez Classic Era une fois sur ce PC.");
+        else if (luaFiles == 0)
+            issues.Add(
+                $"Aucun WowSync.lua sous {wtfPath} — déployez l'addon, /reload en jeu, /wowsync, puis déconnectez-vous.");
+
         accounts.AddRange(byAccount.Values.Where(a => a.Characters.Count > 0));
-        return accounts;
+        return new WowSyncReadResult(
+            accounts,
+            new WowSyncScanDiagnostics(wtfPath, accountFolders.Count, luaFiles, charCount, issues));
     }
 
     private static void MergeCharacterIntoAccount(WowAccountData account, WowCharacterData incoming)
@@ -242,7 +284,11 @@ public sealed class WowSyncService : IWowSyncService
             X = LuaTableParser.GetDouble(d, "x"),
             Y = LuaTableParser.GetDouble(d, "y"),
             MapId = LuaTableParser.GetInt(d, "mapId"),
-            LastUpdate = LuaTableParser.GetString(d, "lastUpdate")
+            LastUpdate = LuaTableParser.GetString(d, "lastUpdate"),
+            PvpRankId = LuaTableParser.GetInt(d, "pvpRankId"),
+            PvpRank = LuaTableParser.GetInt(d, "pvpRank"),
+            PvpRankName = LuaTableParser.GetString(d, "pvpRankName"),
+            PvpRankProgress = LuaTableParser.GetDouble(d, "pvpRankProgress", -1)
         };
 
         var profs = LuaTableParser.GetTable(d, "professions");
@@ -418,7 +464,7 @@ public sealed class WowSyncService : IWowSyncService
 
     private const string LuaContent =
         """
-        local WOWSYNC_VERSION = "1.4.0"
+        local WOWSYNC_VERSION = "1.5.0"
         local WOWSYNC_DEBUG = false
         local function WSLog(msg)
             if WOWSYNC_DEBUG then print(msg) end
@@ -904,6 +950,45 @@ public sealed class WowSyncService : IWowSyncService
             return ScanContainer(0, 4)
         end
 
+        local function ApplyPvpRankFields(entry)
+            if not entry or not UnitPVPRank then return end
+            local rankId = UnitPVPRank("player") or 0
+            if rankId <= 0 then
+                entry.pvpRankId = 0
+                entry.pvpRank = 0
+                entry.pvpRankName = ""
+                entry.pvpRankProgress = -1
+                return
+            end
+            local rankName, rankNumber = "", 0
+            if GetPVPRankInfo then
+                local faction = (UnitFactionGroup and UnitFactionGroup("player") == "Alliance") and 1 or 0
+                local ok, n, num = pcall(function()
+                    return GetPVPRankInfo(rankId, faction)
+                end)
+                if ok then
+                    rankName = n or ""
+                    rankNumber = num or 0
+                end
+            end
+            if rankNumber <= 0 and rankId >= 5 then
+                rankNumber = rankId - 4
+            end
+            entry.pvpRankId = rankId
+            entry.pvpRank = rankNumber
+            entry.pvpRankName = rankName
+            if GetPVPRankProgress then
+                local ok, progress = pcall(GetPVPRankProgress)
+                if ok and progress then
+                    entry.pvpRankProgress = progress * 100
+                else
+                    entry.pvpRankProgress = -1
+                end
+            else
+                entry.pvpRankProgress = -1
+            end
+        end
+
         local function SaveLiveSnapshot(scanBags)
             local key = GetCharKey()
             local prev = WowSyncDB[key] or {}
@@ -950,6 +1035,7 @@ public sealed class WowSyncService : IWowSyncService
                 local xp, maxXp = UnitXP("player"), UnitXPMax("player")
                 entry.xpPercent = (maxXp and maxXp > 0) and (xp / maxXp * 100) or -1
             end
+            ApplyPvpRankFields(entry)
 
             if scanBags then
                 local inv = ScanInventory()
@@ -1093,6 +1179,7 @@ public sealed class WowSyncService : IWowSyncService
                 end)()
             }
             WowSyncDB[key] = entry
+            ApplyPvpRankFields(entry)
             entry.syncMeta = entry.syncMeta or {}
             if #inv > 0 then
                 TouchSync(key, "inventory")
@@ -1166,13 +1253,15 @@ public sealed class WowSyncService : IWowSyncService
         frame:RegisterEvent("TRADE_SKILL_SHOW")
         frame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
         frame:RegisterEvent("BAG_UPDATE_DELAYED")
+        frame:RegisterEvent("PLAYER_PVP_RANK_CHANGED")
 
         frame:SetScript("OnEvent", function(self, event)
             if event == "PLAYER_ENTERING_WORLD" then
                 pendingLogin = true
                 loginTimer = 0
             elseif event == "PLAYER_MONEY" or event == "ZONE_CHANGED"
-                or event == "ZONE_CHANGED_INDOORS" or event == "ZONE_CHANGED_NEW_AREA" then
+                or event == "ZONE_CHANGED_INDOORS" or event == "ZONE_CHANGED_NEW_AREA"
+                or event == "PLAYER_PVP_RANK_CHANGED" then
                 SaveLiveSnapshot(false)
             elseif event == "BANKFRAME_OPENED" then
                 bankOpen = true

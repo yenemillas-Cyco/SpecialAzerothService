@@ -71,7 +71,7 @@ public static class CartoCooldownDisplay
         {
             Tag = PanelTag,
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            Margin = new Thickness(0, 4, 0, 4)
+            Margin = new Thickness(0, 2, 0, 0)
         };
         foreach (var cd in cds)
             stack.Children.Add(BuildRosterCooldownRow(cd));
@@ -294,7 +294,8 @@ public static class CartoCooldownDisplay
             CornerRadius = new CornerRadius(RosterTrackHeight / 2),
             Child = trackGrid,
             VerticalAlignment = VerticalAlignment.Center,
-            MinHeight = RosterTrackHeight
+            MinHeight = RosterTrackHeight,
+            Margin = new Thickness(6, 0, 6, 0)
         };
 
         var timeBlock = new TextBlock

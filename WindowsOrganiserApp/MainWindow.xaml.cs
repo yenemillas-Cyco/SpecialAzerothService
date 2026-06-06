@@ -98,6 +98,7 @@ public partial class MainWindow : Window
 
     private void SaveAllSettings()
     {
+        _viewModel.CartoVm?.SaveNow();
         var settings = _viewModel.GetCurrentSettings();
         settings.WindowWidth = Width;
         settings.WindowHeight = Height;
