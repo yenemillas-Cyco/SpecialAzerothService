@@ -68,6 +68,9 @@ public partial class App : Application
             .WriteTo.File(logPath, rollingInterval: Serilog.RollingInterval.Day, retainedFileCountLimit: 7)
             .CreateLogger();
 
+        // Avant DI : reset données locales si schéma < v4 (premier lancement 4.0.0).
+        AppDataBootstrap.Run(Log.Logger);
+
         var services = new ServiceCollection();
         services.AddSingleton<ILogger>(Log.Logger);
         services.AddSingleton<IWindowService, WindowService>();
@@ -173,6 +176,19 @@ public partial class App : Application
         mainWindow.Activate();
         if (mainWindow.WindowState == WindowState.Minimized)
             mainWindow.WindowState = WindowState.Normal;
+
+        if (AppDataBootstrap.DataSchemaMigrationApplied)
+        {
+            MessageBox.Show(
+                mainWindow,
+                "Mise à jour v4.0.0 : votre configuration locale a été réinitialisée pour repartir sur une base propre.\n\n"
+                + "• Effacé : paramètres, roster Carto, primes, listes craft, chemin WoW enregistré\n"
+                + "• Conservé : calibration des zones sur la carte\n\n"
+                + "Dans Carto → Paramètres, indiquez à nouveau le chemin WoW puis lancez un Rescan.",
+                "Configuration réinitialisée",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
 
         await CheckForUpdatesAsync();
     }

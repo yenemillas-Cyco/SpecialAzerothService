@@ -5,11 +5,15 @@ using SpecialAzerothService.Core.Services;
 
 namespace WindowsOrganiserApp.Services;
 
-/// <summary>Migration v4 et préparation des données avant le conteneur DI.</summary>
+/// <summary>Migration schéma données avant le conteneur DI (reset v4 au premier lancement 4.0.0).</summary>
 public static class AppDataBootstrap
 {
+    /// <summary>True si un reset schéma vient d'être appliqué à ce lancement.</summary>
+    public static bool DataSchemaMigrationApplied { get; private set; }
+
     public static void Run(ILogger logger)
     {
+        DataSchemaMigrationApplied = false;
         try
         {
             Directory.CreateDirectory(AppDataPaths.Directory);
@@ -24,6 +28,7 @@ public static class AppDataBootstrap
 
             cartoService.Save(carto);
             settingsService.Save(settings);
+            DataSchemaMigrationApplied = true;
             logger.Information(
                 "Migration données v{Version} appliquée (reset utilisateur).",
                 CartoDataSchemaMigration.CurrentVersion);
