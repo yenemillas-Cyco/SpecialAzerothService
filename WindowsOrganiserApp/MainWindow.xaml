@@ -87,14 +87,7 @@
                             <Run Text="&lt;Special Azeroth Service&gt;"/>
                         </TextBlock>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Button Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
-                                    Command="{Binding RefreshWindowsCommand}" ToolTip="Rafraîchir la liste">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="⟳" FontSize="14" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <TextBlock Text="{DynamicResource Header_Refresh}" FontSize="12" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
-                            <ToggleButton IsChecked="{Binding WowOnly}" Margin="8,0,0,0"
+                            <ToggleButton IsChecked="{Binding WowOnly}" Margin="0,0,0,0"
                                          Style="{DynamicResource StoneToggle}" Padding="8,5" FontSize="10"
                                          Content="{DynamicResource Header_WowOnly}"
                                          ToolTip="Coché : uniquement WoW. Décoché : toutes les fenêtres"/>
@@ -108,6 +101,14 @@
                                       ToolTip="{DynamicResource Lang_Label}"/>
                             <Button Content="{DynamicResource Header_Help}" Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
                                     Click="Help_Click" ToolTip="{DynamicResource Help_Title}" Margin="6,0,0,0"/>
+                            <Button Style="{DynamicResource StoneButton}" FontSize="11" Padding="10,5"
+                                    Click="CartoSettings_Click" ToolTip="Paramètres &amp; WowSync"
+                                    Margin="6,0,0,0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="⚙" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock Text="Paramètres" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             <Button Content="?" Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
                                     Click="About_Click" ToolTip="{DynamicResource About_WindowTitle}" Margin="6,0,0,0"/>
                         </StackPanel>
@@ -346,14 +347,17 @@
                                                     <!-- Layout mode (exclusive — one active at a time) -->
                                                     <WrapPanel HorizontalAlignment="Center" Margin="0,2,0,6">
                                                         <RadioButton Content="▣ Principal" GroupName="{Binding Monitor.DeviceName}"
-                                                                     Style="{DynamicResource StoneRadioToggle}"
-                                                                     IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Main}"/>
+                                                                     Style="{DynamicResource StoneRadioToggle}" Tag="Main"
+                                                                     IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=Main}"
+                                                                     PreviewMouseLeftButtonDown="LayoutModeRadio_PreviewMouseLeftButtonDown"/>
                                                         <RadioButton Content="▥ Frac. V" GroupName="{Binding Monitor.DeviceName}"
-                                                                     Style="{DynamicResource StoneRadioToggle}"
-                                                                     IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=SplitV}"/>
+                                                                     Style="{DynamicResource StoneRadioToggle}" Tag="SplitV"
+                                                                     IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=SplitV}"
+                                                                     PreviewMouseLeftButtonDown="LayoutModeRadio_PreviewMouseLeftButtonDown"/>
                                                         <RadioButton Content="▤ Frac. H" GroupName="{Binding Monitor.DeviceName}"
-                                                                     Style="{DynamicResource StoneRadioToggle}"
-                                                                     IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=SplitH}"/>
+                                                                     Style="{DynamicResource StoneRadioToggle}" Tag="SplitH"
+                                                                     IsChecked="{Binding Mode, Converter={StaticResource EnumToBool}, ConverterParameter=SplitH}"
+                                                                     PreviewMouseLeftButtonDown="LayoutModeRadio_PreviewMouseLeftButtonDown"/>
                                                     </WrapPanel>
 
                                                     <!-- Config options (keep space when hidden to avoid layout shift) -->
@@ -433,6 +437,16 @@
                                                 MouseMove="AdvCanvas_MouseMove"
                                                 MouseLeftButtonUp="AdvCanvas_MouseUp"/>
                                     </Border>
+                                    <Button Style="{DynamicResource StoneButton}" FontSize="11" Padding="8,4"
+                                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,20,6,0"
+                                            Panel.ZIndex="2"
+                                            Command="{Binding RefreshWindowsCommand}"
+                                            ToolTip="Rafraîchir la liste des fenêtres">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="⟳" FontSize="13" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                            <TextBlock Text="{DynamicResource Header_Refresh}" FontSize="11" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
                                 </Grid>
                             </DockPanel>
                         </Border>
@@ -457,8 +471,9 @@
                                     <TextBlock DockPanel.Dock="Right" Text="{Binding AppVersion}"
                                                FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                                VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding StatusMessage}" FontSize="11"
-                                               Foreground="{DynamicResource SubtextBrush}"
+                                    <TextBlock Text="{Binding StatusMessage}"
+                                               Style="{DynamicResource ReadableStatusText}"
+                                               FontSize="13"
                                                VerticalAlignment="Center"/>
                                 </DockPanel>
                             </Border>
@@ -523,6 +538,10 @@
                        MouseLeftButtonDown="ResizeGrip_MouseDown" Tag="BottomLeft"/>
             <Rectangle Fill="Transparent" Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE"
                        MouseLeftButtonDown="ResizeGrip_MouseDown" Tag="BottomRight"/>
+
+            <!-- Paramètres globaux (indépendant de la vue active) -->
+            <views:AppSettingsPopupView x:Name="SettingsPopupHost" DataContext="{Binding CartoVm}"
+                                        Width="0" Height="0" IsHitTestVisible="False"/>
     </Grid>
     </Border>
 </Window>

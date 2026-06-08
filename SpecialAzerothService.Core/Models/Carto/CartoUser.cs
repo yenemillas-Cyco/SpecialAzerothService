@@ -11,4 +11,7 @@ public sealed class CartoUser
 
     /// <summary>Masque les marqueurs carte de cet utilisateur (le roster reste affiché).</summary>
     public bool IsRosterSubtreeHidden { get; set; }
+
+    /// <summary>Masque ce propriétaire dans le volet Cooldowns (indépendant de la carte).</summary>
+    public bool IsCooldownRosterHidden { get; set; }
 }

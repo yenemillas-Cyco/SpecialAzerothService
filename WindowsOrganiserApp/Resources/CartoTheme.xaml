@@ -3,27 +3,47 @@
 
     <!-- Styles Carto : toujours chargés, quel que soit le thème couleur (Classic/Retail/Dark/Light). -->
 
-    <Style x:Key="CartoPanelTabToggle" TargetType="ToggleButton">
+    <!-- Messages de statut / diagnostic (lisibles en partage d'écran) -->
+    <Style x:Key="ReadableStatusText" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="LineHeight" Value="20"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-        <Setter Property="FontSize" Value="10"/>
-        <Setter Property="Padding" Value="4,5"/>
+    </Style>
+
+    <Style x:Key="ReadableStatusHint" TargetType="TextBlock" BasedOn="{StaticResource ReadableStatusText}">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Foreground" Value="{DynamicResource SubtextBrush}"/>
+    </Style>
+
+    <!-- Même look que WowPill (Fenêtres / Carto / Primes / Craft), pour ToggleButton -->
+    <Style x:Key="CartoPanelTabToggle" TargetType="ToggleButton">
+        <Setter Property="Foreground" Value="{DynamicResource SubtextBrush}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Padding" Value="14,4"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Margin" Value="0,0,6,0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToggleButton">
                     <Border x:Name="Bd" CornerRadius="3" Padding="{TemplateBinding Padding}"
-                            BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
-                            Background="{DynamicResource StoneButtonBgBrush}">
+                            BorderThickness="1" BorderBrush="{DynamicResource InnerBorderBrush}"
+                            Background="{DynamicResource PillBgBrush}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="#443A2818"/>
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource GoldBrush}"/>
                             <Setter Property="Foreground" Value="{DynamicResource BrightGoldBrush}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PillActiveBgBrush}"/>
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource GoldBrush}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

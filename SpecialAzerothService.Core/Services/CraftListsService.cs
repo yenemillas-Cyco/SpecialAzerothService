@@ -1,5 +1,4 @@
 using System.IO;
-using System.Reflection;
 using System.Text.Json;
 using SpecialAzerothService.Core.Models.Craft;
 
@@ -13,16 +12,6 @@ public sealed class CraftListsService : ICraftListsService
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    private static readonly string[] LevelingListNames =
-    [
-        "Couture 1-300",
-        "Alchimie 1-300",
-        "Forge 1-300",
-        "Ingénierie 1-300",
-        "Cuisine 1-300",
-        "Secourisme 1-300"
-    ];
-
     private readonly string _filePath;
     private readonly List<CraftListDefinition> _lists = [];
 
@@ -34,7 +23,6 @@ public sealed class CraftListsService : ICraftListsService
         Directory.CreateDirectory(appData);
         _filePath = Path.Combine(appData, "craft-lists.json");
         Load();
-        ImportLevelingSeedListsIfMissing();
     }
 
     public IReadOnlyList<CraftListDefinition> Lists => _lists;
@@ -181,48 +169,4 @@ public sealed class CraftListsService : ICraftListsService
         }
     }
 
-    /// <summary>Importe les listes 1-300 WowIsClassic si elles n'existent pas encore.</summary>
-    private void ImportLevelingSeedListsIfMissing()
-    {
-        if (LevelingListNames.All(name =>
-                _lists.Any(l => l.Name.Equals(name, StringComparison.OrdinalIgnoreCase))))
-            return;
-
-        var seed = LoadEmbeddedLevelingSeed();
-        if (seed?.Lists == null || seed.Lists.Count == 0) return;
-
-        var added = false;
-        foreach (var seedList in seed.Lists)
-        {
-            if (string.IsNullOrWhiteSpace(seedList.Name)) continue;
-            if (_lists.Any(l => l.Name.Equals(seedList.Name, StringComparison.OrdinalIgnoreCase)))
-                continue;
-
-            seedList.Id = Guid.NewGuid().ToString("N");
-            seedList.EnsureItems();
-            _lists.Add(seedList);
-            added = true;
-        }
-
-        if (added)
-            Save();
-    }
-
-    private static CraftListsData? LoadEmbeddedLevelingSeed()
-    {
-        try
-        {
-            var asm = Assembly.GetExecutingAssembly();
-            const string resourceName = "SpecialAzerothService.Core.Assets.CraftLevelingLists.seed.json";
-            using var stream = asm.GetManifestResourceStream(resourceName);
-            if (stream == null) return null;
-
-            using var reader = new StreamReader(stream);
-            return JsonSerializer.Deserialize<CraftListsData>(reader.ReadToEnd(), JsonOpts);
-        }
-        catch
-        {
-            return null;
-        }
-    }
 }

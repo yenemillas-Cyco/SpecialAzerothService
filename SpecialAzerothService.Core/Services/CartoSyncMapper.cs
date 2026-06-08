@@ -66,6 +66,9 @@ public static class CartoSyncMapper
             QuestItems = extras?.QuestItems != null
                 ? [.. extras.QuestItems]
                 : [],
+            RaidAttunements = extras?.RaidAttunements != null
+                ? [.. extras.RaidAttunements]
+                : [],
             Note = profile?.Note ?? extras?.Note ?? "",
             ShardCount = extras?.ShardCount ?? 0,
             IsHidden = extras?.IsHidden ?? false,
@@ -89,6 +92,7 @@ public static class CartoSyncMapper
         Professions = [.. ch.Professions],
         Cooldowns = [.. ch.Cooldowns],
         QuestItems = [.. ch.QuestItems],
+        RaidAttunements = [.. ch.RaidAttunements],
         ShardCount = ch.ShardCount,
         IsHidden = ch.IsHidden,
         IsLocked = ch.IsLocked,
@@ -98,55 +102,8 @@ public static class CartoSyncMapper
         MapY = 0
     };
 
-    public static void ApplyCooldownsFromSync(WowCharacterData sync, WowCharacter carto)
-    {
-        foreach (var cd in sync.Cooldowns)
-        {
-            var type = CooldownGroups.MapSyncCooldownKey(cd.Key, cd.Name);
-            if (type == null) continue;
-
-            var entry = carto.Cooldowns.FirstOrDefault(c => c.Type == type)
-                ?? (CooldownGroups.IsAlchemyTransmute(type.Value)
-                    ? carto.Cooldowns.FirstOrDefault(c => CooldownGroups.IsAlchemyTransmute(c.Type))
-                    : null);
-
-            if (entry == null)
-            {
-                entry = new CooldownEntry { Type = type.Value };
-                carto.Cooldowns.Add(entry);
-            }
-            else if (CooldownGroups.IsAlchemyTransmute(type.Value))
-                entry.Type = type.Value;
-
-            if (cd.IsReady)
-            {
-                entry.ReadyAtOverride = null;
-                if (cd.ReadyAtUtc is { } readyAt)
-                    entry.LastUsed = readyAt - entry.Duration;
-                continue;
-            }
-
-            if (cd.ReadyAtUtc is { } runningReadyAt)
-            {
-                entry.ReadyAtOverride = runningReadyAt;
-                var remaining = runningReadyAt - DateTime.UtcNow;
-                if (remaining > TimeSpan.Zero)
-                {
-                    var total = entry.Duration;
-                    if (type == CooldownType.Arcanite && remaining > TimeSpan.FromHours(25))
-                        total = TimeSpan.FromHours(48);
-                    else if (remaining > total)
-                        total = remaining;
-
-                    entry.LastUsed = runningReadyAt - total;
-                }
-                else if (entry.LastUsed == null)
-                    entry.LastUsed = runningReadyAt - entry.Duration;
-            }
-        }
-
-        CooldownGroups.NormalizeAlchemyCooldowns(carto.Cooldowns);
-    }
+    public static void ApplyCooldownsFromSync(WowCharacterData sync, WowCharacter carto) =>
+        CooldownSyncMerge.ApplySyncCooldowns(sync, carto);
 
     public static CartoCharacterProfile MigrateLegacyProfile(WowCharacter ch) => new()
     {
@@ -163,6 +120,7 @@ public static class CartoSyncMapper
         Professions = [.. ch.Professions],
         Cooldowns = [.. ch.Cooldowns],
         QuestItems = [.. ch.QuestItems],
+        RaidAttunements = [.. ch.RaidAttunements],
         ShardCount = ch.ShardCount,
         IsHidden = ch.IsHidden,
         IsLocked = ch.IsLocked,

@@ -7,6 +7,7 @@ using SpecialAzerothService.Core.Models.Carto;
 using SpecialAzerothService.Core.Models.WowSync;
 using SpecialAzerothService.Core.Services;
 using CartoProfessionCooldownsService = SpecialAzerothService.Core.Services.CartoProfessionCooldowns;
+using SpecialAzerothService.Core.Services;
 using WindowsOrganiserApp.ViewModels;
 
 namespace WindowsOrganiserApp.Controls;
@@ -110,9 +111,7 @@ public static class CartoCharacterPresentation
         UIElement? questContent = null;
         if (options.ShowQuestIcons && ShowQuestBody(ch))
         {
-            var questRow = BuildQuestIconRow(ch, sync, options.QuestIconSize, horizontal: true);
-            if (questRow.Children.Count > 0)
-                questContent = questRow;
+            questContent = BuildQuestAndRaidStatusRow(ch, sync, options.QuestIconSize);
         }
 
         var hasQuest = questContent != null;
@@ -528,6 +527,71 @@ public static class CartoCharacterPresentation
                 continue;
 
             panel.Children.Add(BuildQuestIconChip(type, sync, hasItem, planned, iconSize));
+        }
+
+        return panel;
+    }
+
+    public static UIElement? BuildQuestAndRaidStatusRow(
+        WowCharacter ch,
+        WowCharacterData? sync,
+        int iconSize = 22)
+    {
+        var questRow = BuildQuestIconRow(ch, sync, iconSize, horizontal: true);
+        var raidRow = BuildRaidAttunementIconRow(ch, iconSize, sync);
+        if (questRow.Children.Count == 0 && raidRow.Children.Count == 0)
+            return null;
+
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        if (questRow.Children.Count > 0)
+            row.Children.Add(questRow);
+
+        if (raidRow.Children.Count > 0)
+        {
+            if (questRow.Children.Count > 0)
+            {
+                row.Children.Add(new Border
+                {
+                    Width = 1,
+                    Height = iconSize - 2,
+                    Background = DimBrush,
+                    Margin = new Thickness(4, 0, 6, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+            }
+
+            row.Children.Add(raidRow);
+        }
+
+        return row;
+    }
+
+    public static Panel BuildRaidAttunementIconRow(WowCharacter ch, int iconSize = 22, WowCharacterData? sync = null)
+    {
+        var panel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        if (!ShowQuestBody(ch))
+            return panel;
+
+        var faction = WowRaceFaction.ResolveFaction(ch.Race);
+
+        foreach (var def in RaidAttunementCatalog.All)
+        {
+            var stored = ch.RaidAttunements.FirstOrDefault(e => e.Type == def.Type);
+            var isAttuned = stored != null
+                ? stored.IsAttuned
+                : sync is { HasRaidAttunementSync: true } && sync.IsRaidAttuned(def.Type);
+
+            panel.Children.Add(CartoRaidAttunementIcon.Create(def, isAttuned, iconSize, faction));
         }
 
         return panel;

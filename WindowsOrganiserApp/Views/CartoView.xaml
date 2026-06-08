@@ -152,42 +152,41 @@
 
         <!-- Barre d'outils pleine largeur (au-dessus carte + volets) -->
         <Border x:Name="CartoToolbarHost" Grid.Row="0"
-                Background="{DynamicResource PanelBg}" Padding="6,4" Margin="0,0,0,2">
-                <DockPanel LastChildFill="True">
-                    <WrapPanel DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <ToggleButton x:Name="BtnPanelCooldowns" Content="Cooldowns" Style="{DynamicResource StoneToggle}"
-                                      FontSize="10" Padding="10,4" Margin="4,0,0,0" IsChecked="True"
-                                      Checked="PanelCooldowns_Checked" Unchecked="PanelCooldowns_Unchecked"
-                                      ToolTip="Recettes CD connues (addon WowSync) — temps restant ou prêt"/>
-                        <ToggleButton x:Name="BtnPanelRoster" Content="Personnages" Style="{DynamicResource StoneToggle}"
-                                      FontSize="10" Padding="10,4" Margin="4,0,0,0"
-                                      Checked="PanelRoster_Checked" Unchecked="PanelRoster_Unchecked"
-                                      ToolTip="Liste des personnages à droite"/>
-                        <ToggleButton x:Name="BtnPanelSearch" Content="Objets" Style="{DynamicResource StoneToggle}"
-                                      FontSize="10" Padding="10,4" Margin="4,0,0,0"
-                                      Checked="PanelSearch_Checked" Unchecked="PanelSearch_Unchecked"
-                                      ToolTip="Recherche d'objets"/>
-                        <ToggleButton x:Name="BtnPanelTimers" Content="Timers" Style="{DynamicResource StoneToggle}"
-                                      FontSize="10" Padding="10,4" Margin="4,0,0,0"
-                                      Checked="PanelTimers_Checked" Unchecked="PanelTimers_Unchecked"
-                                      ToolTip="Timers sur la carte"/>
-                        <ToggleButton x:Name="BtnPanelZones" Content="Zones" Style="{DynamicResource StoneToggle}"
-                                      FontSize="10" Padding="10,4" Margin="4,0,0,0"
-                                      Checked="PanelZones_Checked" Unchecked="PanelZones_Unchecked"
-                                      ToolTip="Calibrer les zones et repères lieux-dits"/>
-                        <ToggleButton x:Name="BtnPanelSettings" Content="Paramètres" Style="{DynamicResource StoneToggle}"
-                                      FontSize="10" Padding="10,4" Margin="4,0,0,0"
-                                      Checked="PanelSettings_Checked" Unchecked="PanelSettings_Unchecked"
-                                      ToolTip="WowSync, comptes locaux et amis en ligne"/>
-                    </WrapPanel>
+                Background="{DynamicResource PanelBg}" Padding="8,6" Margin="0,0,0,2">
+            <DockPanel LastChildFill="True" VerticalAlignment="Center">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <ToggleButton x:Name="BtnPanelCooldowns" Content="⏱ Cooldowns"
+                                  Style="{DynamicResource CartoPanelTabToggle}" IsChecked="True"
+                                  Checked="PanelCooldowns_Checked" Unchecked="PanelCooldowns_Unchecked"
+                                  ToolTip="Recettes CD connues (addon WowSync) — temps restant ou prêt"/>
+                    <ToggleButton x:Name="BtnPanelRoster" Content="👤 Personnages"
+                                  Style="{DynamicResource CartoPanelTabToggle}"
+                                  Checked="PanelRoster_Checked" Unchecked="PanelRoster_Unchecked"
+                                  ToolTip="Liste des personnages à droite"/>
+                    <ToggleButton x:Name="BtnPanelSearch" Content="🔍 Objets"
+                                  Style="{DynamicResource CartoPanelTabToggle}"
+                                  Checked="PanelSearch_Checked" Unchecked="PanelSearch_Unchecked"
+                                  ToolTip="Recherche d'objets"/>
+                    <ToggleButton x:Name="BtnPanelTimers" Content="⏰ Timers"
+                                  Style="{DynamicResource CartoPanelTabToggle}"
+                                  Checked="PanelTimers_Checked" Unchecked="PanelTimers_Unchecked"
+                                  ToolTip="Timers sur la carte"/>
+                    <ToggleButton x:Name="BtnPanelZones" Content="📍 Zones"
+                                  Style="{DynamicResource CartoPanelTabToggle}"
+                                  Checked="PanelZones_Checked" Unchecked="PanelZones_Unchecked"
+                                  ToolTip="Calibrer les zones et repères lieux-dits"
+                                  Visibility="Collapsed"/>
+                </StackPanel>
 
-                    <WrapPanel VerticalAlignment="Center">
+                <WrapPanel VerticalAlignment="Center">
                     <Button Content="＋" Style="{DynamicResource StoneButton}" FontSize="12" Padding="8,4" Margin="0,0,2,0"
                             Click="MapZoomIn_Click" ToolTip="Zoom avant (molette vers le haut)"/>
-                    <Button Content="－" Style="{DynamicResource StoneButton}" FontSize="12" Padding="8,4" Margin="0,0,2,0"
+                    <Button Style="{DynamicResource StoneButton}" FontSize="12" Padding="8,4" Margin="0,0,2,0"
+                            Click="MapZoomMax_Click" ToolTip="Vue par défaut (×1.4, coin haut-gauche)">
+                        <TextBlock Text="⤢" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </Button>
+                    <Button Content="－" Style="{DynamicResource StoneButton}" FontSize="12" Padding="8,4" Margin="0,0,6,0"
                             Click="MapZoomOut_Click" ToolTip="Zoom arrière (molette vers le bas)"/>
-                    <Button Content="Réinitialiser" Style="{DynamicResource StoneButton}" FontSize="10" Padding="8,4" Margin="0,0,6,0"
-                            Click="MapResetView_Click" ToolTip="Zoom ×1.4 et coin haut-gauche"/>
                     <TextBlock Text="{Binding MapZoom, StringFormat='×{0:F1}'}" FontSize="10"
                                Foreground="{DynamicResource SubtextBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
 
@@ -199,34 +198,36 @@
 
                     <Border Background="#44FF0000" CornerRadius="3" Padding="8,3" Margin="6,0,0,0"
                             Visibility="{Binding IsPlacingCharacter, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="Clic carte = placer le perso" FontSize="10" Foreground="#FFFF8888"/>
+                        <TextBlock Text="Clic carte = placer le perso" FontSize="12" FontWeight="SemiBold" Foreground="#FFFF8888"/>
                     </Border>
                     <Border Background="#4400AAFF" CornerRadius="3" Padding="8,3" Margin="6,0,0,0"
                             Visibility="{Binding IsPlacingTimer, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="Clic carte = placer le timer" FontSize="10" Foreground="#FF88CCFF"/>
+                        <TextBlock Text="Clic carte = placer le timer" FontSize="12" FontWeight="SemiBold" Foreground="#FF88CCFF"/>
                     </Border>
                     <Border Background="#44AA44FF" CornerRadius="3" Padding="8,3" Margin="6,0,0,0"
                             Visibility="{Binding IsPlacingDungeonMarker, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="Clic carte = repère lieu-dit" FontSize="10" Foreground="#FFCCAAFF"/>
+                        <TextBlock Text="Clic carte = repère lieu-dit" FontSize="12" FontWeight="SemiBold" Foreground="#FFCCAAFF"/>
                     </Border>
                     <Border Background="#4428AA55" CornerRadius="3" Padding="8,3" Margin="6,0,0,0"
                             Visibility="{Binding IsPlacingZone, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="Clic carte = placer la zone" FontSize="10" Foreground="#FFAAEE88"/>
+                        <TextBlock Text="Clic carte = placer la zone" FontSize="12" FontWeight="SemiBold" Foreground="#FFAAEE88"/>
                     </Border>
-                    <Border Background="#3322AA44" CornerRadius="3" Padding="8,3" Margin="6,0,0,0"
+                    <Border Background="#3322AA44" CornerRadius="3" Padding="10,5" Margin="6,0,0,0"
                             Visibility="{Binding IsZonesPanelOpen, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="{Binding ZonePanelStatusMessage}" FontSize="10" Foreground="#FFAAEE88"
-                                   MaxWidth="280" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding ZonePanelStatusMessage}"
+                                   Style="{DynamicResource ReadableStatusText}"
+                                   FontSize="13" Foreground="#FFCCFFAA"
+                                   MaxWidth="420" TextTrimming="CharacterEllipsis"/>
                     </Border>
                 </WrapPanel>
-                </DockPanel>
+            </DockPanel>
         </Border>
 
-        <!-- Carte (col. 0) + volets (col. 1) — pas de surcouche sur les capitales -->
-        <Grid Grid.Row="1" MinHeight="120">
+        <!-- Carte (2/3) + volets (1/3) quand un panneau est ouvert -->
+        <Grid x:Name="MapAndPanelsGrid" Grid.Row="1" MinHeight="120">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition x:Name="MapColumn" Width="*"/>
+                <ColumnDefinition x:Name="SidePanelColumn" Width="0"/>
             </Grid.ColumnDefinitions>
             <Grid Grid.Column="0">
                 <Border x:Name="MapBorder" Background="#FF0A0A0A" ClipToBounds="True"
@@ -362,8 +363,7 @@
 
             <Grid x:Name="RightDockHost" Grid.Column="1"
                   VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
-                  Visibility="Collapsed"
-                  Width="{x:Static cartoUi:CartoRosterPanelUi.PanelWidth}">
+                  Visibility="Collapsed" MinWidth="280">
 
                 <!-- Volet détail personnage -->
                 <Border x:Name="CharacterDetailHost" Visibility="Collapsed"
@@ -463,9 +463,15 @@
                                     <TextBlock Text="Cooldowns" FontSize="12" FontWeight="SemiBold"
                                                Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <Button Grid.Column="1" Style="{StaticResource CartoThinClose}"
-                                        Click="CloseCooldownRosterPanel_Click"
-                                        ToolTip="Fermer le volet cooldowns"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button x:Name="BtnCooldownOwnerSettings" Content="⚙" FontSize="13"
+                                            Style="{DynamicResource StoneButton}" Padding="6,2" Margin="0,0,4,0"
+                                            Click="CooldownOwnerSettings_Click"
+                                            ToolTip="Propriétaires affichés dans Cooldowns"/>
+                                    <Button Style="{DynamicResource CartoThinClose}"
+                                            Click="CloseCooldownRosterPanel_Click"
+                                            ToolTip="Fermer le volet cooldowns"/>
+                                </StackPanel>
                             </Grid>
                         </Border>
                         <ScrollViewer x:Name="CooldownRosterScroller" VerticalScrollBarVisibility="Auto"
@@ -853,206 +859,6 @@
                         </ScrollViewer>
                     </DockPanel>
                 </Border>
-
-                <!-- Volet paramètres (comptes WoW) -->
-                <Border x:Name="SettingsPanelHost" Visibility="Collapsed"
-                        HorizontalAlignment="Stretch"
-                        Background="#18141008" BorderThickness="1" CornerRadius="6" ClipToBounds="True"
-                        BorderBrush="#55AA8833">
-                    <DockPanel LastChildFill="True">
-                        <Border DockPanel.Dock="Top" Style="{StaticResource CartoSideHeaderBorder}">
-                            <DockPanel>
-                                <Button DockPanel.Dock="Right" Style="{StaticResource CartoThinClose}"
-                                        Click="CloseSettingsPanel_Click"/>
-                                <TextBlock Text="Paramètres &amp; WowSync" Style="{StaticResource CartoSideTitle}"/>
-                            </DockPanel>
-                        </Border>
-                        <Border DockPanel.Dock="Bottom" Padding="8,6,8,8" Background="#22181008"
-                                BorderBrush="#55AA8833" BorderThickness="0,1,0,0">
-                            <DockPanel>
-                                <Button DockPanel.Dock="Right" Content="Enregistrer" Style="{DynamicResource WowButton}"
-                                        FontSize="10" Padding="12,5" Margin="6,0,0,0" Click="SaveAccountSettings_Click"/>
-                                <Button DockPanel.Dock="Right" Content="Annuler" Style="{DynamicResource StoneButton}"
-                                        FontSize="10" Padding="10,5" Click="CloseSettingsPanel_Click"/>
-                                <Button Content="Rescanner" Style="{DynamicResource StoneButton}" FontSize="10" Padding="10,5"
-                                        Click="RefreshAccountSettings_Click" ToolTip="Relire WowSync.lua et recharger les personnages"/>
-                            </DockPanel>
-                        </Border>
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,6,8,8">
-                            <StackPanel>
-                                <TextBlock Text="Addon WowSync" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,6"/>
-                                <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
-                                           Margin="0,0,0,8">
-                                    Sélectionnez le dossier « World of Warcraft » que vous choisissez (racine du jeu). Comptes et addon sont dérivés automatiquement.
-                                </TextBlock>
-                                <TextBlock Text="Dossier World of Warcraft" FontSize="11" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
-                                <DockPanel Margin="0,0,0,8">
-                                    <Button DockPanel.Dock="Right" Content="📁" Style="{DynamicResource StoneButton}"
-                                            FontSize="12" Padding="8,4" Margin="6,0,0,0"
-                                            Command="{Binding BrowseWowPathCommand}"
-                                            ToolTip="Dossier nommé « World of Warcraft »"/>
-                                    <TextBox Text="{Binding WowPath, UpdateSourceTrigger=LostFocus}"
-                                             FontFamily="Consolas" FontSize="11" Padding="6,4"
-                                             Background="{DynamicResource SelectionBgBrush}"
-                                             Foreground="{DynamicResource TextBrush}"
-                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                                </DockPanel>
-                                <TextBlock Text="{Binding AddonInstallPathHint}"
-                                           FontSize="9" Foreground="{DynamicResource SubtextBrush}"
-                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                    <Button Content="Déployer l'addon" Style="{DynamicResource WowButton}"
-                                            FontSize="10" Padding="12,5" Margin="0,0,8,0"
-                                            Command="{Binding DeployAddonCommand}"/>
-                                    <TextBlock Text="{Binding AddonVersion, StringFormat=v{0}}"
-                                               FontSize="11" Foreground="#88CCFF" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding AddonStatusText}" FontSize="10"
-                                           Foreground="#88CC88" TextWrapping="Wrap" MinHeight="28"
-                                           Margin="0,0,0,12"/>
-                                <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,12"/>
-                                <TextBlock Text="Propriétaires de comptes" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
-                                <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
-                                           Margin="0,0,0,8">
-                                    Personnes dont les comptes WoW sont sur ce PC (ex. Eloi, Lucky). « Moi » regroupe vos propres comptes.
-                                </TextBlock>
-                                <ItemsControl ItemsSource="{Binding OtherCartoOwners}" Margin="0,0,0,6">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type carto:CartoUser}">
-                                            <Border Background="#1A221810" CornerRadius="4" Padding="8,5" Margin="0,0,0,4"
-                                                    BorderBrush="#44AA8833" BorderThickness="1">
-                                                <DockPanel>
-                                                    <Button DockPanel.Dock="Right" Content="✕" Style="{DynamicResource StoneButton}"
-                                                            FontSize="10" Padding="6,2" Foreground="OrangeRed"
-                                                            Command="{Binding DataContext.RemoveCartoOwnerCommand, ElementName=RootGrid}"
-                                                            CommandParameter="{Binding}"
-                                                            ToolTip="Retirer ce propriétaire"/>
-                                                    <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold"
-                                                               Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
-                                                </DockPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                <Grid Margin="0,0,0,4">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" FontSize="11" Padding="4,3" Margin="0,0,6,0"
-                                             Text="{Binding NewCartoOwnerName, UpdateSourceTrigger=PropertyChanged}"
-                                             Background="{DynamicResource SelectionBgBrush}"
-                                             Foreground="{DynamicResource TextBrush}"
-                                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                                             ToolTip="Nom du propriétaire (ex. Eloi, Lucky)"/>
-                                    <Button Grid.Column="1" Content="Ajouter" Style="{DynamicResource StoneButton}"
-                                            FontSize="10" Padding="10,4"
-                                            Command="{Binding AddCartoOwnerCommand}"/>
-                                </Grid>
-                                <TextBlock Text="{Binding CartoOwnerStatusMessage}" FontSize="9"
-                                           Foreground="{DynamicResource SubtextBrush}" TextWrapping="Wrap"
-                                           Margin="0,0,0,8" MinHeight="14"/>
-                                <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,10"/>
-                                <TextBlock Text="Carte &amp; tri" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
-                                <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
-                                           Margin="0,0,0,8">
-                                    Œil dans le roster : masque sur la carte uniquement. Tri auto : 60 → Personnages ; démo 20–22 → TP Boy ; 1–2 → Banque ou Clic Boys (sacs WowSync).
-                                </TextBlock>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                    <Button Content="Tri des personnages auto" Style="{DynamicResource WowButton}"
-                                            FontSize="10" Padding="10,5" Margin="0,0,8,0"
-                                            Command="{Binding AutoSortCharacterCategoriesCommand}"/>
-                                    <Button Content="Carte : TP Boy seuls" Style="{DynamicResource StoneButton}"
-                                            FontSize="10" Padding="10,5" Margin="0,0,8,0"
-                                            Command="{Binding HideAllExceptTpBoyOnMapCommand}"
-                                            ToolTip="Masque tous les marqueurs sauf la catégorie TP Boy"/>
-                                    <Button Content="Tout afficher carte" Style="{DynamicResource StoneButton}"
-                                            FontSize="10" Padding="10,5"
-                                            Command="{Binding ShowAllOnMapCommand}"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding AutoSortStatusMessage}" FontSize="9"
-                                           Foreground="{DynamicResource SubtextBrush}" TextWrapping="Wrap"
-                                           Margin="0,0,0,12" MinHeight="14"/>
-                                <TextBlock Text="Comptes WoW" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
-                                <TextBlock Text="Chaque compte de jeu doit avoir un propriétaire : à qui rattacher les personnages joués sur ce PC."
-                                           FontSize="10" Foreground="{DynamicResource SubtextBrush}"
-                                           TextWrapping="Wrap" Margin="0,0,0,8"/>
-                                <ItemsControl ItemsSource="{Binding AccountSettingRows}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="#221A1008" CornerRadius="6" Padding="10,8" Margin="0,0,0,8"
-                                                    BorderBrush="#55443322" BorderThickness="1"
-                                                    ToolTip="{Binding SourceFolder}">
-                                                <StackPanel>
-                                                    <DockPanel Margin="0,0,0,8">
-                                                        <TextBlock DockPanel.Dock="Right"
-                                                                   Text="{Binding CharacterCount, StringFormat='{}{0} perso'}"
-                                                                   FontSize="10" Foreground="{DynamicResource SubtextBrush}"
-                                                                   VerticalAlignment="Center"/>
-                                                        <StackPanel>
-                                                            <TextBlock Text="Compte WoW (dossier)" FontSize="9"
-                                                                       Foreground="{DynamicResource SubtextBrush}"/>
-                                                            <TextBlock Text="{Binding SourceFolder}" FontSize="11"
-                                                                       Foreground="{DynamicResource TextBrush}"
-                                                                       TextTrimming="CharacterEllipsis"/>
-                                                        </StackPanel>
-                                                    </DockPanel>
-
-                                                    <TextBlock Text="Nom affiché" FontSize="10" FontWeight="SemiBold"
-                                                               Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,3"/>
-                                                    <DockPanel Margin="0,0,0,10">
-                                                        <cartoUi:WowCurrencyControl DockPanel.Dock="Right"
-                                                                                    CopperTotal="{Binding GoldCopper}"
-                                                                                    IconSize="14" AmountFontSize="10"
-                                                                                    VerticalAlignment="Center"
-                                                                                    Margin="8,0,0,0"/>
-                                                        <TextBox Text="{Binding DisplayName, UpdateSourceTrigger=PropertyChanged}"
-                                                                 FontSize="12" Padding="6,4" VerticalAlignment="Center"
-                                                                 Background="{DynamicResource SelectionBgBrush}"
-                                                                 Foreground="{DynamicResource TextBrush}"
-                                                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
-                                                    </DockPanel>
-
-                                                    <Border Background="#1A181008" CornerRadius="5" Padding="8,7"
-                                                            BorderBrush="#44AA8833" BorderThickness="1">
-                                                        <StackPanel>
-                                                            <TextBlock Text="Propriétaire" FontSize="10" FontWeight="SemiBold"
-                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,4"/>
-                                                            <TextBlock FontSize="14" FontWeight="Bold" Margin="0,0,0,2">
-                                                                <Run Text="Propriétaire : " Foreground="{DynamicResource SubtextBrush}"/>
-                                                                <Run Text="{Binding OwnerDisplayName}" Foreground="{DynamicResource BrightGoldBrush}"/>
-                                                            </TextBlock>
-                                                            <TextBlock Text="Changer le propriétaire" FontSize="9"
-                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,3"/>
-                                                            <ComboBox FontSize="11" Height="28" MinWidth="140"
-                                                                      HorizontalAlignment="Stretch"
-                                                                      ItemsSource="{Binding DataContext.CartoUsers, ElementName=RootGrid}"
-                                                                      DisplayMemberPath="Name"
-                                                                      SelectedValuePath="Id"
-                                                                      SelectedValue="{Binding UserId, UpdateSourceTrigger=PropertyChanged}"
-                                                                      SelectionChanged="AccountUserCombo_SelectionChanged">
-                                                                <ComboBox.ItemTemplate>
-                                                                    <DataTemplate DataType="{x:Type carto:CartoUser}">
-                                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                                                    </DataTemplate>
-                                                                </ComboBox.ItemTemplate>
-                                                            </ComboBox>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </DockPanel>
-                </Border>
             </Grid>
         </Grid>
 
@@ -1160,6 +966,36 @@
                                     Command="{Binding StartPlaceTimerCommand}" Click="PopupClose_Click"/>
                         </StackPanel>
                     </Border>
+        </Popup>
+
+        <Popup x:Name="PopupCooldownOwners" Placement="Bottom" PlacementTarget="{Binding ElementName=BtnCooldownOwnerSettings}"
+               StaysOpen="False" AllowsTransparency="True" HorizontalOffset="-8" VerticalOffset="4">
+            <Border Background="#F0141008" CornerRadius="8" Padding="12"
+                    BorderThickness="1.5" MinWidth="220" MaxWidth="300">
+                <Border.BorderBrush>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#CC996600" Offset="0"/>
+                        <GradientStop Color="#88664400" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.BorderBrush>
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.65" Color="Black"/>
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="Propriétaires — Cooldowns" FontSize="12" FontWeight="SemiBold"
+                               Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="Cochez les propriétaires à afficher dans ce volet."
+                               FontSize="10" TextWrapping="Wrap"
+                               Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,8"/>
+                    <StackPanel x:Name="CooldownOwnerVisibilityList"/>
+                    <WrapPanel Margin="0,10,0,0">
+                        <Button Content="Moi uniquement" Style="{DynamicResource StoneButton}" FontSize="10"
+                                Padding="8,4" Margin="0,0,6,0" Click="CooldownOwnersMoiOnly_Click"/>
+                        <Button Content="Tout afficher" Style="{DynamicResource StoneButton}" FontSize="10"
+                                Padding="8,4" Click="CooldownOwnersShowAll_Click"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
         </Popup>
 
     </Grid>

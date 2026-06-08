@@ -54,6 +54,7 @@ public sealed class WowCharacter
     public List<ProfessionInfo> Professions { get; set; } = [];
     public List<CooldownEntry> Cooldowns { get; set; } = [];
     public List<QuestItemEntry> QuestItems { get; set; } = [];
+    public List<RaidAttunementEntry> RaidAttunements { get; set; } = [];
     public string Note { get; set; } = string.Empty;
     public int ShardCount { get; set; }
     public bool IsHidden { get; set; }

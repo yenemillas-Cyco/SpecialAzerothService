@@ -27,4 +27,7 @@ public sealed class CartoData
     public List<WowCharacter> Characters { get; set; } = [];
 
     public List<MapTimer> Timers { get; set; } = [];
+
+    /// <summary>False au premier lancement : initialise la visibilité CD (Moi seul par défaut).</summary>
+    public bool CooldownRosterVisibilityConfigured { get; set; }
 }

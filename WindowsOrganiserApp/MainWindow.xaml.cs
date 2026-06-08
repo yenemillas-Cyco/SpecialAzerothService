@@ -11,6 +11,7 @@ using System.Windows.Shapes;
 using SpecialAzerothService.Core.Models;
 using SpecialAzerothService.Core.Services;
 using SpecialAzerothService.Core.Models.Carto;
+using WindowsOrganiserApp.Models;
 using WindowsOrganiserApp.ViewModels;
 using WindowsOrganiserApp.Views;
 
@@ -78,6 +79,8 @@ public partial class MainWindow : Window
         }
 
         Closing += (_, _) => SaveAllSettings();
+
+        SettingsPopupHost.SettingsSaved += (_, _) => CartoViewHost.NotifySettingsSaved();
     }
 
     private void RestoreWindowPosition()
@@ -108,6 +111,18 @@ public partial class MainWindow : Window
         if (!string.IsNullOrWhiteSpace(storedWow))
             settings.WowPath = WowInstallPaths.NormalizeStoredPath(storedWow);
         _settingsService.Save(settings);
+    }
+
+    private void LayoutModeRadio_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not RadioButton radio || radio.DataContext is not MonitorLayoutConfig config)
+            return;
+
+        if (radio.Tag is not string modeName || !Enum.TryParse<LayoutMode>(modeName, out var mode))
+            return;
+
+        if (radio.IsChecked == true && config.Mode == mode)
+            _viewModel.AdvancedVm?.AutoLayoutForMonitor(config.Monitor);
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -290,6 +305,11 @@ public partial class MainWindow : Window
     private void Help_Click(object sender, RoutedEventArgs e)
     {
         new HelpWindow { Owner = this }.ShowDialog();
+    }
+
+    private void CartoSettings_Click(object sender, RoutedEventArgs e)
+    {
+        SettingsPopupHost.Open();
     }
 
     private void About_Click(object sender, RoutedEventArgs e)

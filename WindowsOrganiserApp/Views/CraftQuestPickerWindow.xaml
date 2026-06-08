@@ -1,0 +1,236 @@
+<Window x:Class="WindowsOrganiserApp.Views.CraftQuestPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:WindowsOrganiserApp.Controls"
+        xmlns:conv="clr-namespace:WindowsOrganiserApp.Converters"
+        Title="Quêtes — équipement"
+        Height="680" Width="1020"
+        MinHeight="520" MinWidth="820"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="CanResizeWithGrip"
+        Foreground="{DynamicResource TextBrush}"
+        FontFamily="Segoe UI">
+    <Window.Resources>
+        <conv:HexColorToBrushConverter x:Key="HexToBrush"/>
+        <Style x:Key="QuestListItem" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="FontFamily" Value="Georgia"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" CornerRadius="4" Padding="{TemplateBinding Padding}"
+                                Background="Transparent" BorderThickness="1" BorderBrush="Transparent">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#28D4A017"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#60D4A017"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#12FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="PieceCardBorder" TargetType="Border">
+            <Setter Property="Margin" Value="0,0,8,8"/>
+            <Setter Property="Padding" Value="10,10"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Background" Value="#24D4A017"/>
+            <Setter Property="BorderBrush" Value="#60A08050"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="8" Padding="2"
+            Background="{DynamicResource SelectionBgBrush}"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{DynamicResource PanelBg2}" CornerRadius="6,6,0,0" Padding="12,10"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="✕" Style="{DynamicResource StoneButton}"
+                            Padding="10,4" FontSize="12" Click="Close_Click" ToolTip="Fermer"/>
+                    <TextBlock Text="Quêtes — composants par pièce"
+                               FontFamily="Georgia" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
+                </DockPanel>
+            </Border>
+
+            <TextBlock Grid.Row="1" Margin="14,8,14,4" TextWrapping="Wrap" FontSize="11"
+                       Foreground="{DynamicResource SubtextBrush}"
+                       Text="{Binding SelectedQuestCategory.Description}"/>
+
+            <Grid Grid.Row="2" Margin="10,4,10,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="185" MinWidth="175"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="220" MinWidth="180"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" CornerRadius="4" Padding="8"
+                        Background="#18D4A017" BorderBrush="#40806030" BorderThickness="1">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Quête" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,6"/>
+                        <ListBox ItemsSource="{Binding QuestCategories}"
+                                 SelectedItem="{Binding SelectedQuestCategory}"
+                                 ItemContainerStyle="{StaticResource QuestListItem}"
+                                 BorderThickness="0" Background="Transparent"
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding ShortTitle}" FontWeight="SemiBold"
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource BrightGoldBrush}"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Column="2" CornerRadius="4" Padding="8"
+                        Background="#18D4A017" BorderBrush="#40806030" BorderThickness="1">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Classe" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,6"/>
+                        <ListBox ItemsSource="{Binding Classes}"
+                                 SelectedItem="{Binding SelectedClass}"
+                                 ItemContainerStyle="{StaticResource QuestListItem}"
+                                 BorderThickness="0" Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Left" Width="4" CornerRadius="2"
+                                                Margin="0,2,8,2" Background="{Binding ClassBrush}"/>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding ClassName}" FontWeight="SemiBold"
+                                                       Foreground="{Binding ClassBrush}"/>
+                                            <TextBlock Text="{Binding SetName}" FontSize="11"
+                                                       Foreground="{DynamicResource SubtextBrush}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Column="4" CornerRadius="4" Padding="8"
+                        Background="#10D4A017" BorderBrush="#40806030" BorderThickness="1">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Pièces" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,6"/>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Pieces}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource PieceCardBorder}">
+                                            <DockPanel LastChildFill="True">
+                                                <Button DockPanel.Dock="Right" Content="＋" FontSize="16"
+                                                        MinWidth="32" Height="34" Padding="5" Margin="8,0,0,0"
+                                                        VerticalAlignment="Top"
+                                                        Style="{DynamicResource StoneButton}"
+                                                        ToolTip="Ajouter cette pièce à la liste"
+                                                        Command="{Binding DataContext.AddPieceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+
+                                                <ctrl:WowItemSlot DockPanel.Dock="Left"
+                                                                  DataContext="{Binding IconItem}"
+                                                                  Width="36" Height="36" Margin="0,0,10,0"
+                                                                  VerticalAlignment="Top"
+                                                                  HorizontalAlignment="Left"/>
+
+                                                <StackPanel VerticalAlignment="Top">
+                                                    <TextBlock Text="{Binding SlotLabel}" FontSize="10"
+                                                               Foreground="#C0A060"/>
+                                                    <TextBlock Text="{Binding PieceName}" FontSize="14" FontWeight="SemiBold"
+                                                               TextWrapping="Wrap"
+                                                               Foreground="{Binding PieceNameQualityColor, Converter={StaticResource HexToBrush}}"/>
+                                                    <TextBlock Text="{Binding DisplayDescription}" FontSize="10.5"
+                                                               TextWrapping="Wrap" Margin="0,4,0,4"
+                                                               Foreground="{DynamicResource BrightGoldBrush}">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding HasEffectDescription}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding TokenHint}" FontSize="10"
+                                                               TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource SubtextBrush}"/>
+                                                    <ItemsControl ItemsSource="{Binding MaterialChips}" Margin="0,6,0,0">
+                                                        <ItemsControl.Style>
+                                                            <Style TargetType="ItemsControl">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding HasMaterialChips}" Value="True">
+                                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </ItemsControl.Style>
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <UniformGrid Columns="2"/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <DockPanel Margin="0,1,4,1" LastChildFill="True">
+                                                                    <ctrl:WowItemSlot DockPanel.Dock="Left"
+                                                                                      DataContext="{Binding Item}"
+                                                                                      Width="19" Height="19" Margin="0,0,4,0"/>
+                                                                    <TextBlock Text="{Binding LabelLine}"
+                                                                               FontSize="10" VerticalAlignment="Center"
+                                                                               Foreground="{Binding NameQualityColor, Converter={StaticResource HexToBrush}}"
+                                                                               TextTrimming="CharacterEllipsis"/>
+                                                                </DockPanel>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <Border Grid.Row="3" Padding="12,8" Background="{DynamicResource PanelBg2}" CornerRadius="0,0,6,6">
+                <TextBlock Text="{Binding StatusText}" FontSize="11"
+                           Foreground="{DynamicResource SubtextBrush}" TextWrapping="Wrap"/>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

@@ -1,5 +1,7 @@
 using SpecialAzerothService.Core.Services;
 
+using SpecialAzerothService.Core.Models.Carto;
+
 namespace SpecialAzerothService.Core.Models.WowSync;
 
 public sealed class WowAccountData
@@ -37,6 +39,24 @@ public sealed class WowCharacterData
     public int DisplayPvpRank => PvpRank > 0 ? PvpRank : PvpRankId >= 5 ? PvpRankId - 4 : 0;
 
     public bool HasPvpRank => DisplayPvpRank > 0;
+
+    /// <summary>Addon ≥ 1.6 — quêtes d'accès raids HL scannées.</summary>
+    public bool HasRaidAttunementSync { get; set; }
+
+    public bool AttunedMoltenCore { get; set; }
+    public bool AttunedBlackwingLair { get; set; }
+    public bool AttunedOnyxia { get; set; }
+    public bool AttunedNaxxramas { get; set; }
+
+    public bool IsRaidAttuned(RaidAttunementType type) => type switch
+    {
+        RaidAttunementType.MoltenCore => AttunedMoltenCore,
+        RaidAttunementType.BlackwingLair => AttunedBlackwingLair,
+        RaidAttunementType.Onyxia => AttunedOnyxia,
+        RaidAttunementType.Naxxramas => AttunedNaxxramas,
+        _ => false
+    };
+
     public string Class { get; set; } = "";
     public string Race { get; set; } = "";
     public long Gold { get; set; }
@@ -175,6 +195,12 @@ public sealed class WowProfessionCooldown
         ScannedAt > 0 && RemainingSec > 0
             ? DateTimeOffset.FromUnixTimeSeconds((long)(ScannedAt + RemainingSec)).UtcDateTime
             : null;
+
+    public bool WasExplicitlyScanned => ScannedAt > 0;
+
+    public bool IsExplicitlyRunning => WasExplicitlyScanned && RemainingSec > 0;
+
+    public bool IsExplicitlyReady => WasExplicitlyScanned && RemainingSec <= 0;
 
     public bool IsReady => ReadyAtUtc == null || DateTime.UtcNow >= ReadyAtUtc;
 

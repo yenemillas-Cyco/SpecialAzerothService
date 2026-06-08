@@ -39,7 +39,7 @@ public sealed record WowSyncScanDiagnostics(
 
 public sealed class WowSyncService : IWowSyncService
 {
-    public const string AddonVersionValue = "1.5.0";
+    public const string AddonVersionValue = "1.6.2";
     public string AddonVersion => AddonVersionValue;
 
     private readonly ISettingsService _settingsService;
@@ -173,10 +173,18 @@ public sealed class WowSyncService : IWowSyncService
         }
 
         if (accountFolders.Count == 0)
-            issues.Add("Aucun compte dans WTF — lancez Classic Era une fois sur ce PC.");
-        else if (luaFiles == 0)
+        {
             issues.Add(
-                $"Aucun WowSync.lua sous {wtfPath} — déployez l'addon, /reload en jeu, /wowsync, puis déconnectez-vous.");
+                "Aucun compte Battle.net dans WTF\\Account — connectez-vous une fois en Classic Era sur ce PC.");
+        }
+        else if (luaFiles == 0)
+        {
+            var sample = string.Join(", ",
+                accountFolders.Take(3).Select(d => Path.GetFileName(d) ?? "?"));
+            issues.Add(
+                $"Comptes WTF détectés ({sample}{(accountFolders.Count > 3 ? "…" : "")}) mais aucun WowSync.lua.\n"
+                + "⚙ Paramètres → Déployer l'addon, puis en jeu : /reload, /wowsync, déconnexion.");
+        }
 
         accounts.AddRange(byAccount.Values.Where(a => a.Characters.Count > 0));
         return new WowSyncReadResult(
@@ -260,10 +268,18 @@ public sealed class WowSyncService : IWowSyncService
         }
 
         if (accountFolders.Count == 0)
-            issues.Add("Aucun compte dans WTF — lancez Classic Era une fois sur ce PC.");
-        else if (luaFiles == 0)
+        {
             issues.Add(
-                $"Aucun WowSync.lua sous {wtfPath} — déployez l'addon, /reload en jeu, /wowsync, puis déconnectez-vous.");
+                "Aucun compte Battle.net dans WTF\\Account — connectez-vous une fois en Classic Era sur ce PC.");
+        }
+        else if (luaFiles == 0)
+        {
+            var sample = string.Join(", ",
+                accountFolders.Take(3).Select(d => Path.GetFileName(d) ?? "?"));
+            issues.Add(
+                $"Comptes WTF détectés ({sample}{(accountFolders.Count > 3 ? "…" : "")}) mais aucun WowSync.lua.\n"
+                + "⚙ Paramètres → Déployer l'addon, puis en jeu : /reload, /wowsync, déconnexion.");
+        }
 
         return new WowSyncScanDiagnostics(wtfPath, accountFolders.Count, luaFiles, charCount, issues);
     }
@@ -288,8 +304,17 @@ public sealed class WowSyncService : IWowSyncService
             PvpRankId = LuaTableParser.GetInt(d, "pvpRankId"),
             PvpRank = LuaTableParser.GetInt(d, "pvpRank"),
             PvpRankName = LuaTableParser.GetString(d, "pvpRankName"),
-            PvpRankProgress = LuaTableParser.GetDouble(d, "pvpRankProgress", -1)
+            PvpRankProgress = LuaTableParser.GetDouble(d, "pvpRankProgress", -1),
+            AttunedMoltenCore = LuaTableParser.GetBool(d, "attunedMC"),
+            AttunedBlackwingLair = LuaTableParser.GetBool(d, "attunedBWL"),
+            AttunedOnyxia = LuaTableParser.GetBool(d, "attunedOny"),
+            AttunedNaxxramas = LuaTableParser.GetBool(d, "attunedNaxx")
         };
+        ch.HasRaidAttunementSync = LuaTableParser.GetBool(d, "raidAttunementSynced")
+            || d.ContainsKey("attunedMC")
+            || d.ContainsKey("attunedBWL")
+            || d.ContainsKey("attunedOny")
+            || d.ContainsKey("attunedNaxx");
 
         var profs = LuaTableParser.GetTable(d, "professions");
         if (profs != null)
@@ -464,7 +489,7 @@ public sealed class WowSyncService : IWowSyncService
 
     private const string LuaContent =
         """
-        local WOWSYNC_VERSION = "1.5.0"
+        local WOWSYNC_VERSION = "1.6.2"
         local WOWSYNC_DEBUG = false
         local function WSLog(msg)
             if WOWSYNC_DEBUG then print(msg) end
@@ -729,6 +754,57 @@ public sealed class WowSyncService : IWowSyncService
             end
         end
 
+        local function EstimateCooldownRemaining(cd)
+            if not cd then return 0 end
+            local remaining = cd.remainingSec or 0
+            if cd.scannedAt and cd.scannedAt > 0 and remaining > 0 then
+                remaining = remaining - (time() - cd.scannedAt)
+            end
+            return remaining
+        end
+
+        local function CooldownsByKey(list)
+            local map = {}
+            if not list then return map end
+            for _, cd in ipairs(list) do
+                if cd and cd.key then
+                    map[cd.key] = cd
+                end
+            end
+            return map
+        end
+
+        -- Ne pas ecraser un CD absent du scan (ex. tamis a sel en banque, hors sacs).
+        local function MergeCooldowns(prev, fresh)
+            local prevMap = CooldownsByKey(prev)
+            local freshMap = CooldownsByKey(fresh)
+            local out = {}
+            local seen = {}
+
+            for key, cd in pairs(freshMap) do
+                table.insert(out, cd)
+                seen[key] = true
+            end
+
+            for key, prevCd in pairs(prevMap) do
+                if seen[key] then
+                    -- deja pris depuis le scan frais
+                elseif key == "salt" and not PlayerHasItemId(15846) then
+                    -- Tamis hors sacs : garder le dernier CD connu s'il court encore
+                    if EstimateCooldownRemaining(prevCd) > 60 then
+                        table.insert(out, {
+                            key = prevCd.key,
+                            name = prevCd.name or "Tamis a sel",
+                            remainingSec = EstimateCooldownRemaining(prevCd),
+                            scannedAt = time()
+                        })
+                    end
+                end
+            end
+
+            return out
+        end
+
         local function ScanCooldowns()
             local cds = {}
             local now = time()
@@ -950,6 +1026,32 @@ public sealed class WowSyncService : IWowSyncService
             return ScanContainer(0, 4)
         end
 
+        local function IsQuestFlaggedCompletedSafe(questId)
+            if not questId or questId <= 0 then return false end
+            if C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted then
+                local ok, done = pcall(C_QuestLog.IsQuestFlaggedCompleted, questId)
+                return ok and done == true
+            end
+            return false
+        end
+
+        local function IsAlliancePlayer()
+            return UnitFactionGroup and UnitFactionGroup("player") == "Alliance"
+        end
+
+        local function OnyxiaAttunementQuestId()
+            return IsAlliancePlayer() and 6502 or 6602
+        end
+
+        local function ApplyRaidAttunementFields(entry)
+            if not entry then return end
+            entry.attunedMC = IsQuestFlaggedCompletedSafe(7848)
+            entry.attunedBWL = IsQuestFlaggedCompletedSafe(7761)
+            entry.attunedOny = IsQuestFlaggedCompletedSafe(OnyxiaAttunementQuestId())
+            entry.attunedNaxx = IsQuestFlaggedCompletedSafe(9122)
+            entry.raidAttunementSynced = true
+        end
+
         local function ApplyPvpRankFields(entry)
             if not entry or not UnitPVPRank then return end
             local rankId = UnitPVPRank("player") or 0
@@ -1036,6 +1138,7 @@ public sealed class WowSyncService : IWowSyncService
                 entry.xpPercent = (maxXp and maxXp > 0) and (xp / maxXp * 100) or -1
             end
             ApplyPvpRankFields(entry)
+            ApplyRaidAttunementFields(entry)
 
             if scanBags then
                 local inv = ScanInventory()
@@ -1044,9 +1147,11 @@ public sealed class WowSyncService : IWowSyncService
             end
 
             local okCd, cds = pcall(ScanCooldowns)
-            if okCd and cds and #cds > 0 then
-                entry.cooldowns = cds
-                TouchSync(key, "cooldowns")
+            if okCd and cds then
+                entry.cooldowns = MergeCooldowns(entry.cooldowns, cds)
+                if entry.cooldowns and #entry.cooldowns > 0 then
+                    TouchSync(key, "cooldowns")
+                end
             end
         end
 
@@ -1180,6 +1285,7 @@ public sealed class WowSyncService : IWowSyncService
             }
             WowSyncDB[key] = entry
             ApplyPvpRankFields(entry)
+            ApplyRaidAttunementFields(entry)
             entry.syncMeta = entry.syncMeta or {}
             if #inv > 0 then
                 TouchSync(key, "inventory")
@@ -1201,8 +1307,8 @@ public sealed class WowSyncService : IWowSyncService
 
             local ok3, e3 = pcall(function()
                 local cds = ScanCooldowns()
-                entry.cooldowns = cds
-                if #cds > 0 then TouchSync(key, "cooldowns") end
+                entry.cooldowns = MergeCooldowns(entry.cooldowns, cds)
+                if entry.cooldowns and #entry.cooldowns > 0 then TouchSync(key, "cooldowns") end
             end)
             if not ok3 then WSLog("|cFFFF0000[WowSync]|r Err CD: " .. tostring(e3)) end
 
@@ -1292,8 +1398,10 @@ public sealed class WowSyncService : IWowSyncService
                 if WowSyncDB[key] then
                     RefreshKnownCooldowns(WowSyncDB[key])
                     local cds = ScanCooldowns()
-                    WowSyncDB[key].cooldowns = cds
-                    if #cds > 0 then TouchSync(key, "cooldowns") end
+                    WowSyncDB[key].cooldowns = MergeCooldowns(WowSyncDB[key].cooldowns, cds)
+                    if WowSyncDB[key].cooldowns and #WowSyncDB[key].cooldowns > 0 then
+                        TouchSync(key, "cooldowns")
+                    end
                 end
             elseif event == "BAG_UPDATE_DELAYED" then
                 bagScanPending = true

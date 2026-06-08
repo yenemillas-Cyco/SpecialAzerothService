@@ -304,9 +304,17 @@
                     <DockPanel>
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
                             <Button DockPanel.Dock="Right" Content="＋" Style="{DynamicResource StoneButton}"
-                                    FontSize="14" Padding="6,2" MinWidth="32" Height="28"
-                                    ToolTip="Ouvrir le catalogue des métiers"
+                                    FontSize="14" Padding="6,2" MinWidth="32" Height="28" Margin="4,0,0,0"
+                                    ToolTip="Catalogue métiers — ajouter une recette"
                                     Command="{Binding OpenProfessionPickerCommand}"/>
+                            <Button DockPanel.Dock="Right" Content="📜" Style="{DynamicResource StoneButton}"
+                                    FontSize="13" Padding="6,2" MinWidth="32" Height="28" Margin="4,0,0,0"
+                                    ToolTip="Quêtes — T3, E'ko Winterspring…"
+                                    Command="{Binding OpenQuestPickerCommand}"/>
+                            <Button DockPanel.Dock="Right" Content="↑" Style="{DynamicResource StoneButton}"
+                                    FontSize="14" Padding="6,2" MinWidth="32" Height="28"
+                                    ToolTip="Guide montée 1-300 — charger un métier (WowIsClassic)"
+                                    Command="{Binding OpenLevelingPickerCommand}"/>
                             <TextBlock Text="À crafter" Style="{StaticResource SectionTitle}"
                                        Foreground="{DynamicResource BrightGoldBrush}"
                                        VerticalAlignment="Center"/>

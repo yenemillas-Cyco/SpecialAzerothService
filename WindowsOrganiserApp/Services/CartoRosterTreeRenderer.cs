@@ -51,7 +51,7 @@ public static class CartoRosterTreeRenderer
         {
             root.Children.Add(new TextBlock
             {
-                Text = "Aucun personnage.\nParamètres → WowSync + comptes WoW, puis Actualiser.",
+                Text = "Aucun personnage.\n⚙ (en haut) → WowSync + comptes WoW, puis Actualiser.",
                 TextWrapping = TextWrapping.Wrap,
                 FontSize = 11,
                 Foreground = new System.Windows.Media.SolidColorBrush(

@@ -114,31 +114,7 @@ public static class CartoCooldownDisplay
                     byType[type.Value] = entry;
                 }
 
-                if (syncCd.IsReady)
-                {
-                    entry.ReadyAtOverride = null;
-                    if (syncCd.ReadyAtUtc is { } readyAt)
-                        entry.LastUsed = readyAt - entry.Duration;
-                    continue;
-                }
-
-                if (syncCd.ReadyAtUtc is { } runningReadyAt)
-                {
-                    entry.ReadyAtOverride = runningReadyAt;
-                    var remaining = runningReadyAt - DateTime.UtcNow;
-                    if (remaining > TimeSpan.Zero)
-                    {
-                        var total = entry.Duration;
-                        if (type == CooldownType.Arcanite && remaining > TimeSpan.FromHours(25))
-                            total = TimeSpan.FromHours(48);
-                        else if (remaining > total)
-                            total = remaining;
-
-                        entry.LastUsed = runningReadyAt - total;
-                    }
-                    else if (entry.LastUsed == null)
-                        entry.LastUsed = runningReadyAt - entry.Duration;
-                }
+                CooldownSyncMerge.ApplySyncEntry(entry, syncCd, type.Value);
             }
         }
 

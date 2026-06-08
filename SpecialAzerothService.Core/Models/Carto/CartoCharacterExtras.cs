@@ -16,6 +16,7 @@ public sealed class CartoCharacterExtras
     public List<ProfessionInfo> Professions { get; set; } = [];
     public List<CooldownEntry> Cooldowns { get; set; } = [];
     public List<QuestItemEntry> QuestItems { get; set; } = [];
+    public List<RaidAttunementEntry> RaidAttunements { get; set; } = [];
 
     /// <summary>Obsolète — migré vers <see cref="CartoData.CharacterProfiles"/>.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWriting)]

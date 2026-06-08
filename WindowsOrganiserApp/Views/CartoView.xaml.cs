@@ -58,6 +58,7 @@ public partial class CartoView : UserControl
                 _subscribedVm.TimerExpired -= OnTimerExpired;
                 _subscribedVm.CharactersRescanned -= OnCharactersRescanned;
                 _subscribedVm.RosterRefreshRequested -= OnRosterRefreshRequested;
+                _subscribedVm.CooldownRosterVisibilityChanged -= OnCooldownRosterVisibilityChanged;
             }
 
             _subscribedVm = null;
@@ -72,6 +73,7 @@ public partial class CartoView : UserControl
                 vm.TimerExpired += OnTimerExpired;
                 vm.CharactersRescanned += OnCharactersRescanned;
                 vm.RosterRefreshRequested += OnRosterRefreshRequested;
+                vm.CooldownRosterVisibilityChanged += OnCooldownRosterVisibilityChanged;
                 ApplyRightPanelLayout();
                 SyncPanelToolbarToggles();
                 UpdateMapCursor();
@@ -367,8 +369,7 @@ public partial class CartoView : UserControl
             or nameof(CartoViewModel.IsCharacterDetailOpen)
             or nameof(CartoViewModel.IsItemSearchOpen)
             or nameof(CartoViewModel.IsTimersPanelOpen)
-            or nameof(CartoViewModel.IsZonesPanelOpen)
-            or nameof(CartoViewModel.IsSettingsPanelOpen))
+            or nameof(CartoViewModel.IsZonesPanelOpen))
         {
             ApplyRightPanelLayout();
             SyncPanelToolbarToggles();
@@ -1003,7 +1004,7 @@ public partial class CartoView : UserControl
                 {
                     Text = cooldownCategoriesOnly
                         ? "Aucun personnage avec recette CD connue.\nDéployez l'addon WowSync v1.4+, connectez-vous en jeu (/reload)."
-                        : "Aucun personnage.\nParamètres → WowSync + comptes WoW, puis Actualiser.",
+                        : "Aucun personnage.\n⚙ (en haut) → WowSync + comptes WoW, puis Actualiser.",
                     TextWrapping = TextWrapping.Wrap,
                     FontSize = 11,
                     Foreground = TryFindResource("SubtextBrush") as Brush ?? Brushes.Gray,
@@ -1015,7 +1016,24 @@ public partial class CartoView : UserControl
             var users = Vm.GetOrderedUsers().ToList();
             var assignedCharIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var user in users)
+            var visibleUsers = cooldownCategoriesOnly
+                ? users.Where(u => Vm.IsUserVisibleInCooldownRoster(u)).ToList()
+                : users;
+
+            if (cooldownCategoriesOnly && visibleUsers.Count == 0 && allLocalChars.Count > 0)
+            {
+                root.Children.Add(new TextBlock
+                {
+                    Text = "Aucun propriétaire affiché.\nCliquez ⚙ pour choisir qui voir.",
+                    TextWrapping = TextWrapping.Wrap,
+                    FontSize = 11,
+                    Foreground = TryFindResource("SubtextBrush") as Brush ?? Brushes.Gray,
+                    Margin = new Thickness(4, 8, 4, 8)
+                });
+                return;
+            }
+
+            foreach (var user in visibleUsers)
             {
                 if (buildId != _rosterPanelBuildGeneration)
                     return;
@@ -1041,36 +1059,32 @@ public partial class CartoView : UserControl
             if (buildId != _rosterPanelBuildGeneration)
                 return;
 
-            var orphans = allLocalChars.Where(c => !assignedCharIds.Contains(c.Id)).ToList();
-            if (orphans.Count > 0)
+            // Cooldowns : les « orphelins » sont des persos de propriétaires masqués — ne pas les rattacher à Moi.
+            if (!cooldownCategoriesOnly)
             {
-                var fallbackUser = users.FirstOrDefault(CartoViewModel.IsDefaultCartoUser)
-                                   ?? users.FirstOrDefault();
-                if (fallbackUser != null)
+                var orphans = allLocalChars.Where(c => !assignedCharIds.Contains(c.Id)).ToList();
+                if (orphans.Count > 0)
                 {
-                    var userPanel = CartoRosterPanelUi.StretchWidth(new StackPanel());
-                    if (cooldownCategoriesOnly)
-                        PopulateCooldownCharacters(userPanel, orphans, buildId);
-                    else
+                    var fallbackUser = users.FirstOrDefault(CartoViewModel.IsDefaultCartoUser)
+                                       ?? users.FirstOrDefault();
+                    if (fallbackUser != null)
+                    {
+                        var userPanel = CartoRosterPanelUi.StretchWidth(new StackPanel());
                         PopulateUserAccountsAndCategories(userPanel, fallbackUser, orphans, buildId);
-                    root.Children.Add(BuildUserExpander(fallbackUser, orphans, userPanel, cooldownCategoriesOnly));
-                }
-                else
-                {
-                    var flatPanel = CartoRosterPanelUi.StretchWidth(new StackPanel());
-                    if (cooldownCategoriesOnly)
-                        PopulateCooldownCharacters(flatPanel, orphans, buildId);
+                        root.Children.Add(BuildUserExpander(fallbackUser, orphans, userPanel, cooldownPanel: false));
+                    }
                     else
                     {
+                        var flatPanel = CartoRosterPanelUi.StretchWidth(new StackPanel());
                         foreach (var ch in orphans.OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase))
                         {
                             if (buildId != _rosterPanelBuildGeneration)
                                 return;
                             flatPanel.Children.Add(BuildStatusDockChip(ch, cooldownRoster: false));
                         }
-                    }
 
-                    root.Children.Add(flatPanel);
+                        root.Children.Add(flatPanel);
+                    }
                 }
             }
         }
@@ -2231,12 +2245,8 @@ public partial class CartoView : UserControl
     private void MapZoomOut_Click(object sender, RoutedEventArgs e)
         => ApplyMapZoomAtViewportCenter(CartoViewModel.WheelZoomFactorFromDelta(-120));
 
-    private void MapResetView_Click(object sender, RoutedEventArgs e)
-    {
-        MapScroll?.ScrollToHorizontalOffset(0);
-        MapScroll?.ScrollToVerticalOffset(0);
-        TryApplyInitialMapFit();
-    }
+    private void MapZoomMax_Click(object sender, RoutedEventArgs e)
+        => TryApplyInitialMapFit();
 
     private void ApplyMapZoomAtViewportCenter(double factor)
     {
@@ -2438,18 +2448,6 @@ public partial class CartoView : UserControl
         SetPanelOpen(CartoPanel.Timers, false);
     }
 
-    private void PanelSettings_Checked(object sender, RoutedEventArgs e)
-    {
-        if (_suppressPanelToggleEvents) return;
-        ActivatePanel(CartoPanel.Settings);
-    }
-
-    private void PanelSettings_Unchecked(object sender, RoutedEventArgs e)
-    {
-        if (_suppressPanelToggleEvents) return;
-        SetPanelOpen(CartoPanel.Settings, false);
-    }
-
     private void PanelZones_Checked(object sender, RoutedEventArgs e)
     {
         if (_suppressPanelToggleEvents) return;
@@ -2462,7 +2460,14 @@ public partial class CartoView : UserControl
         SetPanelOpen(CartoPanel.Zones, false);
     }
 
-    private enum CartoPanel { Cooldowns, Roster, Search, Timers, Zones, Settings, Character }
+    private enum CartoPanel { Cooldowns, Roster, Search, Timers, Zones, Character }
+
+    public void NotifySettingsSaved()
+    {
+        ApplyRightPanelLayout();
+        RebuildAllRosterPanels();
+        RedrawMarkers();
+    }
 
     private CartoPanel? GetActiveListPanel()
     {
@@ -2473,7 +2478,6 @@ public partial class CartoView : UserControl
         if (Vm.IsItemSearchOpen) return CartoPanel.Search;
         if (Vm.IsTimersPanelOpen) return CartoPanel.Timers;
         if (Vm.IsZonesPanelOpen) return CartoPanel.Zones;
-        if (Vm.IsSettingsPanelOpen) return CartoPanel.Settings;
         return null;
     }
 
@@ -2487,7 +2491,6 @@ public partial class CartoView : UserControl
         Vm.IsItemSearchOpen = panel == CartoPanel.Search;
         Vm.IsTimersPanelOpen = panel == CartoPanel.Timers;
         Vm.IsZonesPanelOpen = panel == CartoPanel.Zones;
-        Vm.IsSettingsPanelOpen = panel == CartoPanel.Settings;
 
         SyncPanelToolbarToggles();
         ApplyRightPanelLayout();
@@ -2514,7 +2517,6 @@ public partial class CartoView : UserControl
             case CartoPanel.Search: Vm.IsItemSearchOpen = false; break;
             case CartoPanel.Timers: Vm.IsTimersPanelOpen = false; break;
             case CartoPanel.Zones: Vm.IsZonesPanelOpen = false; break;
-            case CartoPanel.Settings: Vm.IsSettingsPanelOpen = false; break;
         }
 
         SyncPanelToolbarToggles();
@@ -2580,13 +2582,6 @@ public partial class CartoView : UserControl
         SetPanelOpen(CartoPanel.Roster, false);
     }
 
-    private void CloseSettingsPanel_Click(object sender, RoutedEventArgs e)
-    {
-        if (Vm == null) return;
-        e.Handled = true;
-        SetPanelOpen(CartoPanel.Settings, false);
-    }
-
     private void CloseZonesPanel_Click(object sender, RoutedEventArgs e)
     {
         if (Vm == null) return;
@@ -2594,10 +2589,76 @@ public partial class CartoView : UserControl
         SetPanelOpen(CartoPanel.Zones, false);
     }
 
+    private void OnCooldownRosterVisibilityChanged(object? sender, EventArgs e)
+    {
+        if (PopupCooldownOwners?.IsOpen == true)
+            RebuildCooldownOwnerVisibilityList();
+        if (Vm?.IsCooldownRosterOpen == true)
+            RebuildCooldownRoster();
+    }
+
+    private void CooldownOwnerSettings_Click(object sender, RoutedEventArgs e)
+    {
+        if (Vm == null)
+            return;
+
+        RebuildCooldownOwnerVisibilityList();
+        PopupCooldownOwners.IsOpen = true;
+    }
+
+    private void RebuildCooldownOwnerVisibilityList()
+    {
+        if (Vm == null || CooldownOwnerVisibilityList == null)
+            return;
+
+        CooldownOwnerVisibilityList.Children.Clear();
+        foreach (var user in Vm.GetOrderedUsers())
+        {
+            var brush = CartoCharacterPresentation.GetUserHeaderBrush(user, Vm);
+            var check = new CheckBox
+            {
+                Content = user.Name,
+                IsChecked = Vm.IsUserVisibleInCooldownRoster(user),
+                FontSize = 12,
+                Foreground = brush,
+                Margin = new Thickness(0, 2, 0, 2),
+                Tag = user
+            };
+            check.Checked += OnCooldownOwnerVisibilityChanged;
+            check.Unchecked += OnCooldownOwnerVisibilityChanged;
+            CooldownOwnerVisibilityList.Children.Add(check);
+        }
+    }
+
+    private void OnCooldownOwnerVisibilityChanged(object sender, RoutedEventArgs e)
+    {
+        if (Vm == null || sender is not CheckBox check || check.Tag is not CartoUser user)
+            return;
+
+        Vm.SetCooldownRosterUserVisibility(user, check.IsChecked == true);
+        RebuildCooldownRoster();
+    }
+
+    private void CooldownOwnersMoiOnly_Click(object sender, RoutedEventArgs e)
+    {
+        Vm?.ApplyCooldownRosterVisibilityPreset(moiOnly: true);
+        RebuildCooldownOwnerVisibilityList();
+        RebuildCooldownRoster();
+    }
+
+    private void CooldownOwnersShowAll_Click(object sender, RoutedEventArgs e)
+    {
+        Vm?.ApplyCooldownRosterVisibilityPreset(moiOnly: false);
+        RebuildCooldownOwnerVisibilityList();
+        RebuildCooldownRoster();
+    }
+
     private void CloseCooldownRosterPanel_Click(object sender, RoutedEventArgs e)
     {
         if (Vm == null) return;
         e.Handled = true;
+        if (PopupCooldownOwners != null)
+            PopupCooldownOwners.IsOpen = false;
         SetPanelOpen(CartoPanel.Cooldowns, false);
     }
 
@@ -2673,7 +2734,6 @@ public partial class CartoView : UserControl
         var showSearch = !showCharacter && Vm.IsItemSearchOpen;
         var showTimers = !showCharacter && Vm.IsTimersPanelOpen;
         var showZones = !showCharacter && Vm.IsZonesPanelOpen;
-        var showSettings = !showCharacter && Vm.IsSettingsPanelOpen;
 
         if (CharacterDetailHost != null)
             CharacterDetailHost.Visibility = showCharacter ? Visibility.Visible : Visibility.Collapsed;
@@ -2685,8 +2745,6 @@ public partial class CartoView : UserControl
             TimersPanelHost.Visibility = showTimers ? Visibility.Visible : Visibility.Collapsed;
         if (ZonesPanelHost != null)
             ZonesPanelHost.Visibility = showZones ? Visibility.Visible : Visibility.Collapsed;
-        if (SettingsPanelHost != null)
-            SettingsPanelHost.Visibility = showSettings ? Visibility.Visible : Visibility.Collapsed;
 
         if (showRoster)
         {
@@ -2704,11 +2762,24 @@ public partial class CartoView : UserControl
             && Vm.CharactersLoaded && CooldownRosterRoot?.Children.Count == 0)
             RebuildCooldownRoster();
 
-        var anyPanelOpen = showCharacter || showCooldowns || showRoster || showSearch || showTimers || showZones
-                           || showSettings;
+        var anyPanelOpen = showCharacter || showCooldowns || showRoster || showSearch || showTimers || showZones;
+
+        if (anyPanelOpen)
+        {
+            MapColumn.Width = new GridLength(2, GridUnitType.Star);
+            SidePanelColumn.Width = new GridLength(1, GridUnitType.Star);
+        }
+        else
+        {
+            MapColumn.Width = new GridLength(1, GridUnitType.Star);
+            SidePanelColumn.Width = new GridLength(0);
+        }
 
         if (RightDockHost != null)
             RightDockHost.Visibility = anyPanelOpen ? Visibility.Visible : Visibility.Collapsed;
+
+        if (anyPanelOpen || _cartoInit.IsComplete)
+            _ = Dispatcher.InvokeAsync(SyncMapViewportConstraints, DispatcherPriority.Loaded);
 
         if (ZonesPanelHost != null)
             ZonesPanelHost.Background = new SolidColorBrush(Color.FromArgb(0xF2, 0x10, 0x18, 0x10));
@@ -2728,7 +2799,6 @@ public partial class CartoView : UserControl
             if (BtnPanelSearch != null) BtnPanelSearch.IsChecked = Vm.IsItemSearchOpen;
             if (BtnPanelTimers != null) BtnPanelTimers.IsChecked = Vm.IsTimersPanelOpen;
             if (BtnPanelZones != null) BtnPanelZones.IsChecked = Vm.IsZonesPanelOpen;
-            if (BtnPanelSettings != null) BtnPanelSettings.IsChecked = Vm.IsSettingsPanelOpen;
         }
         finally
         {
@@ -2740,29 +2810,6 @@ public partial class CartoView : UserControl
     {
         PopupAddChar.IsOpen = false;
         PopupAddTimer.IsOpen = false;
-    }
-
-    private void AccountUserCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (Vm == null || sender is not ComboBox combo || combo.DataContext is not AccountSettingRow row)
-            return;
-
-        row.RefreshOwnerDisplayName(Vm.GetOrderedUsers());
-    }
-
-    private async void RefreshAccountSettings_Click(object sender, RoutedEventArgs e)
-    {
-        if (Vm == null) return;
-        await Vm.RescanWowFromWtfAsync();
-    }
-
-    private void SaveAccountSettings_Click(object sender, RoutedEventArgs e)
-    {
-        if (Vm == null) return;
-        Vm.CloseSettingsPanelAfterSave();
-        ApplyRightPanelLayout();
-        RebuildAllRosterPanels();
-        RedrawMarkers();
     }
 
     private void CloseCharacterTooltip()
@@ -3071,11 +3118,7 @@ public partial class CartoView : UserControl
 
         UIElement? questContent = null;
         if (CartoCharacterPresentation.ShowQuestBody(ch))
-        {
-            var questRow = CartoCharacterPresentation.BuildQuestIconRow(ch, syncData, 24, horizontal: true);
-            if (questRow.Children.Count > 0)
-                questContent = questRow;
-        }
+            questContent = CartoCharacterPresentation.BuildQuestAndRaidStatusRow(ch, syncData, 24);
 
         var identityGrid = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch };
         identityGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });

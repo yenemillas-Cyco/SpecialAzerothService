@@ -327,6 +327,7 @@ public sealed class CraftStockOwnerOption : ObservableObject
 public partial class CraftCraftingViewModel : ObservableObject
 {
     private readonly ICraftListsService _lists;
+    private readonly ICraftLevelingCatalog _leveling;
     private readonly ICraftCatalogLookup _catalog;
     private readonly ICraftPickupPlanner _pickupPlanner;
     private readonly ICraftPlanningContext _planning;
@@ -342,6 +343,7 @@ public partial class CraftCraftingViewModel : ObservableObject
 
     public CraftCraftingViewModel(
         ICraftListsService lists,
+        ICraftLevelingCatalog leveling,
         ICraftCatalogLookup catalog,
         ICraftPickupPlanner pickupPlanner,
         ICraftPlanningContext planning,
@@ -351,6 +353,7 @@ public partial class CraftCraftingViewModel : ObservableObject
         CartoViewModel cartoVm)
     {
         _lists = lists;
+        _leveling = leveling;
         _catalog = catalog;
         _pickupPlanner = pickupPlanner;
         _planning = planning;
@@ -586,6 +589,51 @@ public partial class CraftCraftingViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void OpenQuestPicker()
+    {
+        if (SelectedList == null)
+        {
+            StatusText = "Sélectionnez ou créez une liste avant d'ajouter des quêtes T3.";
+            return;
+        }
+
+        _planning.SetActiveList(SelectedList.Source.Id);
+
+        var owner = Application.Current?.MainWindow;
+        var vm = new CraftQuestPickerViewModel(SelectedList.Source.Id, _lists, _planning, _itemLookup);
+        var picker = new CraftQuestPickerWindow(vm);
+        if (owner != null && owner.IsLoaded)
+            picker.Owner = owner;
+
+        picker.ShowDialog();
+        ReloadListItems();
+        _planning.NotifyListItemsChanged();
+    }
+
+    [RelayCommand]
+    private void OpenLevelingPicker()
+    {
+        if (SelectedList == null)
+        {
+            StatusText = "Sélectionnez ou créez une liste avant de charger un guide 1-300.";
+            return;
+        }
+
+        _planning.SetActiveList(SelectedList.Source.Id);
+
+        var owner = Application.Current?.MainWindow;
+        var vm = new CraftLevelingPickerViewModel(
+            SelectedList.Source.Id, _lists, _leveling, _planning, _itemLookup);
+        var picker = new CraftLevelingPickerWindow(vm);
+        if (owner != null && owner.IsLoaded)
+            picker.Owner = owner;
+
+        picker.ShowDialog();
+        ReloadListItems();
+        _planning.NotifyListItemsChanged();
+    }
+
+    [RelayCommand]
     private void RemoveItem(CraftListRow? row)
     {
         if (SelectedList == null || row == null) return;
@@ -708,7 +756,7 @@ public partial class CraftCraftingViewModel : ObservableObject
 
         var total = rows.Count;
         StatusText = total == 0
-            ? $"« {SelectedList.Name} » — vide. Utilisez ＋ pour ouvrir le catalogue des métiers."
+            ? $"« {SelectedList.Name} » — vide. ＋ métiers ou 📜 quêtes T3."
             : $"« {SelectedList.Name} » — {total} objet(s) — calcul en cours…";
 
         StartEnrich(includeCrafts: true);
@@ -723,6 +771,15 @@ public partial class CraftCraftingViewModel : ObservableObject
     {
         if (string.IsNullOrEmpty(professionId))
             return "Divers";
+
+        if (Tier3QuestCatalog.TryParseEkoProfessionId(professionId, out var ekoItemId))
+            return Tier3QuestCatalog.ProfessionLabelEko(ekoItemId);
+
+        if (Tier3QuestCatalog.TryParseBlProfessionId(professionId, out var blItemId))
+            return Tier3QuestCatalog.ProfessionLabelBl(blItemId);
+
+        if (Tier3QuestCatalog.TryParseProfessionId(professionId, out var t3Class, out var t3Slot))
+            return Tier3QuestCatalog.ProfessionLabel(t3Class, t3Slot);
 
         var label = _catalog.GetProfessionLabel(professionId);
         return CraftDisplayNames.ProfessionGroupFr(professionId, label);
@@ -864,7 +921,7 @@ public partial class CraftCraftingViewModel : ObservableObject
 
         var total = ProfessionGroups.Sum(g => g.Items.Count);
         StatusText = total == 0
-            ? $"« {SelectedList.Name} » — vide. Utilisez ＋ pour ouvrir le catalogue des métiers."
+            ? $"« {SelectedList.Name} » — vide. ＋ métiers ou 📜 quêtes T3."
             : $"« {SelectedList.Name} » — {total} objet(s), {CharacterPickupGroups.Count} perso(s), {ToFarmRows.Count} à farmer, {VendorBuyRows.Count} chez marchand.";
     }
 

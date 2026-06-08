@@ -52,12 +52,14 @@ public partial class WowItemSlot : UserControl
         ImageSource? image = null;
         WowheadItemDetails? details = null;
 
-        if (LookupService != null && item.ItemId > 0)
+        if (LookupService != null && (item.ItemId > 0 || item.SpellId > 0))
         {
             try
             {
                 var iconTask = LookupService.GetIconAsync(item, cts.Token);
-                var detailsTask = LookupService.GetDetailsAsync(item, cts.Token);
+                Task<WowheadItemDetails?> detailsTask = item.ItemId > 0
+                    ? LookupService.GetDetailsAsync(item, cts.Token)
+                    : LookupService.GetSpellDetailsAsync(item.SpellId, cts.Token);
                 await Task.WhenAll(iconTask, detailsTask).ConfigureAwait(false);
                 if (!cts.IsCancellationRequested)
                 {

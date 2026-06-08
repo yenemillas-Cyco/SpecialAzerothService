@@ -116,6 +116,7 @@ public static class CartoCharacterEnricher
 
         SyncProfessions(sync, carto);
         SyncQuestItems(sync, carto);
+        SyncRaidAttunements(sync, carto);
         CartoSyncMapper.ApplyCooldownsFromSync(sync, carto);
         if (carto.Class == WowClass.Demoniste)
             carto.ShardCount = CountSoulShards(sync);
@@ -162,6 +163,19 @@ public static class CartoCharacterEnricher
         }
 
         return false;
+    }
+
+    private static void SyncRaidAttunements(WowCharacterData sync, WowCharacter carto)
+    {
+        carto.RaidAttunements.Clear();
+        foreach (var def in RaidAttunementCatalog.All)
+        {
+            carto.RaidAttunements.Add(new RaidAttunementEntry
+            {
+                Type = def.Type,
+                IsAttuned = sync.HasRaidAttunementSync && sync.IsRaidAttuned(def.Type)
+            });
+        }
     }
 
     private static void SyncQuestItems(WowCharacterData sync, WowCharacter carto)

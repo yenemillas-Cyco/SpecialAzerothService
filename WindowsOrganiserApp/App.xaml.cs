@@ -99,6 +99,7 @@ public partial class App : Application
         services.AddSingleton<IWowItemLookupService, WowItemLookupService>();
         services.AddSingleton<ICraftService, CraftService>();
         services.AddSingleton<ICraftListsService, CraftListsService>();
+        services.AddSingleton<ICraftLevelingCatalog, CraftLevelingCatalog>();
         services.AddSingleton<ICraftCatalogLookup, CraftCatalogLookup>();
         services.AddSingleton<ICraftDecompositionService, CraftDecompositionService>();
         services.AddSingleton<ICraftPickupPlanner, CraftPickupPlannerService>();
@@ -184,7 +185,7 @@ public partial class App : Application
                 "Mise à jour v4.0.0 : votre configuration locale a été réinitialisée pour repartir sur une base propre.\n\n"
                 + "• Effacé : paramètres, roster Carto, primes, listes craft, chemin WoW enregistré\n"
                 + "• Conservé : calibration des zones sur la carte\n\n"
-                + "Dans Carto → Paramètres, indiquez à nouveau le chemin WoW puis lancez un Rescan.",
+                + "Via ⚙ (en haut), indiquez à nouveau le chemin WoW puis lancez un Rescan.",
                 "Configuration réinitialisée",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);

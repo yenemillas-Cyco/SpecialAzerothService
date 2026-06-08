@@ -97,6 +97,14 @@ public static class CartoMapQuestIcon
         }
     }
 
+    public static void PreloadItemIcon(int itemId)
+    {
+        if (itemId <= 0 || WowItemSlot.LookupService == null)
+            return;
+
+        _ = PreloadIconAsync(new WowItem { ItemId = itemId });
+    }
+
     private static async Task PreloadIconAsync(WowItem item)
     {
         var lookup = WowItemSlot.LookupService;

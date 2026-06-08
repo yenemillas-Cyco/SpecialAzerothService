@@ -235,4 +235,20 @@ public static class LuaTableParser
 
     public static Dictionary<string, object?>? GetTable(Dictionary<string, object?> dict, string key)
         => dict.TryGetValue(key, out var v) && v is Dictionary<string, object?> t ? t : null;
+
+    public static bool GetBool(Dictionary<string, object?> dict, string key, bool fallback = false)
+    {
+        if (!dict.TryGetValue(key, out var v) || v is null)
+            return fallback;
+
+        return v switch
+        {
+            bool b => b,
+            int i => i != 0,
+            long l => l != 0,
+            double d => Math.Abs(d) > double.Epsilon,
+            string s => s.Equals("true", StringComparison.OrdinalIgnoreCase) || s == "1",
+            _ => fallback
+        };
+    }
 }

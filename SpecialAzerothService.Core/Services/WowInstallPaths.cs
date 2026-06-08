@@ -212,14 +212,29 @@ public static class WowInstallPaths
         return null;
     }
 
-    /// <summary>Message d'erreur si le dossier choisi n'est pas « World of Warcraft ».</summary>
-    public static string GetValidationError(string? selectedPath)
+    /// <summary>Message court pour validation immédiate (dialogue 📁).</summary>
+    public static string GetValidationError(string? selectedPath) => GetDetailedSetupError(selectedPath);
+
+    /// <summary>Diagnostic détaillé : chemin WoW, Classic Era, comptes WTF, droits d'accès.</summary>
+    public static string GetDetailedSetupError(string? selectedPath)
     {
         if (string.IsNullOrWhiteSpace(selectedPath))
-            return "Aucun dossier sélectionné.";
+        {
+            return "Aucun dossier WoW enregistré.\n\n"
+                   + "⚙ Paramètres → 📁 sélectionnez le dossier « World of Warcraft » "
+                   + "(ex. C:\\Program Files (x86)\\World of Warcraft), puis Rescanner.";
+        }
 
         var selected = selectedPath.Trim().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var expected = GetExpectedGameRootHint(selected);
+
+        if (!Directory.Exists(selected))
+        {
+            return "Le dossier enregistré est introuvable ou inaccessible.\n\n"
+                   + $"Chemin : {selected}\n\n"
+                   + "Vérifiez que WoW est bien installé sur ce PC, puis choisissez à nouveau le dossier "
+                   + "« World of Warcraft » dans ⚙ Paramètres.";
+        }
 
         if (!IsDirectGameRoot(selected))
         {
@@ -232,20 +247,81 @@ public static class WowInstallPaths
             }
 
             return "Dossier incorrect.\n\n"
-                   + $"Sélectionnez le dossier « {GameRootFolderName} » (installation du jeu sur ce PC).\n\n"
+                   + $"Sélectionnez le dossier « {GameRootFolderName} » (racine Battle.net sur ce PC).\n\n"
                    + $"Choisi : {selected}\n"
-                   + $"Sélectionnez : {expected}";
+                   + $"Attendu : {expected}";
         }
 
-        var wtfPath = Path.Combine(selected, ClassicEraFolder, "WTF", "Account");
-        if (!Directory.Exists(wtfPath))
+        var classicEraPath = Path.Combine(selected, ClassicEraFolder);
+        var wtfPath = Path.Combine(classicEraPath, "WTF", "Account");
+        var retailPath = Path.Combine(selected, "_retail_");
+
+        if (!Directory.Exists(classicEraPath))
         {
-            return $"{GameRootFolderName} trouvé, mais pas le dossier des comptes.\n\n"
-                   + $"Manquant : {wtfPath}\n\n"
-                   + "Lancez le jeu Classic Era au moins une fois sur ce PC.";
+            if (Directory.Exists(retailPath))
+            {
+                return "Installation Retail détectée (_retail_), mais pas WoW Classic Era.\n\n"
+                       + $"Dossier : {selected}\n"
+                       + $"Manquant : {classicEraPath}\n\n"
+                       + "Cette application lit uniquement les personnages **WoW Classic Era**.\n"
+                       + "Dans Battle.net : installez « World of Warcraft Classic » (version Era), "
+                       + "lancez-le une fois sur ce PC, puis ⚙ Paramètres → Rescanner.";
+            }
+
+            return $"Dossier « {GameRootFolderName} » reconnu, mais Classic Era absent.\n\n"
+                   + $"Manquant : {classicEraPath}\n\n"
+                   + "Installez et lancez **WoW Classic Era** au moins une fois, puis resélectionnez ce dossier.";
+        }
+
+        try
+        {
+            if (!Directory.Exists(wtfPath))
+            {
+                return "Classic Era trouvé, mais aucun compte WTF pour l'instant.\n\n"
+                       + $"Manquant : {wtfPath}\n\n"
+                       + "Étapes :\n"
+                       + "1. Lancez **WoW Classic Era** et connectez-vous au moins une fois\n"
+                       + "2. ⚙ Paramètres → **Rescanner**\n"
+                       + "3. **Déployer l'addon** WowSync, /reload en jeu, tapez /wowsync, puis déconnectez-vous";
+            }
+
+            var accountDirs = Directory.GetDirectories(wtfPath);
+            if (accountDirs.Length == 0)
+            {
+                return "Dossier WTF présent, mais aucun compte Battle.net détecté.\n\n"
+                       + $"Chemin : {wtfPath}\n\n"
+                       + "Connectez-vous une fois en Classic Era (le dossier compte se crée à la première connexion), "
+                       + "puis Rescanner.";
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return "Accès refusé au dossier des comptes WoW.\n\n"
+                   + $"Chemin : {wtfPath}\n\n"
+                   + "Si WoW est sous Program Files, lancez Special Azeroth Service **en administrateur**, "
+                   + "ou réinstallez WoW dans un dossier utilisateur (ex. D:\\Jeux\\World of Warcraft).";
+        }
+        catch (IOException ex)
+        {
+            return $"Impossible de lire le dossier WTF ({ex.Message}).\n\nChemin : {wtfPath}";
         }
 
         return "";
+    }
+
+    /// <summary>Racine « World of Warcraft » avec sous-dossier <c>_classic_era_</c> (WTF optionnel).</summary>
+    public static bool TryGetClassicEraGameRoot(string? selectedPath, out string gameRoot)
+    {
+        gameRoot = "";
+        if (string.IsNullOrWhiteSpace(selectedPath))
+            return false;
+
+        var selected = selectedPath.Trim().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (!IsDirectGameRoot(selected))
+            return false;
+
+        gameRoot = selected;
+        return Directory.Exists(Path.Combine(gameRoot, ClassicEraFolder));
     }
 
     public static string GetWtfAccountDirectory(string gameRoot) =>
@@ -275,7 +351,7 @@ public static class WowInstallPaths
     public static string DescribeResolution(string? gameRoot, string? expectedAddonVersion = null)
     {
         if (!TryCompleteUserFolder(gameRoot, out var r))
-            return GetValidationError(gameRoot);
+            return GetDetailedSetupError(gameRoot);
 
         var addonLine = string.IsNullOrWhiteSpace(expectedAddonVersion)
             ? $"Addon : {r.AddonsDirectory}"

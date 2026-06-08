@@ -79,6 +79,7 @@ public partial class CartoViewModel : ObservableObject
         MigratePlacedOnMapFlags();
         MigrateStripNonAddonMapPositions();
         MigrateClearBulkMapPlacementFlags();
+        MigrateCooldownRosterVisibilityDefaults();
         ApplyConfiguredAccountSettings();
 
         Accounts = new ObservableCollection<WowAccount>();
@@ -145,7 +146,7 @@ public partial class CartoViewModel : ObservableObject
             _appliedWowPath = "";
             WowPath = "";
             AddonStatusText =
-                "⚠ Chemin WoW non enregistré.\nCarto → Paramètres → choisir le dossier « World of Warcraft » (ex. D:\\Programmes\\World of Warcraft).";
+                "⚠ Chemin WoW non enregistré.\n⚙ (en haut) → choisir le dossier « World of Warcraft » (ex. D:\\Programmes\\World of Warcraft).";
             return;
         }
 
@@ -235,13 +236,18 @@ public partial class CartoViewModel : ObservableObject
 
         if (!WowInstallPaths.TryCompleteUserFolder(folderPath, out var resolved))
         {
-            var error = WowInstallPaths.GetValidationError(folderPath);
+            var error = WowInstallPaths.GetDetailedSetupError(folderPath);
             AddonStatusText = error;
+
+            // Mémoriser la racine si Classic Era existe déjà (évite de redemander le chemin à chaque lancement).
+            if (WowInstallPaths.TryGetClassicEraGameRoot(folderPath, out var partialRoot))
+                PersistWowGameRoot(partialRoot);
+
             if (showErrors)
             {
                 System.Windows.MessageBox.Show(
                     error,
-                    "Dossier World of Warcraft incorrect",
+                    "Configuration WoW — action requise",
                     System.Windows.MessageBoxButton.OK,
                     System.Windows.MessageBoxImage.Warning);
             }
@@ -328,29 +334,48 @@ public partial class CartoViewModel : ObservableObject
         BumpMapPlacementStamp();
     }
 
-    /// <summary>Demande le dossier WoW au premier lancement si absent (addon déjà installé).</summary>
+    /// <summary>Demande le dossier WoW une seule fois par session si aucun chemin n'est enregistré.</summary>
     private async Task EnsureWowPathConfiguredAsync()
     {
         if (WowInstallPaths.TryCompleteUserFolder(WowPath, out _)
-            || WowInstallPaths.TryCompleteUserFolder(_wowSyncService.WowPath, out _))
+            || WowInstallPaths.TryCompleteUserFolder(_wowSyncService.WowPath, out _)
+            || WowInstallPaths.TryCompleteUserFolder(_settings.WowPath, out _))
             return;
+
+        var storedPath = FirstNonEmptyWowPathCandidate();
+        var setupError = WowInstallPaths.GetDetailedSetupError(storedPath);
 
         var dispatcher = System.Windows.Application.Current?.Dispatcher;
         if (dispatcher == null)
             return;
 
+        await dispatcher.InvokeAsync(() =>
+        {
+            AddonStatusText = setupError;
+        }, DispatcherPriority.Normal);
+
+        // Chemin enregistré mais incomplet (ex. Classic Era jamais lancé) : ne pas redemander en boucle.
+        if (!string.IsNullOrWhiteSpace(storedPath) || _wowFolderPromptShownThisSession)
+            return;
+
+        _wowFolderPromptShownThisSession = true;
+
         await dispatcher.InvokeAsync(async () =>
         {
             var dialog = new Microsoft.Win32.OpenFolderDialog
             {
-                Title = "Dossier World of Warcraft (racine du jeu)"
+                Title = "Dossier World of Warcraft (racine du jeu — pas _classic_era_)"
             };
             if (dialog.ShowDialog() != true)
                 return;
 
             await CommitWowGameRootAsync(dialog.FolderName, showErrors: true).ConfigureAwait(true);
-        }, System.Windows.Threading.DispatcherPriority.Normal).Task.Unwrap();
+        }, DispatcherPriority.Normal).Task.Unwrap();
     }
+
+    private string FirstNonEmptyWowPathCandidate() =>
+        new[] { WowPath, _settings.WowPath, _wowSyncService.WowPath, WowGameRootStore.Read() ?? "" }
+            .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p)) ?? "";
 
     public string AddonInstallPathHint =>
         string.IsNullOrWhiteSpace(WowPath) ? "" : WowInstallPaths.DescribeResolution(WowPath);
@@ -499,11 +524,13 @@ public partial class CartoViewModel : ObservableObject
         }
         else
         {
-            Report(28, "Choisissez le dossier WoW dans Carto → Paramètres.");
+            var hint = WowInstallPaths.GetDetailedSetupError(FirstNonEmptyWowPathCandidate());
+            Report(28, "Configuration WoW requise…");
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                AddonStatusText =
-                    "⚠ Chemin WoW non enregistré.\nChoisissez le dossier « World of Warcraft » dans Paramètres (📁), puis Rescanner.";
+                AddonStatusText = string.IsNullOrWhiteSpace(hint)
+                    ? "⚠ Chemin WoW incomplet.\n⚙ Paramètres → vérifiez le dossier, puis Rescanner."
+                    : hint;
             }, DispatcherPriority.Normal);
         }
 
@@ -514,7 +541,11 @@ public partial class CartoViewModel : ObservableObject
 
         Report(72, "Positions WowSync sur la carte…");
 
-        _ = Task.Run(CartoMapQuestIcon.PreloadQuestStubIcons);
+        _ = Task.Run(() =>
+        {
+            CartoMapQuestIcon.PreloadQuestStubIcons();
+            CartoRaidAttunementIcon.PreloadIcons();
+        });
 
         var uiDispatcher = System.Windows.Application.Current?.Dispatcher
                            ?? throw new InvalidOperationException("Application WPF non initialisée.");
@@ -911,6 +942,40 @@ public partial class CartoViewModel : ObservableObject
     }
 
     public bool IsUserVisibleOnMap(CartoUser user) => !user.IsRosterSubtreeHidden;
+
+    public bool IsUserVisibleInCooldownRoster(CartoUser user) => !user.IsCooldownRosterHidden;
+
+    public event EventHandler? CooldownRosterVisibilityChanged;
+
+    public void SetCooldownRosterUserVisibility(CartoUser user, bool visible)
+    {
+        user.IsCooldownRosterHidden = !visible;
+        _data.CooldownRosterVisibilityConfigured = true;
+        SaveVisibilityState();
+        CooldownRosterVisibilityChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void ApplyCooldownRosterVisibilityPreset(bool moiOnly)
+    {
+        foreach (var user in _data.Users)
+            user.IsCooldownRosterHidden = moiOnly && !IsDefaultCartoUser(user);
+
+        _data.CooldownRosterVisibilityConfigured = true;
+        SaveVisibilityState();
+        CooldownRosterVisibilityChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void MigrateCooldownRosterVisibilityDefaults()
+    {
+        if (_data.CooldownRosterVisibilityConfigured)
+            return;
+
+        foreach (var user in _data.Users)
+            user.IsCooldownRosterHidden = !IsDefaultCartoUser(user);
+
+        _data.CooldownRosterVisibilityConfigured = true;
+        _cartoService.Save(_data);
+    }
 
     public bool IsAccountVisibleOnMap(WowAccount account) => !account.IsHidden;
 
@@ -1733,9 +1798,7 @@ public partial class CartoViewModel : ObservableObject
 
             if (!EnsureWowPathPersisted(out _))
             {
-                AddonStatusText = string.IsNullOrWhiteSpace(_settings.WowPath) && string.IsNullOrWhiteSpace(WowPath)
-                    ? "⚠ Chemin WoW non enregistré — Paramètres → dossier « World of Warcraft »."
-                    : WowInstallPaths.GetValidationError(WowPath);
+                AddonStatusText = WowInstallPaths.GetDetailedSetupError(FirstNonEmptyWowPathCandidate());
                 return false;
             }
 
