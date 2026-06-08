@@ -71,6 +71,8 @@ public partial class AppSettingsPopupView : UserControl
 
         if (!Vm.IsSettingsPanelOpen)
             Vm.IsSettingsPanelOpen = true;
+        else
+            Vm.RefreshAddonStatusFromWowPath();
 
         _ = Dispatcher.InvokeAsync(PositionCentered, DispatcherPriority.Loaded);
     }

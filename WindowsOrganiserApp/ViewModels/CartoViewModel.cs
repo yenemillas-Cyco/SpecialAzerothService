@@ -153,12 +153,13 @@ public partial class CartoViewModel : ObservableObject
         if (WowInstallPaths.TryCompleteUserFolder(candidate, out var resolved))
         {
             PersistWowGameRoot(resolved.GameRoot);
+            RefreshAddonStatusFromWowPath();
             return;
         }
 
         WowPath = WowInstallPaths.NormalizeStoredPath(candidate);
         _appliedWowPath = WowPath;
-        AddonStatusText = WowInstallPaths.GetDetailedSetupError(WowPath);
+        RefreshAddonStatusFromWowPath();
     }
 
     private IEnumerable<string> EnumerateWowPathCandidates()
@@ -230,11 +231,11 @@ public partial class CartoViewModel : ObservableObject
         }
 
         PersistWowGameRoot(resolved.GameRoot);
-        if (!string.Equals(WowPath, resolved.GameRoot, StringComparison.Ordinal))
+        if (!string.Equals(WowPath, resolved.GameRoot, StringComparison.OrdinalIgnoreCase))
             return;
 
         InvalidateWowSyncLoadState();
-        AddonStatusText = "Chemin enregistré — cliquez « Rescanner » pour charger les personnages depuis WTF.";
+        RefreshAddonStatusFromWowPath();
     }
 
     public string ResolvedWowPathsSummary
@@ -397,24 +398,55 @@ public partial class CartoViewModel : ObservableObject
         new[] { WowPath, _settings.WowPath, _wowSyncService.WowPath, WowGameRootStore.Read() ?? "" }
             .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p)) ?? "";
 
-    private string BuildWowPathSetupStatusMessage()
+    /// <summary>Met à jour le bandeau WowSync (chemin, comptes WTF, prochaine action).</summary>
+    public void RefreshAddonStatusFromWowPath()
     {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var candidate in EnumerateWowPathCandidates())
+        if (string.IsNullOrWhiteSpace(WowPath))
         {
-            if (!seen.Add(candidate))
-                continue;
-
-            var detailed = WowInstallPaths.GetDetailedSetupError(candidate);
-            if (!string.IsNullOrWhiteSpace(detailed))
-                return detailed;
+            AddonStatusText =
+                "Aucun dossier WoW enregistré.\n\n"
+                + "⚙ Paramètres → 📁 choisissez le dossier « World of Warcraft », puis Rescanner.";
+            return;
         }
 
-        var fallback = WowInstallPaths.GetDetailedSetupError(FirstNonEmptyWowPathCandidate());
-        return string.IsNullOrWhiteSpace(fallback)
-            ? "Aucun dossier WoW enregistré.\n\n"
-              + "⚙ Paramètres → 📁 choisissez le dossier « World of Warcraft », puis Rescanner."
-            : fallback;
+        if (!WowInstallPaths.TryCompleteUserFolder(WowPath, out var resolution))
+        {
+            AddonStatusText = WowInstallPaths.GetDetailedSetupError(WowPath);
+            return;
+        }
+
+        var probe = WowInstallPaths.ProbeWtfAccountAccess(resolution.WtfAccountPath);
+        if (probe.AccessDenied || !probe.Readable)
+        {
+            AddonStatusText = WowInstallPaths.GetDetailedSetupError(WowPath);
+            return;
+        }
+
+        if (_startupWtfScanDone)
+        {
+            var diag = _wowSyncService.GetScanDiagnostics(resolution.GameRoot);
+            AddonStatusText = BuildWowSyncStatusText(
+                diag,
+                _wowSyncService.ListWtfAccountFolderNames(),
+                Characters.Count);
+            return;
+        }
+
+        if (probe.AccountFolderCount > 0)
+        {
+            AddonStatusText =
+                $"✅ Chemin WoW reconnu — {probe.AccountFolderCount} compte(s) WTF détecté(s).\n\n"
+                + $"Comptes : {resolution.WtfAccountPath}\n\n"
+                + "Étapes :\n"
+                + "1. **Rescanner** (ci-dessous) pour charger les personnages\n"
+                + "2. **Déployer l'addon** si besoin, puis en jeu : /reload, /wowsync, déconnexion";
+            return;
+        }
+
+        AddonStatusText =
+            "✅ Chemin WoW reconnu.\n\n"
+            + "Aucun compte Battle.net dans WTF pour l'instant.\n"
+            + "Lancez Classic Era, connectez-vous une fois, puis Rescanner.";
     }
 
     public string AddonInstallPathHint =>
@@ -570,7 +602,7 @@ public partial class CartoViewModel : ObservableObject
             Report(28, "Configuration WoW requise…");
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                AddonStatusText = BuildWowPathSetupStatusMessage();
+                RefreshAddonStatusFromWowPath();
             }, DispatcherPriority.Normal);
         }
 
@@ -762,7 +794,10 @@ public partial class CartoViewModel : ObservableObject
     partial void OnIsSettingsPanelOpenChanged(bool value)
     {
         if (value)
+        {
             BeginAccountSettingsEdit();
+            RefreshAddonStatusFromWowPath();
+        }
         else if (!_settingsPanelClosingAfterSave)
             CancelAccountSettingsEdit();
     }
