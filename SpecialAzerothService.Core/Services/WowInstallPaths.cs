@@ -156,10 +156,64 @@ public static class WowInstallPaths
         return true;
     }
 
-    private static bool HasClassicEraInstall(WowPathResolution resolution) =>
-        !string.IsNullOrWhiteSpace(resolution.GameRoot)
-        && Directory.Exists(Path.Combine(resolution.GameRoot, ClassicEraFolder))
-        && Directory.Exists(resolution.WtfAccountPath);
+    /// <summary>Résultat d'une lecture réelle du dossier WTF (pas seulement Directory.Exists).</summary>
+    public readonly record struct WowWtfAccessProbe(
+        bool WtfFolderExists,
+        bool Readable,
+        bool AccessDenied,
+        int AccountFolderCount,
+        string? ErrorMessage);
+
+    /// <summary>
+    /// Vérifie que <c>WTF\Account</c> est lisible (évite le faux positif Program Files :
+    /// le dossier existe mais l'énumération est bloquée).
+    /// </summary>
+    public static WowWtfAccessProbe ProbeWtfAccountAccess(string? wtfAccountPath)
+    {
+        if (string.IsNullOrWhiteSpace(wtfAccountPath))
+            return new WowWtfAccessProbe(false, false, false, 0, null);
+
+        if (!Directory.Exists(wtfAccountPath))
+            return new WowWtfAccessProbe(false, false, false, 0, null);
+
+        try
+        {
+            var count = Directory.GetDirectories(wtfAccountPath).Length;
+            return new WowWtfAccessProbe(true, true, false, count, null);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return new WowWtfAccessProbe(true, false, true, 0, wtfAccountPath);
+        }
+        catch (IOException ex)
+        {
+            return new WowWtfAccessProbe(true, false, false, 0, ex.Message);
+        }
+    }
+
+    private static bool HasClassicEraInstall(WowPathResolution resolution)
+    {
+        if (string.IsNullOrWhiteSpace(resolution.GameRoot)
+            || !Directory.Exists(Path.Combine(resolution.GameRoot, ClassicEraFolder)))
+            return false;
+
+        var probe = ProbeWtfAccountAccess(resolution.WtfAccountPath);
+        return probe.WtfFolderExists && probe.Readable;
+    }
+
+    private static string FormatWtfAccessDeniedMessage(string wtfPath, string gameRoot)
+    {
+        var underProgramFiles = gameRoot.Contains("Program Files", StringComparison.OrdinalIgnoreCase);
+        var hint = underProgramFiles
+            ? "WoW est sous Program Files : Windows peut bloquer la lecture des comptes.\n"
+              + "• Relancez Special Azeroth Service **en administrateur** (clic droit → Exécuter en tant qu'administrateur)\n"
+              + "• Ou réinstallez WoW dans un dossier utilisateur (ex. D:\\Jeux\\World of Warcraft)"
+            : "Vérifiez les droits sur ce dossier ou relancez l'application en administrateur.";
+
+        return "Accès refusé au dossier des comptes WoW.\n\n"
+               + $"Chemin : {wtfPath}\n\n"
+               + hint;
+    }
 
     /// <summary>Chemin du dossier « World of Warcraft » à proposer dans les messages d'erreur.</summary>
     public static string GetExpectedGameRootHint(string? selectedPath)
@@ -273,37 +327,32 @@ public static class WowInstallPaths
                    + "Installez et lancez **WoW Classic Era** au moins une fois, puis resélectionnez ce dossier.";
         }
 
-        try
+        if (!Directory.Exists(wtfPath))
         {
-            if (!Directory.Exists(wtfPath))
-            {
-                return "Classic Era trouvé, mais aucun compte WTF pour l'instant.\n\n"
-                       + $"Manquant : {wtfPath}\n\n"
-                       + "Étapes :\n"
-                       + "1. Lancez **WoW Classic Era** et connectez-vous au moins une fois\n"
-                       + "2. ⚙ Paramètres → **Rescanner**\n"
-                       + "3. **Déployer l'addon** WowSync, /reload en jeu, tapez /wowsync, puis déconnectez-vous";
-            }
+            return "Classic Era trouvé, mais aucun compte WTF pour l'instant.\n\n"
+                   + $"Manquant : {wtfPath}\n\n"
+                   + "Étapes :\n"
+                   + "1. Lancez **WoW Classic Era** et connectez-vous au moins une fois\n"
+                   + "2. ⚙ Paramètres → **Rescanner**\n"
+                   + "3. **Déployer l'addon** WowSync, /reload en jeu, tapez /wowsync, puis déconnectez-vous";
+        }
 
-            var accountDirs = Directory.GetDirectories(wtfPath);
-            if (accountDirs.Length == 0)
-            {
-                return "Dossier WTF présent, mais aucun compte Battle.net détecté.\n\n"
-                       + $"Chemin : {wtfPath}\n\n"
-                       + "Connectez-vous une fois en Classic Era (le dossier compte se crée à la première connexion), "
-                       + "puis Rescanner.";
-            }
-        }
-        catch (UnauthorizedAccessException)
+        var probe = ProbeWtfAccountAccess(wtfPath);
+        if (probe.AccessDenied)
+            return FormatWtfAccessDeniedMessage(wtfPath, selected);
+
+        if (!probe.Readable)
         {
-            return "Accès refusé au dossier des comptes WoW.\n\n"
+            return $"Impossible de lire le dossier WTF ({probe.ErrorMessage ?? "erreur inconnue"}).\n\n"
+                   + $"Chemin : {wtfPath}";
+        }
+
+        if (probe.AccountFolderCount == 0)
+        {
+            return "Dossier WTF présent, mais aucun compte Battle.net détecté.\n\n"
                    + $"Chemin : {wtfPath}\n\n"
-                   + "Si WoW est sous Program Files, lancez Special Azeroth Service **en administrateur**, "
-                   + "ou réinstallez WoW dans un dossier utilisateur (ex. D:\\Jeux\\World of Warcraft).";
-        }
-        catch (IOException ex)
-        {
-            return $"Impossible de lire le dossier WTF ({ex.Message}).\n\nChemin : {wtfPath}";
+                   + "Connectez-vous une fois en Classic Era (le dossier compte se crée à la première connexion), "
+                   + "puis Rescanner.";
         }
 
         return "";

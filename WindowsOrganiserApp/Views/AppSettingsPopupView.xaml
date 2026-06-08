@@ -75,7 +75,9 @@
                                    Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,6"/>
                         <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                    Margin="0,0,0,8">
-                            Sélectionnez le dossier « World of Warcraft » que vous choisissez (racine du jeu). Comptes et addon sont dérivés automatiquement.
+                            Sélectionnez le dossier « World of Warcraft » (racine Battle.net, pas _classic_era_).
+                            Ex. D:\Programmes\World of Warcraft ou C:\Program Files (x86)\World of Warcraft.
+                            Si WoW est sous Program Files et l'app ne lit pas les comptes : relancez en administrateur.
                         </TextBlock>
                         <TextBlock Text="Dossier World of Warcraft" FontSize="11" FontWeight="SemiBold"
                                    Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>

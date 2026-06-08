@@ -158,16 +158,36 @@ public partial class CartoViewModel : ObservableObject
 
         WowPath = WowInstallPaths.NormalizeStoredPath(candidate);
         _appliedWowPath = WowPath;
-        AddonStatusText = WowInstallPaths.GetValidationError(WowPath);
+        AddonStatusText = WowInstallPaths.GetDetailedSetupError(WowPath);
+    }
+
+    private IEnumerable<string> EnumerateWowPathCandidates()
+    {
+        if (!string.IsNullOrWhiteSpace(WowPath))
+            yield return WowPath;
+        if (!string.IsNullOrWhiteSpace(_settings.WowPath))
+            yield return _settings.WowPath;
+        if (!string.IsNullOrWhiteSpace(_wowSyncService.WowPath))
+            yield return _wowSyncService.WowPath;
+        var store = WowGameRootStore.Read();
+        if (!string.IsNullOrWhiteSpace(store))
+            yield return store;
     }
 
     private bool TryGetStoredWowResolution(out WowInstallPaths.WowPathResolution resolution)
     {
-        if (WowInstallPaths.TryCompleteUserFolder(_wowSyncService.WowPath, out resolution))
-            return true;
-        if (WowInstallPaths.TryCompleteUserFolder(_settings.WowPath, out resolution))
-            return true;
-        return WowInstallPaths.TryCompleteUserFolder(WowPath, out resolution);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var candidate in EnumerateWowPathCandidates())
+        {
+            if (!seen.Add(candidate))
+                continue;
+
+            if (WowInstallPaths.TryCompleteUserFolder(candidate, out resolution))
+                return true;
+        }
+
+        resolution = default;
+        return false;
     }
 
     public string AddonVersion => _wowSyncService.AddonVersion;
@@ -204,7 +224,7 @@ public partial class CartoViewModel : ObservableObject
         if (!WowInstallPaths.TryCompleteUserFolder(stored, out var resolved))
         {
             _appliedWowPath = stored;
-            AddonStatusText = WowInstallPaths.GetValidationError(value);
+            AddonStatusText = WowInstallPaths.GetDetailedSetupError(value);
             InvalidateWowSyncLoadState();
             return;
         }
@@ -377,6 +397,26 @@ public partial class CartoViewModel : ObservableObject
         new[] { WowPath, _settings.WowPath, _wowSyncService.WowPath, WowGameRootStore.Read() ?? "" }
             .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p)) ?? "";
 
+    private string BuildWowPathSetupStatusMessage()
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var candidate in EnumerateWowPathCandidates())
+        {
+            if (!seen.Add(candidate))
+                continue;
+
+            var detailed = WowInstallPaths.GetDetailedSetupError(candidate);
+            if (!string.IsNullOrWhiteSpace(detailed))
+                return detailed;
+        }
+
+        var fallback = WowInstallPaths.GetDetailedSetupError(FirstNonEmptyWowPathCandidate());
+        return string.IsNullOrWhiteSpace(fallback)
+            ? "Aucun dossier WoW enregistré.\n\n"
+              + "⚙ Paramètres → 📁 choisissez le dossier « World of Warcraft », puis Rescanner."
+            : fallback;
+    }
+
     public string AddonInstallPathHint =>
         string.IsNullOrWhiteSpace(WowPath) ? "" : WowInstallPaths.DescribeResolution(WowPath);
 
@@ -511,26 +551,26 @@ public partial class CartoViewModel : ObservableObject
         ApplyStoredWowGameRootFromSettings();
         await EnsureWowPathConfiguredAsync().ConfigureAwait(false);
 
-        if (EnsureWowPathPersisted(out _) && !_startupWtfScanDone)
+        if (EnsureWowPathPersisted(out _))
         {
-            Report(28, "Scan WTF (WowSync.lua)…");
-            var loaded = await ScanWowFromWtfAtStartupAsync().ConfigureAwait(false);
-            if (loaded)
+            if (!_startupWtfScanDone)
             {
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(
-                    OpenDefaultCartoSidePanel,
-                    DispatcherPriority.Normal);
+                Report(28, "Scan WTF (WowSync.lua)…");
+                var loaded = await ScanWowFromWtfAtStartupAsync().ConfigureAwait(false);
+                if (loaded)
+                {
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(
+                        OpenDefaultCartoSidePanel,
+                        DispatcherPriority.Normal);
+                }
             }
         }
         else
         {
-            var hint = WowInstallPaths.GetDetailedSetupError(FirstNonEmptyWowPathCandidate());
             Report(28, "Configuration WoW requise…");
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                AddonStatusText = string.IsNullOrWhiteSpace(hint)
-                    ? "⚠ Chemin WoW incomplet.\n⚙ Paramètres → vérifiez le dossier, puis Rescanner."
-                    : hint;
+                AddonStatusText = BuildWowPathSetupStatusMessage();
             }, DispatcherPriority.Normal);
         }
 
@@ -702,7 +742,7 @@ public partial class CartoViewModel : ObservableObject
         {
             AddonStatusText = string.IsNullOrWhiteSpace(WowPath)
                 ? "⚠ Choisissez le dossier « World of Warcraft » d'abord."
-                : WowInstallPaths.GetValidationError(WowPath);
+                : WowInstallPaths.GetDetailedSetupError(WowPath);
             return;
         }
 

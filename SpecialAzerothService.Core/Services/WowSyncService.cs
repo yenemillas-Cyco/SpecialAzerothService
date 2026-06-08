@@ -105,10 +105,18 @@ public sealed class WowSyncService : IWowSyncService
         var issues = new List<string>();
         var accounts = new List<WowAccountData>();
         var root = string.IsNullOrWhiteSpace(gameRoot) ? WowPath : WowInstallPaths.NormalizeStoredPath(gameRoot);
-        if (!WowInstallPaths.TryGetWtfAccountDirectory(root, out var wtfPath))
+        if (!WowInstallPaths.TryCompleteUserFolder(root, out var paths))
         {
-            issues.Add(WowInstallPaths.GetValidationError(root));
+            issues.Add(WowInstallPaths.GetDetailedSetupError(root));
             return new WowSyncReadResult(accounts, new WowSyncScanDiagnostics("", 0, 0, 0, issues));
+        }
+
+        var wtfPath = paths.WtfAccountPath;
+        var wtfProbe = WowInstallPaths.ProbeWtfAccountAccess(wtfPath);
+        if (wtfProbe.AccessDenied || !wtfProbe.Readable)
+        {
+            issues.Add(WowInstallPaths.GetDetailedSetupError(root));
+            return new WowSyncReadResult(accounts, new WowSyncScanDiagnostics(wtfPath, 0, 0, 0, issues));
         }
 
         IReadOnlyDictionary<string, CartoAccountConfig> settings;
@@ -225,10 +233,18 @@ public sealed class WowSyncService : IWowSyncService
     {
         var issues = new List<string>();
         var root = string.IsNullOrWhiteSpace(gameRoot) ? WowPath : WowInstallPaths.NormalizeStoredPath(gameRoot);
-        if (!WowInstallPaths.TryGetWtfAccountDirectory(root, out var wtfPath))
+        if (!WowInstallPaths.TryCompleteUserFolder(root, out var paths))
         {
-            issues.Add(WowInstallPaths.GetValidationError(root));
+            issues.Add(WowInstallPaths.GetDetailedSetupError(root));
             return new WowSyncScanDiagnostics("", 0, 0, 0, issues);
+        }
+
+        var wtfPath = paths.WtfAccountPath;
+        var wtfProbe = WowInstallPaths.ProbeWtfAccountAccess(wtfPath);
+        if (wtfProbe.AccessDenied || !wtfProbe.Readable)
+        {
+            issues.Add(WowInstallPaths.GetDetailedSetupError(root));
+            return new WowSyncScanDiagnostics(wtfPath, 0, 0, 0, issues);
         }
 
         var accountFolders = WowWtfAccountScanner.ListAccountFolderNames(wtfPath);
