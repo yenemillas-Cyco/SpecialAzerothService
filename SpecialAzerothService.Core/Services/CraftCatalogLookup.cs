@@ -69,6 +69,10 @@ public sealed class CraftCatalogLookup : ICraftCatalogLookup
                             Tier3QuestCatalog.ProfessionIdEko(piece.ResultItemId),
                         _ when category.Id == Tier3QuestCatalog.QuestIdBl =>
                             Tier3QuestCatalog.ProfessionIdBl(piece.ResultItemId),
+                        _ when category.Id == Tier3QuestCatalog.QuestIdArcanum =>
+                            Tier3QuestCatalog.ProfessionIdArcanum(piece.ResultItemId),
+                        _ when category.Id == Tier3QuestCatalog.QuestIdArgentDawn =>
+                            Tier3QuestCatalog.ProfessionIdArgentDawn(piece.ResultItemId),
                         _ => Tier3QuestCatalog.ProfessionId(cls.Class!.Value, piece.Slot!.Value)
                     };
                     var professionLabel = category.Id switch
@@ -77,6 +81,10 @@ public sealed class CraftCatalogLookup : ICraftCatalogLookup
                             Tier3QuestCatalog.ProfessionLabelEko(piece.ResultItemId),
                         _ when category.Id == Tier3QuestCatalog.QuestIdBl =>
                             Tier3QuestCatalog.ProfessionLabelBl(piece.ResultItemId),
+                        _ when category.Id == Tier3QuestCatalog.QuestIdArcanum =>
+                            Tier3QuestCatalog.ProfessionLabelArcanum(piece.ResultItemId),
+                        _ when category.Id == Tier3QuestCatalog.QuestIdArgentDawn =>
+                            Tier3QuestCatalog.ProfessionLabelArgentDawn(piece.ResultItemId),
                         _ => Tier3QuestCatalog.ProfessionLabel(cls.Class!.Value, piece.Slot!.Value)
                     };
 

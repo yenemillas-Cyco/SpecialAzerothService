@@ -39,7 +39,7 @@ public sealed record WowSyncScanDiagnostics(
 
 public sealed class WowSyncService : IWowSyncService
 {
-    public const string AddonVersionValue = "1.6.2";
+    public const string AddonVersionValue = "1.7.0";
     public string AddonVersion => AddonVersionValue;
 
     private readonly ISettingsService _settingsService;
@@ -349,6 +349,8 @@ public sealed class WowSyncService : IWowSyncService
 
         ch.Inventory = ParseItems(LuaTableParser.GetTable(d, "inventory"));
         ch.Bank = ParseItems(LuaTableParser.GetTable(d, "bank"));
+        ch.InventoryBags = ParseBagContainers(LuaTableParser.GetTable(d, "inventoryBags"));
+        ch.BankBags = ParseBagContainers(LuaTableParser.GetTable(d, "bankBags"));
         ch.Mail = ParseMail(LuaTableParser.GetTable(d, "mail"));
         ch.Sync = ParseSyncMeta(LuaTableParser.GetTable(d, "syncMeta"));
         ch.Cooldowns = ParseCooldowns(LuaTableParser.GetTable(d, "cooldowns"));
@@ -427,6 +429,28 @@ public sealed class WowSyncService : IWowSyncService
         return rest;
     }
 
+    private static List<WowBagContainer> ParseBagContainers(Dictionary<string, object?>? table)
+    {
+        if (table == null) return [];
+
+        var bags = new List<WowBagContainer>();
+        foreach (var (_, value) in table)
+        {
+            if (value is not Dictionary<string, object?> row) continue;
+            bags.Add(new WowBagContainer
+            {
+                BagId = LuaTableParser.GetInt(row, "bagId"),
+                Slots = LuaTableParser.GetInt(row, "slots"),
+                UsedSlots = LuaTableParser.GetInt(row, "usedSlots"),
+                BagItemId = LuaTableParser.GetInt(row, "bagItemId")
+            });
+        }
+
+        return bags
+            .OrderBy(b => b.BagId == -1 ? -100 : b.BagId)
+            .ToList();
+    }
+
     private static List<WowItem> ParseItems(Dictionary<string, object?>? table)
     {
         if (table == null) return [];
@@ -439,6 +463,7 @@ public sealed class WowSyncService : IWowSyncService
             var count = Math.Max(1, LuaTableParser.GetInt(id, "count", 1));
             var itemId = LuaTableParser.GetInt(id, "itemId");
             var quality = LuaTableParser.GetInt(id, "quality");
+            var isBound = LuaTableParser.GetBool(id, "bound");
 
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -446,19 +471,24 @@ public sealed class WowSyncService : IWowSyncService
                 else continue;
             }
 
-            if (aggregated.TryGetValue(name, out var existing))
+            var aggKey = itemId > 0
+                ? $"{itemId}\0{(isBound ? 'b' : 'u')}"
+                : $"{name}\0{(isBound ? 'b' : 'u')}";
+
+            if (aggregated.TryGetValue(aggKey, out var existing))
             {
                 existing.Count += count;
             }
             else
             {
-                aggregated[name] = new WowItem
+                aggregated[aggKey] = new WowItem
                 {
                     Name = name,
                     Count = count,
                     ItemId = itemId,
                     Icon = LuaTableParser.GetLong(id, "icon"),
-                    Quality = quality
+                    Quality = quality,
+                    IsBound = isBound
                 };
             }
         }
@@ -505,7 +535,7 @@ public sealed class WowSyncService : IWowSyncService
 
     private const string LuaContent =
         """
-        local WOWSYNC_VERSION = "1.6.2"
+        local WOWSYNC_VERSION = "1.7.0"
         local WOWSYNC_DEBUG = false
         local function WSLog(msg)
             if WOWSYNC_DEBUG then print(msg) end
@@ -549,6 +579,16 @@ public sealed class WowSyncService : IWowSyncService
             return link
         end
 
+        local function IsSlotBound(bag, slot)
+            if C_Item and ItemLocation and C_Item.DoesItemExist and C_Item.IsBound then
+                local loc = ItemLocation:CreateFromBagAndSlot(bag, slot)
+                if loc and loc:IsValid() and C_Item.DoesItemExist(loc) then
+                    return C_Item.IsBound(loc)
+                end
+            end
+            return false
+        end
+
         local function ScanSlot(items, bag, slot)
             local link = _GetItemLink(bag, slot)
             if not link then return end
@@ -564,7 +604,8 @@ public sealed class WowSyncService : IWowSyncService
                 count = count,
                 itemId = itemId,
                 icon = iconId,
-                quality = quality or 0
+                quality = quality or 0,
+                bound = IsSlotBound(bag, slot)
             })
         end
 
@@ -577,6 +618,52 @@ public sealed class WowSyncService : IWowSyncService
                 end
             end
             return items
+        end
+
+        local _ContainerIDToInv = C_Container and C_Container.ContainerIDToInventoryID or ContainerIDToInventoryID
+
+        local function GetBagItemId(bag)
+            if bag == 0 or bag == -1 then return 0 end
+            if _ContainerIDToInv and GetInventoryItemID then
+                local invId = _ContainerIDToInv(bag)
+                if invId then
+                    return GetInventoryItemID("player", invId) or 0
+                end
+            end
+            return 0
+        end
+
+        local function CountUsedSlots(bag, maxSlots)
+            if not maxSlots or maxSlots <= 0 then return 0 end
+            local used = 0
+            for slot = 1, maxSlots do
+                if _GetItemLink(bag, slot) then used = used + 1 end
+            end
+            return used
+        end
+
+        local function AppendBagLayout(bags, bag)
+            local slots = _GetNumSlots(bag) or 0
+            if bag == -1 and slots == 0 then slots = 28 end
+            table.insert(bags, {
+                bagId = bag,
+                slots = slots,
+                usedSlots = (slots > 0) and CountUsedSlots(bag, slots) or 0,
+                bagItemId = GetBagItemId(bag)
+            })
+        end
+
+        local function ScanInventoryBags()
+            local bags = {}
+            for bag = 0, 4 do AppendBagLayout(bags, bag) end
+            return bags
+        end
+
+        local function ScanBankBags()
+            local bags = {}
+            AppendBagLayout(bags, -1)
+            for bag = 5, 10 do AppendBagLayout(bags, bag) end
+            return bags
         end
 
         local function ScanBank()
@@ -1122,7 +1209,9 @@ public sealed class WowSyncService : IWowSyncService
                     class = select(2, UnitClass("player")) or "Unknown",
                     race = select(2, UnitRace("player")) or "Unknown",
                     inventory = prev.inventory or {},
+                    inventoryBags = prev.inventoryBags or {},
                     bank = prev.bank or {},
+                    bankBags = prev.bankBags or {},
                     mail = prev.mail or {},
                     professions = prev.professions or {},
                     knownCooldowns = prev.knownCooldowns or {},
@@ -1157,8 +1246,8 @@ public sealed class WowSyncService : IWowSyncService
             ApplyRaidAttunementFields(entry)
 
             if scanBags then
-                local inv = ScanInventory()
-                entry.inventory = inv
+                entry.inventory = ScanInventory()
+                entry.inventoryBags = ScanInventoryBags()
                 TouchSync(key, "inventory")
             end
 
@@ -1252,16 +1341,20 @@ public sealed class WowSyncService : IWowSyncService
 
             -- Sacs en premier : indispensable avant fermeture du client (PLAYER_LOGOUT)
             local inv = {}
+            local invBags = {}
             local okInv, errInv = pcall(function()
                 inv = ScanInventory()
+                invBags = ScanInventoryBags()
             end)
             if not okInv then
                 WSLog("|cFFFF0000[WowSync]|r Err inventaire: " .. tostring(errInv))
                 inv = prev.inventory or {}
+                invBags = prev.inventoryBags or {}
             end
             -- 2e appel a la deco : sacs deja fermes → ne pas ecraser un inventaire valide
             if fromLogout and #inv == 0 and prev.inventory and #prev.inventory > 0 then
                 inv = prev.inventory
+                invBags = prev.inventoryBags or invBags
                 WSLog("|cFFFFAA00[WowSync]|r Sacs: scan vide a la deco, inventaire precedant conserve (" .. #inv .. " objets).")
             end
 
@@ -1288,7 +1381,9 @@ public sealed class WowSyncService : IWowSyncService
                 mapId = coords.mapId or 0,
                 professions = prev.professions or {},
                 inventory = inv,
+                inventoryBags = invBags,
                 bank = prev.bank or {},
+                bankBags = prev.bankBags or {},
                 mail = prev.mail or {},
                 syncMeta = prev.syncMeta or {},
                 cooldowns = prev.cooldowns or {},
@@ -1390,6 +1485,7 @@ public sealed class WowSyncService : IWowSyncService
                 local key = GetCharKey()
                 if WowSyncDB[key] then
                     WowSyncDB[key].bank = ScanBank()
+                    WowSyncDB[key].bankBags = ScanBankBags()
                     TouchSync(key, "bank")
                     WSLog("|cFF00FF00[WowSync]|r Banque synchronisee.")
                 end
@@ -1440,6 +1536,7 @@ public sealed class WowSyncService : IWowSyncService
                     local key = GetCharKey()
                     if WowSyncDB[key] then
                         WowSyncDB[key].inventory = ScanInventory()
+                        WowSyncDB[key].inventoryBags = ScanInventoryBags()
                         TouchSync(key, "inventory")
                     end
                 end

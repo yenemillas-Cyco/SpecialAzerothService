@@ -103,8 +103,10 @@ public partial class App : Application
         services.AddSingleton<ICraftCatalogLookup, CraftCatalogLookup>();
         services.AddSingleton<ICraftDecompositionService, CraftDecompositionService>();
         services.AddSingleton<ICraftPickupPlanner, CraftPickupPlannerService>();
+        services.AddSingleton<IArcanumPlanningService, ArcanumPlanningService>();
         services.AddSingleton<ICraftPlanningContext, CraftPlanningContext>();
         services.AddSingleton<ICraftStockService, CraftStockService>();
+        services.AddSingleton<IReputationCalculatorService, ReputationCalculatorService>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<AdvancedViewModel>();
         services.AddSingleton<CartoViewModel>();
@@ -112,6 +114,7 @@ public partial class App : Application
         services.AddSingleton<CraftViewModel>();
         services.AddSingleton<CraftCraftingViewModel>();
         services.AddSingleton<CraftShellViewModel>();
+        services.AddSingleton<ReputationViewModel>();
         services.AddTransient<MainWindow>();
 
         _serviceProvider = services.BuildServiceProvider();
@@ -122,10 +125,12 @@ public partial class App : Application
         var cartoVm = _serviceProvider.GetRequiredService<CartoViewModel>();
         var bountyVm = _serviceProvider.GetRequiredService<BountyViewModel>();
         var craftShellVm = _serviceProvider.GetRequiredService<CraftShellViewModel>();
+        var reputationVm = _serviceProvider.GetRequiredService<ReputationViewModel>();
         mainVm.AdvancedVm = advVm;
         mainVm.CartoVm = cartoVm;
         mainVm.BountyVm = bountyVm;
         mainVm.CraftVm = craftShellVm;
+        mainVm.ReputationVm = reputationVm;
 
         // Fenêtre principale assignée AVANT le splash : sinon la fermeture du splash
         // coupe l'app (ShutdownMode=OnMainWindowClose).

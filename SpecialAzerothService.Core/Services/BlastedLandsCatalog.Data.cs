@@ -11,6 +11,9 @@ public static partial class Tier3QuestCatalog
     public const int BasiliskBrain = 8394;
     public const int VultureGizzard = 8396;
 
+    /// <summary>Consommable TF fini (lié) — utilisé notamment pour l'Arcanum de constitution.</summary>
+    public const int LungJuiceCocktail = 8412;
+
     private static QuestClassSet BuildBlDrazialGroup() =>
         new(null, "Mage de sang Drazial", BuildBlDrazialPieces(), "Terres Foudroyées");
 

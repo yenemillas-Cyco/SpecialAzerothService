@@ -56,6 +56,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isCraftMode;
 
+    [ObservableProperty]
+    private bool _isReputationMode;
+
     partial void OnIsOrganiserModeChanged(bool value)
     {
         if (value)
@@ -63,6 +66,7 @@ public partial class MainViewModel : ObservableObject
             IsCartoMode = false;
             IsBountyMode = false;
             IsCraftMode = false;
+            IsReputationMode = false;
             AdvancedVm?.RefreshFromMain();
         }
     }
@@ -74,6 +78,7 @@ public partial class MainViewModel : ObservableObject
             IsOrganiserMode = false;
             IsBountyMode = false;
             IsCraftMode = false;
+            IsReputationMode = false;
         }
 
         CartoVm?.SetLiveUpdatesEnabled(value);
@@ -81,12 +86,35 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsBountyModeChanged(bool value)
     {
-        if (value) { IsOrganiserMode = false; IsCartoMode = false; IsCraftMode = false; }
+        if (value)
+        {
+            IsOrganiserMode = false;
+            IsCartoMode = false;
+            IsCraftMode = false;
+            IsReputationMode = false;
+        }
     }
 
     partial void OnIsCraftModeChanged(bool value)
     {
-        if (value) { IsOrganiserMode = false; IsCartoMode = false; IsBountyMode = false; }
+        if (value)
+        {
+            IsOrganiserMode = false;
+            IsCartoMode = false;
+            IsBountyMode = false;
+            IsReputationMode = false;
+        }
+    }
+
+    partial void OnIsReputationModeChanged(bool value)
+    {
+        if (value)
+        {
+            IsOrganiserMode = false;
+            IsCartoMode = false;
+            IsBountyMode = false;
+            IsCraftMode = false;
+        }
     }
 
     // ─── Toast notifications ─────────────────────────────────
@@ -138,6 +166,7 @@ public partial class MainViewModel : ObservableObject
     public AdvancedViewModel? AdvancedVm { get; set; }
     public BountyViewModel? BountyVm { get; set; }
     public CraftShellViewModel? CraftVm { get; set; }
+    public ReputationViewModel? ReputationVm { get; set; }
 
     [ObservableProperty]
     private CartoViewModel? _cartoVm;

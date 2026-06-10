@@ -69,6 +69,16 @@ public sealed class WowCharacterData
     public List<WowProfession> Professions { get; set; } = [];
     public List<WowItem> Inventory { get; set; } = [];
     public List<WowItem> Bank { get; set; } = [];
+    /// <summary>Layout des sacs personnage (addon ≥ 1.7) : sac à dos + 4 emplacements.</summary>
+    public List<WowBagContainer> InventoryBags { get; set; } = [];
+    /// <summary>Layout banque : onglet principal + 6 emplacements sacs banque.</summary>
+    public List<WowBagContainer> BankBags { get; set; } = [];
+
+    public bool HasBagLayoutSync => InventoryBags.Count > 0 || BankBags.Count > 0;
+    public int TotalInventorySlots => InventoryBags.Sum(b => b.Slots);
+    public int UsedInventorySlots => InventoryBags.Sum(b => b.UsedSlots);
+    public int TotalBankSlots => BankBags.Sum(b => b.Slots);
+    public int UsedBankSlots => BankBags.Sum(b => b.UsedSlots);
     public List<WowMailEntry> Mail { get; set; } = [];
     public WowSyncMeta Sync { get; set; } = new();
     public List<WowProfessionCooldown> Cooldowns { get; set; } = [];
@@ -107,6 +117,37 @@ public sealed class WowProfession
     public string Display => $"{Name} {Rank}/{MaxRank}";
 }
 
+public sealed class WowBagContainer
+{
+    /// <summary>0 = sac à dos, 1–4 = sacs équipés, -1 = banque principale, 5–10 = sacs banque.</summary>
+    public int BagId { get; set; }
+    public int Slots { get; set; }
+    public int UsedSlots { get; set; }
+    /// <summary>ID de l'objet-sac équipé (0 pour sac à dos / banque principale).</summary>
+    public int BagItemId { get; set; }
+
+    public bool IsEquipped => Slots > 0 || BagItemId > 0;
+    public int FreeSlots => Math.Max(0, Slots - UsedSlots);
+
+    public string Label => WowBagContainerLabels.GetLabel(BagId);
+
+    public string CapacityText => Slots <= 0
+        ? "aucun sac"
+        : $"{UsedSlots}/{Slots} utilisés";
+}
+
+public static class WowBagContainerLabels
+{
+    public static string GetLabel(int bagId) => bagId switch
+    {
+        0 => "Sac à dos",
+        -1 => "Banque principale",
+        >= 1 and <= 4 => $"Sac {bagId}",
+        >= 5 and <= 10 => $"Sac banque {bagId - 4}",
+        _ => $"Conteneur {bagId}"
+    };
+}
+
 public sealed class WowItem
 {
     public string Name { get; set; } = "";
@@ -115,6 +156,8 @@ public sealed class WowItem
     public int SpellId { get; set; }
     public long Icon { get; set; }
     public int Quality { get; set; }
+    /// <summary>Objet lié au personnage (non transférable entre alts).</summary>
+    public bool IsBound { get; set; }
     public string Display => Count > 1 ? $"{Name} x{Count}" : Name;
 
     public string QualityName => Quality switch

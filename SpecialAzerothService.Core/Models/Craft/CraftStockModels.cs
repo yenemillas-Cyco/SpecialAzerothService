@@ -11,7 +11,10 @@ public sealed class CraftStockCharacterHold
     public string CharacterName { get; init; } = "";
     public string AccountName { get; init; } = "";
     public int Count { get; init; }
-    public string Label => $"{CharacterName} ({Count})";
+    public bool IsBound { get; init; }
+    public string Label => IsBound
+        ? $"{CharacterName} ({Count}, lié)"
+        : $"{CharacterName} ({Count})";
 }
 
 public sealed class CraftCharacterStock
@@ -20,17 +23,53 @@ public sealed class CraftCharacterStock
     public string AccountName { get; init; } = "";
     public Dictionary<int, int> Inventory { get; init; } = [];
     public Dictionary<int, int> Bank { get; init; } = [];
+    public Dictionary<int, int> Mail { get; init; } = [];
+    public Dictionary<int, int> BoundInventory { get; init; } = [];
+    public Dictionary<int, int> BoundBank { get; init; } = [];
+    public Dictionary<int, int> BoundMail { get; init; } = [];
+    public long GoldCopper { get; set; }
 
-    public int GetCount(int itemId, CraftPickupSource source) =>
-        source == CraftPickupSource.Inventory
-            ? Inventory.GetValueOrDefault(itemId)
-            : Bank.GetValueOrDefault(itemId);
+    public int GetCount(int itemId, CraftPickupSource source) => source switch
+    {
+        CraftPickupSource.Inventory => Inventory.GetValueOrDefault(itemId),
+        CraftPickupSource.Bank => Bank.GetValueOrDefault(itemId),
+        CraftPickupSource.Mail => Mail.GetValueOrDefault(itemId),
+        _ => 0
+    };
+
+    public int GetBound(int itemId) =>
+        BoundInventory.GetValueOrDefault(itemId)
+        + BoundBank.GetValueOrDefault(itemId)
+        + BoundMail.GetValueOrDefault(itemId);
+
+    /// <summary>Sac + banque + courrier (liés et non liés).</summary>
+    public int GetTotalOnCharacter(int itemId) =>
+        Inventory.GetValueOrDefault(itemId)
+        + Bank.GetValueOrDefault(itemId)
+        + Mail.GetValueOrDefault(itemId)
+        + BoundInventory.GetValueOrDefault(itemId)
+        + BoundBank.GetValueOrDefault(itemId)
+        + BoundMail.GetValueOrDefault(itemId);
+
+    public ArcanumCharacterStock ToArcanumStock() => new()
+    {
+        CharacterName = CharacterName,
+        AccountName = AccountName,
+        TransferableInventory = new Dictionary<int, int>(Inventory),
+        TransferableBank = new Dictionary<int, int>(Bank),
+        TransferableMail = new Dictionary<int, int>(Mail),
+        BoundInventory = new Dictionary<int, int>(BoundInventory),
+        BoundBank = new Dictionary<int, int>(BoundBank),
+        BoundMail = new Dictionary<int, int>(BoundMail),
+        GoldCopper = GoldCopper
+    };
 }
 
 public enum CraftPickupSource
 {
     Inventory,
-    Bank
+    Bank,
+    Mail
 }
 
 public sealed class CraftPickupLine
@@ -72,4 +111,9 @@ public sealed class CraftStockSnapshot
 
     public IReadOnlyList<CraftStockCharacterHold> GetBreakdown(int itemId) =>
         ByItemId.TryGetValue(itemId, out var list) ? list : [];
+
+    public CraftCharacterStock? FindCharacter(string accountName, string characterName) =>
+        Characters.FirstOrDefault(c =>
+            c.CharacterName.Equals(characterName, StringComparison.OrdinalIgnoreCase)
+            && c.AccountName.Equals(accountName, StringComparison.OrdinalIgnoreCase));
 }

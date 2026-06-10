@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:conv="clr-namespace:WindowsOrganiserApp.Converters"
              xmlns:ctrl="clr-namespace:WindowsOrganiserApp.Controls"
+             xmlns:craftIcons="clr-namespace:WindowsOrganiserApp.Resources"
              mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="1100"
              VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
              FontSize="13">
@@ -108,13 +109,14 @@
             </Grid>
         </DataTemplate>
 
-        <!-- Ligne objet dans carte perso -->
+        <!-- Ligne objet dans carte perso : besoin sur l'icône, total perso à droite -->
         <DataTemplate x:Key="PickupChipTemplate">
             <DockPanel Margin="0,0,0,4" MinHeight="26">
                 <TextBlock DockPanel.Dock="Right" FontFamily="Georgia" FontSize="11"
-                           Foreground="#C0A060" VerticalAlignment="Center" Margin="6,0,0,0">
-                    <Run Text="×" Foreground="#FFD700"/><Run Text="{Binding Quantity, Mode=OneWay}"/>
-                    <Run Text=" "/><Run Text="{Binding SourceLabel, Mode=OneWay}"/>
+                           VerticalAlignment="Center" Margin="8,0,0,0">
+                    <Run Text="Total " Foreground="{DynamicResource SubtextBrush}"/>
+                    <Run Text="{Binding TotalOnCharacter, Mode=OneWay}" FontWeight="SemiBold"
+                         Foreground="{Binding TotalForegroundHex, Converter={StaticResource HexToBrush}}"/>
                 </TextBlock>
                 <ctrl:WowItemSlot DockPanel.Dock="Left" DataContext="{Binding WowItem}"
                                   Width="24" Height="24" Margin="0,0,6,0"/>
@@ -124,23 +126,96 @@
             </DockPanel>
         </DataTemplate>
 
+        <!-- Perso détenant un composant lié -->
+        <DataTemplate x:Key="BoundMaterialCharacterLineTemplate">
+            <DockPanel Margin="12,0,0,3" MinHeight="22">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                    <TextBlock FontFamily="Georgia" FontSize="10" VerticalAlignment="Center" Margin="0,0,8,0">
+                        <Run Text="Total " Foreground="{DynamicResource SubtextBrush}"/>
+                        <Run Text="{Binding TotalOnCharacter, Mode=OneWay}" FontWeight="SemiBold"
+                             Foreground="{Binding TotalForegroundHex, Converter={StaticResource HexToBrush}}"/>
+                    </TextBlock>
+                    <ctrl:WowCurrencyControl CopperTotal="{Binding GoldCopper}"
+                                             IconSize="11" AmountFontSize="10" VerticalAlignment="Center"/>
+                </StackPanel>
+                <ctrl:WowItemSlot DockPanel.Dock="Left" DataContext="{Binding WowItem}"
+                                  Width="20" Height="20" Margin="0,0,6,0"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding HeaderText}" FontFamily="Georgia" FontSize="11"
+                               FontWeight="SemiBold" Foreground="{DynamicResource BrightGoldBrush}"/>
+                    <TextBlock Text="{Binding SubheaderText}" FontFamily="Georgia" FontSize="9"
+                               Foreground="{DynamicResource SubtextBrush}"
+                               Visibility="{Binding HasSubheader, Converter={StaticResource BoolToVis}}"/>
+                </StackPanel>
+            </DockPanel>
+        </DataTemplate>
+
+        <!-- Un composant lié requis pour l'arcanum -->
+        <DataTemplate x:Key="BoundMaterialNeedTemplate">
+            <StackPanel Margin="0,0,0,6">
+                <DockPanel Margin="0,0,0,3">
+                    <TextBlock DockPanel.Dock="Right" FontFamily="Georgia" FontSize="10"
+                               Foreground="{DynamicResource SubtextBrush}" VerticalAlignment="Center">
+                        <Run Text="besoin "/>
+                        <Run Text="{Binding RequiredCount, Mode=OneWay}" FontWeight="SemiBold" Foreground="#C0A060"/>
+                    </TextBlock>
+                    <ctrl:WowItemSlot DockPanel.Dock="Left" DataContext="{Binding HeaderWowItem}"
+                                      Width="22" Height="22" Margin="0,0,6,0"/>
+                    <TextBlock Text="{Binding DisplayName}" FontFamily="Georgia" FontSize="11"
+                               Foreground="{Binding HeaderWowItem.QualityColor, Converter={StaticResource HexToBrush}}"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                </DockPanel>
+                <TextBlock Text="Aucun perso n'a cet objet lié sur ce compte."
+                           FontFamily="Georgia" FontSize="10"
+                           Foreground="{DynamicResource SubtextBrush}" TextWrapping="Wrap"
+                           Margin="12,0,0,2"
+                           Visibility="{Binding HasNoCharacters, Converter={StaticResource BoolToVis}}"/>
+                <ItemsControl ItemsSource="{Binding Characters}"
+                              ItemTemplate="{StaticResource BoundMaterialCharacterLineTemplate}"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Groupe arcanum (composants liés uniquement) -->
+        <DataTemplate x:Key="ArcanumCraftGroupTemplate">
+            <Border Margin="0,0,0,8" Padding="6,5" CornerRadius="5"
+                    Background="#12004080" BorderBrush="#454060A0" BorderThickness="1">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,4">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding QuantityLabel}"
+                                       FontFamily="Georgia" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#C0A060" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Quête" FontFamily="Georgia" FontSize="9"
+                                       Foreground="{DynamicResource SubtextBrush}"
+                                       VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Visibility="{Binding HasQuestGoldCost, Converter={StaticResource BoolToVis}}"/>
+                            <ctrl:WowCurrencyControl CopperTotal="{Binding QuestGoldCostCopper}"
+                                                     IconSize="11" AmountFontSize="10"
+                                                     VerticalAlignment="Center"
+                                                     Visibility="{Binding HasQuestGoldCost, Converter={StaticResource BoolToVis}}"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding DisplayName}" FontFamily="Georgia" FontSize="12"
+                                   FontWeight="SemiBold" Foreground="#8090FF"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                    <ItemsControl ItemsSource="{Binding BoundMaterials}"
+                                  ItemTemplate="{StaticResource BoundMaterialNeedTemplate}"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
         <!-- Carte perso -->
         <DataTemplate x:Key="CharacterCardTemplate">
             <Border Margin="0,0,0,6" Padding="6,5" CornerRadius="5"
                     Background="#1AD4A017" BorderBrush="#55A08040" BorderThickness="1">
                 <StackPanel>
-                    <DockPanel Margin="0,0,0,4">
-                        <TextBlock DockPanel.Dock="Right" Text="{Binding ItemCount, StringFormat={}{0} obj.}"
-                                   FontFamily="Georgia" FontSize="10"
-                                   Foreground="{DynamicResource SubtextBrush}" VerticalAlignment="Center"/>
-                        <StackPanel>
-                            <TextBlock Text="{Binding HeaderText}" FontFamily="Georgia" FontSize="13"
-                                       FontWeight="Bold" Foreground="{DynamicResource BrightGoldBrush}"/>
-                            <TextBlock Text="{Binding SubheaderText}" FontFamily="Georgia" FontSize="10"
-                                       Foreground="{DynamicResource SubtextBrush}"
-                                       Visibility="{Binding HasSubheader, Converter={StaticResource BoolToVis}}"/>
-                        </StackPanel>
-                    </DockPanel>
+                    <StackPanel Margin="0,0,0,4">
+                        <TextBlock Text="{Binding HeaderText}" FontFamily="Georgia" FontSize="13"
+                                   FontWeight="Bold" Foreground="{DynamicResource BrightGoldBrush}"/>
+                        <TextBlock Text="{Binding SubheaderText}" FontFamily="Georgia" FontSize="10"
+                                   Foreground="{DynamicResource SubtextBrush}"
+                                   Visibility="{Binding HasSubheader, Converter={StaticResource BoolToVis}}"/>
+                    </StackPanel>
                     <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource PickupChipTemplate}"/>
                 </StackPanel>
             </Border>
@@ -303,18 +378,27 @@
                 <Border Grid.Column="0" Style="{StaticResource PanelBorder}">
                     <DockPanel>
                         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
-                            <Button DockPanel.Dock="Right" Content="＋" Style="{DynamicResource StoneButton}"
-                                    FontSize="14" Padding="6,2" MinWidth="32" Height="28" Margin="4,0,0,0"
+                            <Button DockPanel.Dock="Right" Style="{DynamicResource CraftToolbarIconButton}"
+                                    Margin="4,0,0,0"
                                     ToolTip="Catalogue métiers — ajouter une recette"
-                                    Command="{Binding OpenProfessionPickerCommand}"/>
-                            <Button DockPanel.Dock="Right" Content="📜" Style="{DynamicResource StoneButton}"
-                                    FontSize="13" Padding="6,2" MinWidth="32" Height="28" Margin="4,0,0,0"
+                                    Command="{Binding OpenProfessionPickerCommand}">
+                                <Image Source="{x:Static craftIcons:CraftToolbarIcons.CraftAddIcon}"
+                                       Style="{StaticResource CraftToolbarImage}"/>
+                            </Button>
+                            <Button DockPanel.Dock="Right" Style="{DynamicResource CraftToolbarIconButton}"
+                                    Margin="4,0,0,0"
                                     ToolTip="Quêtes — T3, E'ko Winterspring…"
-                                    Command="{Binding OpenQuestPickerCommand}"/>
-                            <Button DockPanel.Dock="Right" Content="↑" Style="{DynamicResource StoneButton}"
-                                    FontSize="14" Padding="6,2" MinWidth="32" Height="28"
+                                    Command="{Binding OpenQuestPickerCommand}">
+                                <Image Source="{x:Static craftIcons:CraftToolbarIcons.CraftQuestIcon}"
+                                       Style="{StaticResource CraftToolbarImage}"
+                                       RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                            </Button>
+                            <Button DockPanel.Dock="Right" Style="{DynamicResource CraftToolbarIconButton}"
                                     ToolTip="Guide montée 1-300 — charger un métier (WowIsClassic)"
-                                    Command="{Binding OpenLevelingPickerCommand}"/>
+                                    Command="{Binding OpenLevelingPickerCommand}">
+                                <Image Source="{x:Static craftIcons:CraftToolbarIcons.CraftGuideIcon}"
+                                       Style="{StaticResource CraftToolbarImage}"/>
+                            </Button>
                             <TextBlock Text="À crafter" Style="{StaticResource SectionTitle}"
                                        Foreground="{DynamicResource BrightGoldBrush}"
                                        VerticalAlignment="Center"/>
@@ -425,13 +509,25 @@
                     </DockPanel>
                 </Border>
 
-                <!-- Col. 2 — Par perso -->
+                <!-- Col. 2 — Arcanums + par perso -->
                 <Border Grid.Column="2" Style="{StaticResource PanelBorder}">
                     <DockPanel>
-                        <TextBlock DockPanel.Dock="Top" Text="À prendre — par perso" Style="{StaticResource SectionTitle}"
+                        <TextBlock DockPanel.Dock="Top" Text="Stock &amp; crafters" Style="{StaticResource SectionTitle}"
                                    Foreground="{DynamicResource BrightGoldBrush}"/>
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel>
+                                <TextBlock Text="Composants liés — arcanums"
+                                           FontFamily="Georgia" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="#8090FF" Margin="0,0,0,4"
+                                           Visibility="{Binding HasArcanumCraftGroups, Converter={StaticResource BoolToVis}}"/>
+                                <ItemsControl ItemsSource="{Binding ArcanumCraftGroups}"
+                                              ItemTemplate="{StaticResource ArcanumCraftGroupTemplate}"
+                                              Margin="0,0,0,8"/>
+                                <Border Height="1" Margin="0,0,0,6" Background="#40C0A060"
+                                        Visibility="{Binding HasArcanumCraftGroups, Converter={StaticResource BoolToVis}}"/>
+                                <TextBlock Text="À prendre — par perso"
+                                           FontFamily="Georgia" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="#C0A060" Margin="0,0,0,4"/>
                                 <TextBlock Text="Aucun composant sur tes persos (Carto Moi + WowSync)."
                                            FontFamily="Georgia" FontSize="11"
                                            Foreground="{DynamicResource SubtextBrush}" TextWrapping="Wrap"

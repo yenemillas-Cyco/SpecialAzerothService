@@ -1,0 +1,644 @@
+<UserControl x:Class="WindowsOrganiserApp.Views.ReputationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:conv="clr-namespace:WindowsOrganiserApp.Converters"
+             xmlns:ctrl="clr-namespace:WindowsOrganiserApp.Controls"
+             mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="1000"
+             FontSize="13">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:HexColorToBrushConverter x:Key="HexToBrush"/>
+
+        <Style x:Key="RepListItem" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="FontFamily" Value="Georgia"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" CornerRadius="4" Padding="{TemplateBinding Padding}"
+                                Background="Transparent" BorderThickness="1" BorderBrush="Transparent">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#28D4A017"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#60D4A017"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#12FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PanelBorder" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Background" Value="#10D4A017"/>
+            <Setter Property="BorderBrush" Value="#40806030"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Georgia"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+
+        <Style x:Key="ResultValue" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Georgia"/>
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource BrightGoldBrush}"/>
+        </Style>
+
+        <Style x:Key="StockTotalPanel" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="Background" Value="#32D4A017"/>
+            <Setter Property="BorderBrush" Value="#90D4A017"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+        </Style>
+
+        <Style x:Key="StockTotalCaption" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Georgia"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="{DynamicResource SubtextBrush}"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="StockTotalValue" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Georgia"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{DynamicResource BrightGoldBrush}"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="StockCharTotalsBadge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Background" Value="#28D4A017"/>
+            <Setter Property="BorderBrush" Value="#70D4A017"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <DataTemplate x:Key="ReputationStockIconTemplate">
+            <ctrl:WowItemSlot DataContext="{Binding WowItem}"
+                              Width="32" Height="32" Margin="0,0,6,6"
+                              ToolTip="{Binding NameFr}"/>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ReputationItemNeedIconTemplate">
+            <ctrl:WowItemSlot DataContext="{Binding WowItem}"
+                              Width="32" Height="32" Margin="0,0,6,6"
+                              ToolTip="{Binding NameFr}"/>
+        </DataTemplate>
+
+        <Style x:Key="RepTierStepItem" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" CornerRadius="4" Padding="8,10" MinHeight="72"
+                                Background="#10FFFFFF" BorderBrush="#40806030" BorderThickness="1.5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#38D4A017"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#D0D4A017"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#20FFFFFF"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#80D4A017"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <DataTemplate x:Key="RepTierStepTemplate">
+            <StackPanel HorizontalAlignment="Center">
+                <TextBlock Text="{Binding Tier.LabelFr}" FontFamily="Georgia" FontSize="10"
+                           TextAlignment="Center" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextBrush}" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding ReputationNeededLabel}" FontFamily="Georgia"
+                           FontSize="17" FontWeight="Bold" TextAlignment="Center"
+                           Foreground="{DynamicResource BrightGoldBrush}"/>
+                <TextBlock Text="réputation" FontSize="9" TextAlignment="Center"
+                           Foreground="{DynamicResource SubtextBrush}"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="RepTierMaterialGroupTemplate">
+            <Border x:Name="MaterialGroupHost" Width="158" Margin="0,0,8,8" Padding="8,6"
+                    CornerRadius="4" Background="#12FFFFFF"
+                    BorderBrush="#40806030" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="{Binding Title}" FontFamily="Georgia" FontWeight="SemiBold"
+                               FontSize="12" Foreground="{DynamicResource BrightGoldBrush}"
+                               Margin="0,0,0,2">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasTitle}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <ItemsControl ItemsSource="{Binding RewardItems}" Margin="0,0,0,6">
+                        <ItemsControl.Style>
+                            <Style TargetType="ItemsControl">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasRewards}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ItemsControl.Style>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,4" LastChildFill="True">
+                                    <TextBlock DockPanel.Dock="Left" Text="→" FontSize="11"
+                                               Foreground="{DynamicResource BrightGoldBrush}"
+                                               VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <ctrl:WowItemSlot DockPanel.Dock="Left"
+                                                      DataContext="{Binding WowItem}"
+                                                      Width="24" Height="24" Margin="0,0,4,0"
+                                                      ToolTip="{Binding NameFr}"/>
+                                    <TextBlock Text="{Binding NameFr}" FontSize="10"
+                                               VerticalAlignment="Center" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextBrush}"/>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{Binding Subtitle}" FontSize="10"
+                               Foreground="{DynamicResource SubtextBrush}"
+                               TextWrapping="Wrap" Margin="0,0,0,6"/>
+                    <ItemsControl ItemsSource="{Binding Items}"
+                                  ItemTemplate="{StaticResource ReputationItemNeedIconTemplate}"
+                                  HorizontalAlignment="Stretch"
+                                  Width="{Binding ActualWidth, ElementName=MaterialGroupHost}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280" MinWidth="220"/>
+            <ColumnDefinition Width="8"/>
+            <ColumnDefinition Width="*" MinWidth="420"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Style="{StaticResource PanelBorder}">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Réputations"
+                           Style="{StaticResource SectionTitle}"
+                           Foreground="{DynamicResource BrightGoldBrush}"/>
+                <TextBlock DockPanel.Dock="Top" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"
+                           Foreground="{DynamicResource SubtextBrush}"
+                           Text="Factions Classic augmentables via objets."/>
+                <ListBox ItemsSource="{Binding Farms}"
+                         SelectedItem="{Binding SelectedFarm}"
+                         ItemContainerStyle="{StaticResource RepListItem}"
+                         BorderThickness="0" Background="Transparent">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding StatusBadge}"
+                                               FontSize="9" FontStyle="Italic" Margin="6,0,0,0"
+                                               VerticalAlignment="Center" Foreground="#A08050">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsImplemented}" Value="False">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
+                                </DockPanel>
+                                <TextBlock Text="{Binding Subtitle}" FontSize="10" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,8">
+                    <StackPanel>
+                        <TextBlock Text="{Binding SelectedFarm.Definition.FactionNameFr, FallbackValue='Réputation'}"
+                                   Style="{StaticResource SectionTitle}"
+                                   Foreground="{DynamicResource BrightGoldBrush}"/>
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
+                                   Foreground="{DynamicResource SubtextBrush}">
+                            <Run Text="PNJ : "/>
+                            <Run Text="{Binding SelectedFarm.Definition.NpcNameFr, Mode=OneWay}"/>
+                            <Run Text=" — "/>
+                            <Run Text="{Binding SelectedFarm.Definition.LocationFr, Mode=OneWay}"/>
+                        </TextBlock>
+                        <TextBlock Text="{Binding SelectedFarm.Definition.NotesFr}"
+                                   TextWrapping="Wrap" FontSize="11"
+                                   Foreground="#C0A060"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,8"
+                        Visibility="{Binding IsFarmPending, Converter={StaticResource BoolToVis}}">
+                    <TextBlock TextWrapping="Wrap" FontFamily="Georgia" FontSize="12"
+                               Foreground="#C0A060"
+                               Text="Calculateur et scan de stock à venir. Détaillez les objets et la réputation par échange pour activer cette faction."/>
+                </Border>
+
+                <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,8"
+                        Visibility="{Binding IsFarmImplemented, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <TextBlock Text="Objectif" Style="{StaticResource SectionTitle}"
+                                   Foreground="{DynamicResource BrightGoldBrush}"/>
+                        <DockPanel Margin="0,0,0,10">
+                            <TextBlock DockPanel.Dock="Left" Text="Réputation à gagner :"
+                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBox Text="{Binding TargetReputationText, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="120" Height="28" VerticalContentAlignment="Center"
+                                     FontFamily="Georgia" FontSize="14" Padding="6,2"/>
+                        </DockPanel>
+
+                        <StackPanel Visibility="{Binding ShowZandalarExchangeMode, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="Mode d'échange" Style="{StaticResource SectionTitle}"
+                                       Foreground="{DynamicResource BrightGoldBrush}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <RadioButton Content="Bijoux hakkari" Margin="0,0,8,0"
+                                             IsChecked="{Binding UseBijoux}"
+                                             Style="{DynamicResource StoneRadioToggle}"
+                                             FontSize="12" Padding="10,4"/>
+                                <RadioButton Content="Pièces de tribu"
+                                             IsChecked="{Binding UseCoins}"
+                                             Style="{DynamicResource StoneRadioToggle}"
+                                             FontSize="12" Padding="10,4"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Visibility="{Binding ShowTierPicker, Converter={StaticResource BoolToVis}}"
+                                    Margin="0,0,0,8">
+                            <TextBlock Text="Palier de réputation" Style="{StaticResource SectionTitle}"
+                                       Foreground="{DynamicResource BrightGoldBrush}"/>
+                            <ListBox ItemsSource="{Binding TierOptions}"
+                                     SelectedItem="{Binding SelectedTier, Mode=TwoWay}"
+                                     ItemContainerStyle="{StaticResource RepTierStepItem}"
+                                     ItemTemplate="{StaticResource RepTierStepTemplate}"
+                                     BorderThickness="0" Background="Transparent"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Rows="1" Columns="4"/>
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                            </ListBox>
+                        </StackPanel>
+                        <StackPanel Visibility="{Binding ShowRoutePicker, Converter={StaticResource BoolToVis}}"
+                                    Margin="0,0,0,6">
+                            <TextBlock Text="Mode d'échange" Style="{StaticResource SectionTitle}"
+                                       Foreground="{DynamicResource BrightGoldBrush}"/>
+                            <ComboBox ItemsSource="{Binding RouteOptions}"
+                                      SelectedValuePath="RouteId"
+                                      SelectedValue="{Binding SelectedVariantRouteId, Mode=TwoWay}"
+                                      DisplayMemberPath="Label"
+                                      FontFamily="Georgia" FontSize="12" Padding="6,4"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding MethodDetailText}" TextWrapping="Wrap" FontSize="11"
+                                   Foreground="{DynamicResource SubtextBrush}"
+                                   Visibility="{Binding ShowStandardCalculator, Converter={StaticResource BoolToVis}}"/>
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="TierMaterialsHost" Style="{StaticResource PanelBorder}" Margin="0,0,0,8"
+                        Visibility="{Binding ShowTierMaterials, Converter={StaticResource BoolToVis}}">
+                    <DockPanel LastChildFill="True">
+                        <TextBlock DockPanel.Dock="Top" Text="Matières de remise"
+                                   Style="{StaticResource SectionTitle}"
+                                   Foreground="{DynamicResource BrightGoldBrush}"/>
+                        <TextBlock DockPanel.Dock="Top" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Foreground="{DynamicResource SubtextBrush}"
+                                   Text="Toutes les options possibles pour ce palier (une seule voie en jeu)."/>
+                        <ItemsControl DockPanel.Dock="Top"
+                                      ItemsSource="{Binding TierMaterialGroups}"
+                                      ItemTemplate="{StaticResource RepTierMaterialGroupTemplate}"
+                                      HorizontalAlignment="Stretch"
+                                      Width="{Binding ActualWidth, ElementName=TierMaterialsHost}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </DockPanel>
+                </Border>
+
+                <Border Margin="0,0,0,8" Visibility="Collapsed">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource PanelBorder}">
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding HasResult}" Value="True"/>
+                                        <Condition Binding="{Binding IsFarmImplemented}" Value="True"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,12,0"
+                                    Visibility="{Binding ShowStandardCalculator, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{Binding ItemsNeededLabel}" FontSize="11"
+                                       Foreground="{DynamicResource SubtextBrush}"
+                                       Visibility="{Binding ShowSingleItemsNeeded, Converter={StaticResource BoolToVis}}"/>
+                            <TextBlock Text="Objets nécessaires" FontSize="11"
+                                       Foreground="{DynamicResource SubtextBrush}"
+                                       Visibility="{Binding ShowItemsNeededBreakdown, Converter={StaticResource BoolToVis}}"/>
+                            <TextBlock Text="{Binding ItemsNeeded}" Style="{StaticResource ResultValue}"
+                                       Visibility="{Binding ShowSingleItemsNeeded, Converter={StaticResource BoolToVis}}"/>
+                            <ItemsControl x:Name="ItemsNeededHost"
+                                          ItemsSource="{Binding ItemsNeededBreakdown}"
+                                          Visibility="{Binding ShowItemsNeededBreakdown, Converter={StaticResource BoolToVis}}"
+                                          Margin="0,4,0,0"
+                                          ItemTemplate="{StaticResource ReputationItemNeedIconTemplate}"
+                                          HorizontalAlignment="Stretch"
+                                          Width="{Binding ActualWidth, ElementName=ItemsNeededHost}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Réputation obtenue" FontSize="11"
+                                       Foreground="{DynamicResource SubtextBrush}"/>
+                            <TextBlock Style="{StaticResource ResultValue}">
+                                <Run Text="{Binding ReputationGained, Mode=OneWay}"/>
+                                <Run Text=" (" Foreground="{DynamicResource SubtextBrush}" FontSize="14"/>
+                                <Run Text="{Binding ReputationPerTurnIn, Mode=OneWay}" Foreground="{DynamicResource SubtextBrush}" FontSize="14"/>
+                                <Run Text=" rép./échange)" Foreground="{DynamicResource SubtextBrush}" FontSize="14"/>
+                            </TextBlock>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Margin="0,0,0,8" Visibility="Collapsed">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource PanelBorder}">
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding HasResult}" Value="True"/>
+                                        <Condition Binding="{Binding IsFarmImplemented}" Value="True"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="{Binding SummaryText}" TextWrapping="Wrap" FontFamily="Georgia"
+                               Foreground="#E8D8B0"/>
+                </Border>
+
+                <Border Style="{StaticResource PanelBorder}" Margin="0,0,0,8"
+                        Visibility="{Binding ShowStandardObjectsPanel, Converter={StaticResource BoolToVis}}">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Objets en jeu"
+                                   Style="{StaticResource SectionTitle}"
+                                   Foreground="{DynamicResource BrightGoldBrush}"/>
+                        <TextBlock DockPanel.Dock="Top" Text="{Binding AcceptedItemsHint}"
+                                   FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Foreground="{DynamicResource SubtextBrush}"/>
+                        <ItemsControl ItemsSource="{Binding AcceptedItems}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ctrl:WowItemSlot DataContext="{Binding WowItem}"
+                                                      Width="32" Height="32" Margin="0,0,6,6"
+                                                      ToolTip="{Binding NameFr}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </DockPanel>
+                </Border>
+
+                <Border Style="{StaticResource PanelBorder}"
+                        Visibility="{Binding IsFarmImplemented, Converter={StaticResource BoolToVis}}">
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                            <Grid DockPanel.Dock="Right" Width="220" VerticalAlignment="Center"
+                                  ToolTip="Propriétaires des comptes à scanner (sac, banque, courrier).">
+                                <ToggleButton x:Name="StockAccountsDropDown" ClickMode="Press"
+                                              Padding="6,3" HorizontalContentAlignment="Stretch"
+                                              Background="{DynamicResource PillBgBrush}"
+                                              BorderBrush="{DynamicResource BorderBrush}"
+                                              BorderThickness="1" Cursor="Hand">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border x:Name="Bd" CornerRadius="3"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd" Property="BorderBrush"
+                                                            Value="{DynamicResource GoldBrush}"/>
+                                                </Trigger>
+                                                <Trigger Property="IsChecked" Value="True">
+                                                    <Setter TargetName="Bd" Property="BorderBrush"
+                                                            Value="{DynamicResource GoldBrush}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="16"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding SelectedStockAccountsText, Mode=OneWay}"
+                                                   FontSize="10" Foreground="{DynamicResource TextBrush}"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="1" Text="▾" FontSize="10"
+                                                   Foreground="{DynamicResource GoldBrush}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </ToggleButton>
+                                <Popup x:Name="StockAccountsPopup" Placement="Bottom"
+                                       PlacementTarget="{Binding ElementName=StockAccountsDropDown}"
+                                       IsOpen="{Binding IsChecked, ElementName=StockAccountsDropDown}"
+                                       StaysOpen="True" AllowsTransparency="True" PopupAnimation="Slide">
+                                    <Border MinWidth="{Binding ActualWidth, ElementName=StockAccountsDropDown}"
+                                            MaxHeight="200" CornerRadius="3" Margin="0,2,0,0"
+                                            BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
+                                            Background="{DynamicResource ComboDropdownBgBrush}">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                            <ItemsControl ItemsSource="{Binding StockAccounts}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal" Margin="8,4">
+                                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                      Style="{DynamicResource SelectionCheck}"
+                                                                      VerticalAlignment="Center"
+                                                                      Margin="0,0,8,0" Cursor="Hand"/>
+                                                            <TextBlock Text="{Binding OwnerName}" FontSize="10"
+                                                                       Foreground="{DynamicResource TextBrush}"
+                                                                       VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                            <TextBlock Text="Stock trouvé" Style="{StaticResource SectionTitle}"
+                                       Foreground="{DynamicResource BrightGoldBrush}"
+                                       VerticalAlignment="Center"/>
+                        </DockPanel>
+
+                        <Border DockPanel.Dock="Top" Style="{StaticResource StockTotalPanel}"
+                                Visibility="{Binding HasStockTotals, Converter={StaticResource BoolToVis}}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                    <TextBlock Style="{StaticResource StockTotalCaption}"
+                                               Text="{Binding StockTotalItemsCaption}"/>
+                                    <TextBlock Style="{StaticResource StockTotalValue}"
+                                               Text="{Binding TotalStockDisplay, Mode=OneWay}"/>
+                                    <TextBlock Style="{StaticResource StockTotalCaption}"
+                                               Text="{Binding StockItemUnitLabel, Mode=OneWay}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Style="{StaticResource StockTotalCaption}" Text="Rép. (total)"/>
+                                    <TextBlock Style="{StaticResource StockTotalValue}"
+                                               Text="{Binding TotalStockReputation, Mode=OneWay}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock DockPanel.Dock="Top" Text="{Binding StockSummaryText}"
+                                   FontSize="11" Foreground="#C0A060" Margin="0,0,0,8"
+                                   HorizontalAlignment="Center"
+                                   Visibility="{Binding HasStockTotals, Converter={StaticResource BoolToVis}}"/>
+
+                        <TextBlock DockPanel.Dock="Top" Text="{Binding StockSummaryText}"
+                                   FontSize="11" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,8"
+                                   Visibility="{Binding HasNoCharacterStockGroups, Converter={StaticResource BoolToVis}}"/>
+
+                        <TextBlock DockPanel.Dock="Top" FontSize="11" Margin="0,0,0,8"
+                                   Foreground="#FF9070"
+                                   Visibility="{Binding HasStockShortfall, Converter={StaticResource BoolToVis}}">
+                            <Run Text="Il manque encore "/>
+                            <Run Text="{Binding StockShortfall, Mode=OneWay}" FontWeight="SemiBold"/>
+                            <Run Text=" "/>
+                            <Run Text="{Binding StockItemUnitLabel, Mode=OneWay}"/>
+                            <Run Text=" dans le stock scanné."/>
+                        </TextBlock>
+
+                        <ItemsControl ItemsSource="{Binding CharacterStockGroups}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,0,0,8" Padding="8,6" CornerRadius="4"
+                                            Background="#18FFFFFF" BorderBrush="#40806030" BorderThickness="1">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,6">
+                                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                    <Border Style="{StaticResource StockCharTotalsBadge}" Margin="0,0,6,0">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding ItemUnitCaption}"
+                                                                       Style="{StaticResource StockTotalCaption}"/>
+                                                            <TextBlock Text="{Binding TotalOnCharacter, Mode=OneWay}"
+                                                                       FontFamily="Georgia" FontSize="16" FontWeight="Bold"
+                                                                       Foreground="{DynamicResource BrightGoldBrush}"
+                                                                       HorizontalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <Border Style="{StaticResource StockCharTotalsBadge}">
+                                                        <StackPanel>
+                                                            <TextBlock Text="Rép." Style="{StaticResource StockTotalCaption}"/>
+                                                            <TextBlock Text="{Binding ReputationOnCharacter, Mode=OneWay}"
+                                                                       FontFamily="Georgia" FontSize="16" FontWeight="Bold"
+                                                                       Foreground="{DynamicResource BrightGoldBrush}"
+                                                                       HorizontalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding HeaderText}" FontFamily="Georgia"
+                                                           FontSize="13" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TextBrush}"
+                                                           VerticalAlignment="Center"/>
+                                            </DockPanel>
+                                            <ItemsControl ItemsSource="{Binding Lines}"
+                                                          ItemTemplate="{StaticResource ReputationStockIconTemplate}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </DockPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

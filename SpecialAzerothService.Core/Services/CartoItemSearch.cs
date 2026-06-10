@@ -51,8 +51,20 @@ public static class CartoItemSearch
                 Count = item.Count,
                 AccountName = accountName,
                 CharacterName = character.Name,
+                ClassLabel = character.Class,
+                CharacterClass = CartoSyncMapper.ParseClass(character.Class),
+                CharacterLevel = character.Level,
                 Location = location,
-                Character = character
+                Character = character,
+                Item = new WowItem
+                {
+                    Name = item.Name,
+                    ItemId = item.ItemId,
+                    Count = item.Count,
+                    Quality = item.Quality,
+                    SpellId = item.SpellId,
+                    Icon = item.Icon
+                }
             });
         }
     }

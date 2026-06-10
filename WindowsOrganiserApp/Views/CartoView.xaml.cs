@@ -59,6 +59,7 @@ public partial class CartoView : UserControl
                 _subscribedVm.CharactersRescanned -= OnCharactersRescanned;
                 _subscribedVm.RosterRefreshRequested -= OnRosterRefreshRequested;
                 _subscribedVm.CooldownRosterVisibilityChanged -= OnCooldownRosterVisibilityChanged;
+                _subscribedVm.CharacterDetailRequested -= OnCharacterDetailRequested;
             }
 
             _subscribedVm = null;
@@ -74,6 +75,7 @@ public partial class CartoView : UserControl
                 vm.CharactersRescanned += OnCharactersRescanned;
                 vm.RosterRefreshRequested += OnRosterRefreshRequested;
                 vm.CooldownRosterVisibilityChanged += OnCooldownRosterVisibilityChanged;
+                vm.CharacterDetailRequested += OnCharacterDetailRequested;
                 ApplyRightPanelLayout();
                 SyncPanelToolbarToggles();
                 UpdateMapCursor();
@@ -2818,6 +2820,9 @@ public partial class CartoView : UserControl
         CloseCharacterDetail();
     }
 
+    private void OnCharacterDetailRequested(object? sender, WowCharacter ch) =>
+        OpenCharacterDetail(ch);
+
     private void OpenCharacterDetail(WowCharacter ch, bool fromMap = false)
     {
         if (Vm == null)
@@ -3047,9 +3052,17 @@ public partial class CartoView : UserControl
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 Margin = new Thickness(0, 2, 0, 0)
             };
-            bagsStack.Children.Add(WowItemGridPanel.Build($"Inventaire ({syncData.Inventory.Count})", syncData.Inventory));
-            bagsStack.Children.Add(new Border { Height = 10 });
-            bagsStack.Children.Add(WowItemGridPanel.Build($"Banque ({syncData.Bank.Count})", syncData.Bank));
+            bagsStack.Children.Add(WowBagSlotsPanel.Build("Sacs — personnage", syncData.InventoryBags));
+            var invTitle = syncData.HasBagLayoutSync
+                ? $"Objets — inventaire ({syncData.UsedInventorySlots}/{syncData.TotalInventorySlots} empl.)"
+                : $"Inventaire ({syncData.Inventory.Count} types d'objets)";
+            bagsStack.Children.Add(WowItemGridPanel.Build(invTitle, syncData.Inventory));
+            bagsStack.Children.Add(new Border { Height = 12 });
+            bagsStack.Children.Add(WowBagSlotsPanel.Build("Sacs — banque", syncData.BankBags));
+            var bankTitle = syncData.HasBagLayoutSync && syncData.BankBags.Count > 0
+                ? $"Objets — banque ({syncData.UsedBankSlots}/{syncData.TotalBankSlots} empl.)"
+                : $"Banque ({syncData.Bank.Count} types d'objets)";
+            bagsStack.Children.Add(WowItemGridPanel.Build(bankTitle, syncData.Bank));
             ((StackPanel)bagsSection.Child).Children.Add(bagsStack);
             stack.Children.Add(bagsSection);
         }

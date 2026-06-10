@@ -484,7 +484,7 @@
 
                 <!-- Volet recherche -->
                 <Border x:Name="ItemSearchPanel" Visibility="Collapsed"
-                        HorizontalAlignment="Stretch"
+                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                         Background="#18141008" BorderThickness="1" CornerRadius="6" ClipToBounds="True"
                         BorderBrush="#55AA8833">
                             <DockPanel LastChildFill="True">
@@ -495,8 +495,8 @@
                                         <TextBlock Text="Recherche d'objets" Style="{StaticResource CartoSideTitle}"/>
                                     </DockPanel>
                                 </Border>
-                                <StackPanel Margin="8,6,8,8">
-                                    <DockPanel Margin="0,0,0,4">
+                                <DockPanel Margin="8,6,8,8" LastChildFill="True">
+                                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
                                         <Button DockPanel.Dock="Right" Content="✕" Style="{DynamicResource StoneButton}"
                                                 FontSize="11" Padding="8,4" Margin="6,0,0,0"
                                                 Command="{Binding ClearItemSearchCommand}" ToolTip="Effacer"/>
@@ -507,50 +507,62 @@
                                                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                                                  Tag="Feuillerêve, Thorium…"/>
                                     </DockPanel>
-                                    <TextBlock Text="Min. 2 caractères — inventaire, banque, courrier"
+                                    <TextBlock DockPanel.Dock="Top"
+                                               Text="Min. 2 caractères — inventaire, banque, courrier"
                                                FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,6"/>
-                                    <ListBox ItemsSource="{Binding ItemSearchResults}" MaxHeight="480"
+                                    <ListBox ItemsSource="{Binding ItemSearchResults}"
+                                             VerticalAlignment="Stretch"
                                              Background="#120E08" BorderBrush="#55AA8833" BorderThickness="1"
-                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                             Focusable="False">
+                                        <ListBox.Resources>
+                                            <Style x:Key="ItemSearchResultButton" TargetType="Button">
+                                                <Setter Property="Background" Value="Transparent"/>
+                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Setter Property="Padding" Value="4,2"/>
+                                                <Setter Property="Cursor" Value="Hand"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <ContentPresenter HorizontalAlignment="Stretch"
+                                                                              VerticalAlignment="Center"/>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ListBox.Resources>
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
-                                                <Button Background="Transparent" BorderThickness="0" Padding="6,4" Cursor="Hand"
-                                                        HorizontalContentAlignment="Stretch"
+                                                <Button Style="{StaticResource ItemSearchResultButton}"
                                                         Command="{Binding DataContext.SelectItemSearchResultCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                         CommandParameter="{Binding}">
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <StackPanel>
-                                                            <TextBlock Text="{Binding ItemName}" FontSize="12" FontWeight="SemiBold"
-                                                                       Foreground="{DynamicResource BrightGoldBrush}"/>
-                                                            <TextBlock Text="{Binding DisplayLine}" FontSize="10"
-                                                                       Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0"/>
-                                                        </StackPanel>
-                                                        <TextBlock Grid.Column="1" Text="{Binding AccountName}" FontSize="9"
-                                                                   Foreground="{DynamicResource SubtextBrush}" VerticalAlignment="Center"
-                                                                   Margin="8,0,0,0"/>
-                                                    </Grid>
+                                                    <cartoUi:CartoItemSearchResultRow DataContext="{Binding}"/>
                                                 </Button>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                         <ListBox.ItemContainerStyle>
                                             <Style TargetType="ListBoxItem">
                                                 <Setter Property="Padding" Value="0"/>
-                                                <Setter Property="Margin" Value="0,1"/>
+                                                <Setter Property="Margin" Value="0,2"/>
                                                 <Setter Property="Background" Value="Transparent"/>
                                                 <Setter Property="BorderThickness" Value="0"/>
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#18FFD700"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
+                                                <Setter Property="Focusable" Value="False"/>
+                                                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ListBoxItem">
+                                                            <ContentPresenter HorizontalAlignment="Stretch"/>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
                                             </Style>
                                         </ListBox.ItemContainerStyle>
                                     </ListBox>
-                                </StackPanel>
+                                </DockPanel>
                             </DockPanel>
                         </Border>
 

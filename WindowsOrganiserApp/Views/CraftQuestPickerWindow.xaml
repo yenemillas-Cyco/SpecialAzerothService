@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctrl="clr-namespace:WindowsOrganiserApp.Controls"
         xmlns:conv="clr-namespace:WindowsOrganiserApp.Converters"
+        xmlns:craftIcons="clr-namespace:WindowsOrganiserApp.Resources"
         Title="Quêtes — équipement"
         Height="680" Width="1020"
         MinHeight="520" MinWidth="820"
@@ -149,13 +150,15 @@
                                     <DataTemplate>
                                         <Border Style="{StaticResource PieceCardBorder}">
                                             <DockPanel LastChildFill="True">
-                                                <Button DockPanel.Dock="Right" Content="＋" FontSize="16"
-                                                        MinWidth="32" Height="34" Padding="5" Margin="8,0,0,0"
+                                                <Button DockPanel.Dock="Right" Margin="8,0,0,0"
                                                         VerticalAlignment="Top"
-                                                        Style="{DynamicResource StoneButton}"
+                                                        Style="{DynamicResource CraftRecipeAddIconButton}"
                                                         ToolTip="Ajouter cette pièce à la liste"
                                                         Command="{Binding DataContext.AddPieceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"/>
+                                                        CommandParameter="{Binding}">
+                                                    <Image Source="{x:Static craftIcons:CraftToolbarIcons.CraftAddIcon}"
+                                                           Style="{StaticResource CraftToolbarImage}"/>
+                                                </Button>
 
                                                 <ctrl:WowItemSlot DockPanel.Dock="Left"
                                                                   DataContext="{Binding IconItem}"

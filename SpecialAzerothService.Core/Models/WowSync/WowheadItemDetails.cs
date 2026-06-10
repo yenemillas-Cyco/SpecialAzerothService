@@ -1,3 +1,5 @@
+using SpecialAzerothService.Core.Models.Carto;
+
 namespace SpecialAzerothService.Core.Models.WowSync;
 
 public sealed class WowheadItemDetails
@@ -20,8 +22,12 @@ public sealed class WowItemSearchResult
     public int Count { get; init; }
     public string AccountName { get; init; } = "";
     public string CharacterName { get; init; } = "";
+    public string ClassLabel { get; init; } = "";
+    public WowClass CharacterClass { get; init; }
+    public int CharacterLevel { get; init; }
     public string Location { get; init; } = "";
     public WowCharacterData Character { get; init; } = null!;
+    public WowItem Item { get; init; } = new();
 
-    public string DisplayLine => $"{CharacterName} — {Location} (x{Count})";
+    public string LocationLine => Count > 1 ? $"{Location} · x{Count}" : Location;
 }

@@ -120,8 +120,13 @@ public sealed class CraftPickupPlannerService : ICraftPickupPlanner
         {
             if (itemId > 0)
             {
-                foreach (var (matId, count) in _decomposition.DecomposeToMaterials([(itemId, quantity)]))
-                    Add(gross, matId, count);
+                if (CraftLeatherMaterialHelper.IsLeatherTierItem(itemId))
+                    AddDirectRecipeReagents(gross, itemId, quantity);
+                else
+                {
+                    foreach (var (matId, count) in _decomposition.DecomposeToMaterials([(itemId, quantity)]))
+                        Add(gross, matId, count);
+                }
             }
             else if (spellId > 0 && _catalog.TryGetBySpellId(spellId, out var lookup))
             {
@@ -137,6 +142,26 @@ public sealed class CraftPickupPlannerService : ICraftPickupPlanner
         return gross;
     }
 
+    /// <summary>Composants directs d'une recette cuir (un tier, pas de chute en lanières).</summary>
+    private void AddDirectRecipeReagents(Dictionary<int, int> totals, int itemId, int quantity)
+    {
+        if (quantity <= 0) return;
+
+        if (_catalog.TryGetByCreatedItemId(itemId, out var lookup)
+            && CraftDecompositionHelper.ShouldExpandIntoReagents(lookup))
+        {
+            foreach (var reagent in lookup.Entry.Reagents)
+            {
+                var needed = SafeMultiply(reagent.Count, quantity);
+                if (needed > 0)
+                    Add(totals, reagent.ItemId, needed);
+            }
+            return;
+        }
+
+        Add(totals, itemId, quantity);
+    }
+
     private void SatisfyNeed(
         int itemId,
         int quantity,
@@ -149,7 +174,50 @@ public sealed class CraftPickupPlannerService : ICraftPickupPlanner
     {
         if (quantity <= 0) return;
 
+        if (CraftLeatherMaterialHelper.IsLeatherTierItem(itemId))
+            SatisfyLeatherTierNeed(itemId, quantity, pools, net, pickups, depth, stack, options);
+        else
+            SatisfyNeedWithDecomposition(itemId, quantity, pools, net, pickups, depth, stack, options);
+    }
+
+    /// <summary>Exception cuir : farm au tier demandé ; mules peuvent couvrir via tiers inférieurs.</summary>
+    private void SatisfyLeatherTierNeed(
+        int itemId,
+        int quantity,
+        List<CharPool> pools,
+        Dictionary<int, int> net,
+        List<CraftPickupLine> pickups,
+        int depth,
+        HashSet<int> stack,
+        CraftPlanningOptions options)
+    {
+        var remaining = quantity;
+        if (options.UseMuleStockForComponents
+            && !QuestBoundMaterialHelper.IsNonTransferableQuestMaterial(itemId))
+        {
+            remaining = TakeFromCharacterPools(itemId, quantity, pools, pickups);
+            if (remaining > 0)
+                remaining = TrySatisfyViaSubComponentsFromStock(
+                    itemId, remaining, pools, pickups, depth, stack, options);
+        }
+
+        if (remaining > 0)
+            Add(net, itemId, remaining);
+    }
+
+    /// <summary>Décomposition catalogue classique (étoffes, barres, etc.).</summary>
+    private void SatisfyNeedWithDecomposition(
+        int itemId,
+        int quantity,
+        List<CharPool> pools,
+        Dictionary<int, int> net,
+        List<CraftPickupLine> pickups,
+        int depth,
+        HashSet<int> stack,
+        CraftPlanningOptions options)
+    {
         var remaining = options.UseMuleStockForComponents
+            && !QuestBoundMaterialHelper.IsNonTransferableQuestMaterial(itemId)
             ? TakeFromCharacterPools(itemId, quantity, pools, pickups)
             : quantity;
         if (remaining <= 0) return;
@@ -174,6 +242,68 @@ public sealed class CraftPickupPlannerService : ICraftPickupPlanner
             Add(net, itemId, remaining);
 
         stack.Remove(itemId);
+    }
+
+    /// <summary>
+    /// Couvre une partie du besoin via composants inférieurs sur les mules (sans toucher au net).
+    /// Retourne le nombre d'unités de <paramref name="itemId"/> encore manquantes.
+    /// </summary>
+    private int TrySatisfyViaSubComponentsFromStock(
+        int itemId,
+        int quantity,
+        List<CharPool> pools,
+        List<CraftPickupLine> pickups,
+        int depth,
+        HashSet<int> stack,
+        CraftPlanningOptions options)
+    {
+        if (quantity <= 0) return 0;
+        if (!CraftLeatherMaterialHelper.IsLeatherTierItem(itemId)) return quantity;
+        if (depth > MaxDepth || !stack.Add(itemId)) return quantity;
+
+        if (!_catalog.TryGetByCreatedItemId(itemId, out var lookup)
+            || !CraftDecompositionHelper.ShouldExpandIntoReagents(lookup))
+        {
+            stack.Remove(itemId);
+            return quantity;
+        }
+
+        var maxCraftable = int.MaxValue;
+        foreach (var reagent in lookup.Entry.Reagents)
+        {
+            var totalNeed = SafeMultiply(reagent.Count, quantity);
+            if (totalNeed <= 0) continue;
+
+            var subUnsatisfied = SatisfyNeedFromStockOnly(
+                reagent.ItemId, totalNeed, pools, pickups, depth + 1, stack, options);
+            var subSatisfied = totalNeed - subUnsatisfied;
+            var craftable = subSatisfied / reagent.Count;
+            maxCraftable = Math.Min(maxCraftable, craftable);
+        }
+
+        stack.Remove(itemId);
+        if (maxCraftable == int.MaxValue) maxCraftable = 0;
+        return Math.Max(0, quantity - maxCraftable);
+    }
+
+    /// <summary>Pioche sur les mules uniquement (direct + décomposition), sans alimenter le net.</summary>
+    private int SatisfyNeedFromStockOnly(
+        int itemId,
+        int quantity,
+        List<CharPool> pools,
+        List<CraftPickupLine> pickups,
+        int depth,
+        HashSet<int> stack,
+        CraftPlanningOptions options)
+    {
+        if (quantity <= 0) return 0;
+
+        var remaining = TakeFromCharacterPools(itemId, quantity, pools, pickups);
+        if (remaining > 0 && CraftLeatherMaterialHelper.IsLeatherTierItem(itemId))
+            remaining = TrySatisfyViaSubComponentsFromStock(
+                itemId, remaining, pools, pickups, depth, stack, options);
+
+        return remaining;
     }
 
     private static int TakeFromCharacterPools(

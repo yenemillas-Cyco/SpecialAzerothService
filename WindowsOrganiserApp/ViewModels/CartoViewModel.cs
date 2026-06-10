@@ -48,6 +48,8 @@ public partial class CartoViewModel : ObservableObject
     /// <summary>Notifie la vue (roster) après un scan WowSync terminé.</summary>
     public event EventHandler? CharactersRescanned;
     public event EventHandler? RosterRefreshRequested;
+    /// <summary>Ouvre la fiche personnage dans le volet droit (ex. clic résultat recherche d'objets).</summary>
+    public event EventHandler<WowCharacter>? CharacterDetailRequested;
     private bool _zoneCalibrationLoaded;
     private bool _zonePanelDataLoaded;
     private int _mapPlacementStamp;
@@ -816,10 +818,22 @@ public partial class CartoViewModel : ObservableObject
         if (result?.Character == null)
             return;
 
-        var cartoChar = Characters.FirstOrDefault(c =>
-            c.SyncKey.Equals(result.Character.Key, StringComparison.OrdinalIgnoreCase));
+        var cartoChar = FindCartoCharacterForSync(result.Character);
         if (cartoChar != null)
-            SelectedCharacter = cartoChar;
+            CharacterDetailRequested?.Invoke(this, cartoChar);
+    }
+
+    private WowCharacter? FindCartoCharacterForSync(WowCharacterData sync)
+    {
+        var byKey = Characters.FirstOrDefault(c =>
+            c.SyncKey.Equals(sync.Key, StringComparison.OrdinalIgnoreCase));
+        if (byKey != null)
+            return byKey;
+
+        return Characters.FirstOrDefault(c =>
+            c.Name.Equals(sync.Name, StringComparison.OrdinalIgnoreCase)
+            && (string.IsNullOrWhiteSpace(sync.Realm)
+                || c.SyncKey.Contains(sync.Realm, StringComparison.OrdinalIgnoreCase)));
     }
 
     public void UpdateItemSearch()

@@ -6,7 +6,7 @@ public static partial class Tier3QuestCatalog
     public const string ProfessionIdPrefixEko = "EKO:";
 
     private static QuestClassSet BuildEkoGroup() =>
-        new(null, "7 quêtes Juju (3 E'ko chacune)", BuildEkoPieces(), "Winterspring");
+        new(null, "7 Jujus — 1 E'ko par unité (rendu en jeu par 3)", BuildEkoPieces(), "Winterspring");
 
     private static IReadOnlyList<QuestPieceRecipe> BuildEkoPieces() =>
     [
@@ -62,10 +62,10 @@ public static partial class Tier3QuestCatalog
         string farmHintFr) =>
         new(
             null,
-            $"3 × {ekoNameFr}",
+            ekoNameFr,
             jujuNameFr,
             resultItemId,
             farmHintFr,
-            [new Tier3Material(ekoItemId, 3, ekoNameFr)],
+            [new Tier3Material(ekoItemId, 1, ekoNameFr)],
             effectDescriptionFr);
 }

@@ -35,14 +35,26 @@ public static partial class Tier3QuestCatalog
             QuestIdEko,
             "E'ko",
             "Winterspring — consommables Juju",
-            "Cache de Mau'ari requis pour farmer les E'ko. Chaque quête : 3 E'ko → 1 Juju chez le Sorcier-docteur Mau'ari (Long-Guet).",
+            "Cache de Mau'ari requis. Planification : 1 E'ko = 1 Juju. En jeu, rendez les quêtes par 3 E'ko chez Mau'ari (Long-Guet).",
             [BuildEkoGroup()]),
         new QuestCategoryDefinition(
             QuestIdBl,
             "Terres Foudroyées",
             "Terres Foudroyées — consommables",
             "Nord de la zone, à l'ouest de la route : Mages de sang Drazial et Lynnore. Quêtes répétables — consommables liés, uniques (+25 stat, 1 h).",
-            [BuildBlDrazialGroup(), BuildBlLynnoreGroup()])
+            [BuildBlDrazialGroup(), BuildBlLynnoreGroup()]),
+        new QuestCategoryDefinition(
+            QuestIdArcanum,
+            "Arcanums",
+            "Librams → Arcanums",
+            "Arcanums inférieurs (Steppes Ardentes) et arcanums Lydros (Hache-Tripes). Un crafter par quête — composants liés non échangeables.",
+            [BuildLesserArcanumGroup(), BuildGreaterArcanumGroup()]),
+        new QuestCategoryDefinition(
+            QuestIdArgentDawn,
+            "Aube d'argent",
+            "Aube d'argent — armes de bataille",
+            "Échange d'insignes auprès de l'intendante Miranda Breechlock (quêtes répétables).",
+            [BuildArgentDawnMirandaGroup()])
     ];
 
     public static QuestCategoryDefinition? FindCategory(string questId) =>
@@ -59,6 +71,10 @@ public static partial class Tier3QuestCatalog
     public static string ProfessionIdEko(int resultItemId) => $"{ProfessionIdPrefixEko}{resultItemId}";
 
     public static string ProfessionIdBl(int resultItemId) => $"{ProfessionIdPrefixBl}{resultItemId}";
+
+    public static string ProfessionIdArcanum(int resultItemId) => $"{ProfessionIdPrefixArcanum}{resultItemId}";
+
+    public static string ProfessionIdArgentDawn(int resultItemId) => $"{ProfessionIdPrefixArgentDawn}{resultItemId}";
 
     public static string ProfessionLabelEko(int resultItemId)
     {
@@ -78,6 +94,24 @@ public static partial class Tier3QuestCatalog
         return string.IsNullOrEmpty(name) ? "Quête Terres Foudroyées" : $"Quête TF — {name}";
     }
 
+    public static string ProfessionLabelArcanum(int resultItemId)
+    {
+        var name = FindResultDisplayName(resultItemId);
+        return string.IsNullOrEmpty(name) ? "Quête Arcanum" : $"Arcanum — {name}";
+    }
+
+    public static bool TryParseArcanumProfessionId(string? professionId, out int resultItemId) =>
+        TryParsePrefixedQuestProfessionId(professionId, ProfessionIdPrefixArcanum, out resultItemId);
+
+    public static string ProfessionLabelArgentDawn(int resultItemId)
+    {
+        var name = FindResultDisplayName(resultItemId);
+        return string.IsNullOrEmpty(name) ? "Quête Aube d'argent" : $"Aube d'argent — {name}";
+    }
+
+    public static bool TryParseArgentDawnProfessionId(string? professionId, out int resultItemId) =>
+        TryParsePrefixedQuestProfessionId(professionId, ProfessionIdPrefixArgentDawn, out resultItemId);
+
     public static string ProfessionIdForQuestPiece(
         string questCategoryId,
         WowClass? wowClass,
@@ -87,6 +121,8 @@ public static partial class Tier3QuestCatalog
         {
             _ when questCategoryId.Equals(QuestIdEko, StringComparison.OrdinalIgnoreCase) => ProfessionIdEko(resultItemId),
             _ when questCategoryId.Equals(QuestIdBl, StringComparison.OrdinalIgnoreCase) => ProfessionIdBl(resultItemId),
+            _ when questCategoryId.Equals(QuestIdArcanum, StringComparison.OrdinalIgnoreCase) => ProfessionIdArcanum(resultItemId),
+            _ when questCategoryId.Equals(QuestIdArgentDawn, StringComparison.OrdinalIgnoreCase) => ProfessionIdArgentDawn(resultItemId),
             _ => ProfessionId(wowClass!.Value, slot!.Value)
         };
 
@@ -97,6 +133,10 @@ public static partial class Tier3QuestCatalog
                 $"{pieceNameFr} ajouté — les E'ko apparaissent dans Matériaux.",
             _ when questCategoryId.Equals(QuestIdBl, StringComparison.OrdinalIgnoreCase) =>
                 $"{pieceNameFr} ajouté — les composants de farm apparaissent dans Matériaux.",
+            _ when questCategoryId.Equals(QuestIdArcanum, StringComparison.OrdinalIgnoreCase) =>
+                $"{pieceNameFr} ajouté — plan Arcanum dans Stock & crafters.",
+            _ when questCategoryId.Equals(QuestIdArgentDawn, StringComparison.OrdinalIgnoreCase) =>
+                $"{pieceNameFr} ajouté — les insignes apparaissent dans Matériaux.",
             _ => $"{pieceNameFr} ajouté — les composants apparaissent dans Matériaux."
         };
 
@@ -104,9 +144,13 @@ public static partial class Tier3QuestCatalog
         questCategoryId switch
         {
             _ when questCategoryId.Equals(QuestIdEko, StringComparison.OrdinalIgnoreCase) =>
-                "Sélectionnez un Juju — 3 E'ko seront calculés dans Matériaux.",
+                "Sélectionnez un Juju — 1 E'ko par unité dans Matériaux (rendu en jeu par 3).",
             _ when questCategoryId.Equals(QuestIdBl, StringComparison.OrdinalIgnoreCase) =>
                 "Choisissez un consommable — les organes de farm seront calculés dans Matériaux.",
+            _ when questCategoryId.Equals(QuestIdArcanum, StringComparison.OrdinalIgnoreCase) =>
+                "Choisissez un arcanum — l'app indiquera quel perso peut le crafter.",
+            _ when questCategoryId.Equals(QuestIdArgentDawn, StringComparison.OrdinalIgnoreCase) =>
+                "Choisissez un palier de réputation — les insignes requis seront calculés dans Matériaux.",
             _ => "Choisissez une classe, puis ajoutez les pièces souhaitées."
         };
 
@@ -249,7 +293,8 @@ public sealed record QuestPieceRecipe(
     int ResultItemId,
     string DesecratedTokenFr,
     IReadOnlyList<Tier3Material> Materials,
-    string? EffectDescriptionFr = null)
+    string? EffectDescriptionFr = null,
+    int GoldCostCopper = 0)
 {
     public string MaterialsSummary =>
         string.Join(" · ", Materials.Select(m => $"{m.DisplayNameFr} ×{m.Quantity}"));

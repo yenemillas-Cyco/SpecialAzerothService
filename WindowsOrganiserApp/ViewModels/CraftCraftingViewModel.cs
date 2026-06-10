@@ -205,20 +205,12 @@ public sealed class CraftMaterialRow : ObservableObject
 public sealed class CraftPickupRow : ObservableObject
 {
     public int ItemId { get; }
-    public CraftPickupSource Source { get; }
+    /// <summary>Quantité à prendre sur ce perso (icône).</summary>
+    public int PickupQuantity { get; }
+    /// <summary>Somme sac + banque + courrier sur ce perso.</summary>
+    public int TotalOnCharacter { get; }
     public WowItem WowItem { get; }
-    public string SourceLabel => Source == CraftPickupSource.Inventory ? "Sac" : "Banque";
-
-    private int _quantity;
-    public int Quantity
-    {
-        get => _quantity;
-        set
-        {
-            if (SetProperty(ref _quantity, value))
-                WowItem.Count = value;
-        }
-    }
+    public string TotalForegroundHex => TotalOnCharacter < PickupQuantity ? "#FF7070" : "#C0A060";
 
     private string _displayName = "";
     public string DisplayName
@@ -227,12 +219,12 @@ public sealed class CraftPickupRow : ObservableObject
         set => SetProperty(ref _displayName, value);
     }
 
-    public CraftPickupRow(int itemId, int quantity, CraftPickupSource source)
+    public CraftPickupRow(int itemId, int pickupQuantity, int totalOnCharacter)
     {
         ItemId = itemId;
-        Source = source;
-        _quantity = quantity;
-        WowItem = new WowItem { ItemId = itemId, Count = quantity };
+        PickupQuantity = pickupQuantity;
+        TotalOnCharacter = totalOnCharacter;
+        WowItem = new WowItem { ItemId = itemId, Count = pickupQuantity };
         _displayName = $"#{itemId}";
     }
 
@@ -252,7 +244,7 @@ public sealed class CraftCharacterPickupGroup : ObservableObject
     public string HeaderText { get; }
     public ObservableCollection<CraftPickupRow> Items { get; } = [];
 
-    public int ItemCount => Items.Sum(i => i.Quantity);
+    public int ItemCount => Items.Sum(i => i.PickupQuantity);
 
     public CraftCharacterPickupGroup(string characterName, string accountName)
     {
@@ -264,6 +256,95 @@ public sealed class CraftCharacterPickupGroup : ObservableObject
 
     public string SubheaderText { get; }
     public bool HasSubheader => !string.IsNullOrEmpty(SubheaderText);
+}
+
+public sealed class BoundMaterialCharacterLineViewModel : ObservableObject
+{
+    public string CharacterName { get; }
+    public string AccountName { get; }
+    public int PickupQuantity { get; }
+    public int TotalOnCharacter { get; }
+    public long GoldCopper { get; }
+    public string TotalForegroundHex => TotalOnCharacter < PickupQuantity ? "#FF7070" : "#C0A060";
+    public WowItem? WowItem { get; }
+
+    public string HeaderText => CharacterName;
+    public string SubheaderText => AccountName;
+    public bool HasSubheader => !string.IsNullOrWhiteSpace(AccountName);
+
+    public BoundMaterialCharacterLineViewModel(BoundMaterialCharacterHold hold)
+    {
+        CharacterName = hold.CharacterName;
+        AccountName = hold.AccountName;
+        PickupQuantity = hold.PickupQuantity;
+        TotalOnCharacter = hold.TotalOnCharacter;
+        GoldCopper = hold.GoldCopper;
+        WowItem = new WowItem { ItemId = 0, Count = hold.PickupQuantity };
+    }
+
+    public void SetItemId(int itemId) => WowItem!.ItemId = itemId;
+}
+
+public sealed class BoundMaterialNeedViewModel : ObservableObject
+{
+    public int ItemId { get; }
+    public int RequiredCount { get; }
+    public WowItem HeaderWowItem { get; }
+    public ObservableCollection<BoundMaterialCharacterLineViewModel> Characters { get; } = [];
+    public bool HasCharacters => Characters.Count > 0;
+    public bool HasNoCharacters => Characters.Count == 0;
+
+    private string _displayName = "";
+    public string DisplayName
+    {
+        get => _displayName;
+        set => SetProperty(ref _displayName, value);
+    }
+
+    public BoundMaterialNeedViewModel(BoundMaterialNeed need)
+    {
+        ItemId = need.ItemId;
+        RequiredCount = need.RequiredCount;
+        _displayName = need.DisplayNameFr ?? $"#{need.ItemId}";
+        HeaderWowItem = new WowItem { ItemId = need.ItemId, Count = need.RequiredCount };
+
+        foreach (var hold in need.Characters)
+        {
+            var line = new BoundMaterialCharacterLineViewModel(hold);
+            line.SetItemId(need.ItemId);
+            Characters.Add(line);
+        }
+    }
+}
+
+public sealed class ArcanumCraftGroupViewModel : ObservableObject
+{
+    public int ResultItemId { get; }
+    public int Quantity { get; }
+    public int QuestGoldCostCopper { get; }
+    public bool HasQuestGoldCost => QuestGoldCostCopper > 0;
+    public ObservableCollection<BoundMaterialNeedViewModel> BoundMaterials { get; } = [];
+
+    private string _displayName = "";
+    public string DisplayName
+    {
+        get => _displayName;
+        set => SetProperty(ref _displayName, value);
+    }
+
+    public string QuantityLabel => Quantity > 1 ? $"×{Quantity}" : "";
+    public bool HasNoBoundHolders => BoundMaterials.All(b => b.HasNoCharacters);
+
+    public ArcanumCraftGroupViewModel(ArcanumQuestAssignment assignment)
+    {
+        ResultItemId = assignment.Demand.ResultItemId;
+        Quantity = assignment.Demand.Quantity;
+        QuestGoldCostCopper = assignment.QuestGoldCostCopper;
+        _displayName = $"#{ResultItemId}";
+
+        foreach (var need in assignment.BoundNeeds)
+            BoundMaterials.Add(new BoundMaterialNeedViewModel(need));
+    }
 }
 
 public sealed class CraftListSummary : ObservableObject
@@ -332,6 +413,7 @@ public partial class CraftCraftingViewModel : ObservableObject
     private readonly ICraftPickupPlanner _pickupPlanner;
     private readonly ICraftPlanningContext _planning;
     private readonly ICraftStockService _stock;
+    private readonly IArcanumPlanningService _arcanumPlanner;
     private readonly IWowItemLookupService _itemLookup;
     private readonly CraftViewModel _professionsVm;
     private readonly CartoViewModel _cartoVm;
@@ -348,6 +430,7 @@ public partial class CraftCraftingViewModel : ObservableObject
         ICraftPickupPlanner pickupPlanner,
         ICraftPlanningContext planning,
         ICraftStockService stock,
+        IArcanumPlanningService arcanumPlanner,
         IWowItemLookupService itemLookup,
         CraftViewModel professionsVm,
         CartoViewModel cartoVm)
@@ -358,6 +441,7 @@ public partial class CraftCraftingViewModel : ObservableObject
         _pickupPlanner = pickupPlanner;
         _planning = planning;
         _stock = stock;
+        _arcanumPlanner = arcanumPlanner;
         _itemLookup = itemLookup;
         _professionsVm = professionsVm;
         _cartoVm = cartoVm;
@@ -402,6 +486,7 @@ public partial class CraftCraftingViewModel : ObservableObject
     public ObservableCollection<CraftMaterialRow> ToFarmRows { get; } = [];
     public ObservableCollection<CraftMaterialRow> VendorBuyRows { get; } = [];
     public ObservableCollection<CraftCharacterPickupGroup> CharacterPickupGroups { get; } = [];
+    public ObservableCollection<ArcanumCraftGroupViewModel> ArcanumCraftGroups { get; } = [];
     public ObservableCollection<CraftStockOwnerOption> StockAccounts { get; } = [];
 
     [ObservableProperty]
@@ -452,6 +537,8 @@ public partial class CraftCraftingViewModel : ObservableObject
 
     public bool HasVendorBuyTotal => VendorBuyTotalCopper > 0;
     public bool HasNoCharacterPickupGroups => CharacterPickupGroups.Count == 0;
+    public bool HasArcanumCraftGroups => ArcanumCraftGroups.Count > 0;
+    public bool HasNoArcanumCraftGroups => ArcanumCraftGroups.Count == 0;
 
     partial void OnForceCraftOutputsChanged(bool value) => RecomputeFromPlanningOptions();
 
@@ -778,6 +865,12 @@ public partial class CraftCraftingViewModel : ObservableObject
         if (Tier3QuestCatalog.TryParseBlProfessionId(professionId, out var blItemId))
             return Tier3QuestCatalog.ProfessionLabelBl(blItemId);
 
+        if (Tier3QuestCatalog.TryParseArcanumProfessionId(professionId, out var arcanumItemId))
+            return Tier3QuestCatalog.ProfessionLabelArcanum(arcanumItemId);
+
+        if (Tier3QuestCatalog.TryParseArgentDawnProfessionId(professionId, out var argentDawnItemId))
+            return Tier3QuestCatalog.ProfessionLabelArgentDawn(argentDawnItemId);
+
         if (Tier3QuestCatalog.TryParseProfessionId(professionId, out var t3Class, out var t3Slot))
             return Tier3QuestCatalog.ProfessionLabel(t3Class, t3Slot);
 
@@ -791,15 +884,22 @@ public partial class CraftCraftingViewModel : ObservableObject
         ToFarmRows.Clear();
         VendorBuyRows.Clear();
         CharacterPickupGroups.Clear();
+        ArcanumCraftGroups.Clear();
         if (SelectedList == null) return;
 
         try
         {
-            var outputs = ProfessionGroups
+            var rows = ProfessionGroups
                 .SelectMany(g => g.Items)
                 .Where(r => r.Quantity > 0)
+                .ToList();
+
+            var outputs = rows
                 .Select(r => (r.Item.ItemId, r.Item.SpellId, r.Quantity))
                 .ToList();
+
+            var arcanumDemands = BuildArcanumDemands(rows);
+            var excludeFromMaterialRows = CollectArcanumBoundItemIds(arcanumDemands);
 
             RefreshStockAccounts();
             var selectedUserIds = StockAccounts
@@ -813,11 +913,14 @@ public partial class CraftCraftingViewModel : ObservableObject
                 UseMuleStockForComponents = StockAccounts.Any(a => a.IsSelected)
             });
 
-            BuildCharacterPickupGroups(plan.Pickups);
+            var pickupIndex = IndexPickupQuantities(plan.Pickups);
+            BuildCharacterPickupGroups(pickupIndex, stock);
+            BuildArcanumCraftGroups(arcanumDemands, stock);
 
             foreach (var (itemId, req) in plan.Materials.OrderBy(kv => kv.Key))
             {
                 if (req.GrossNeeded <= 0 && req.NetNeeded <= 0) continue;
+                if (excludeFromMaterialRows.Contains(itemId)) continue;
 
                 var row = new CraftMaterialRow(itemId, req.NetNeeded, req.GrossNeeded)
                 {
@@ -837,6 +940,71 @@ public partial class CraftCraftingViewModel : ObservableObject
             StatusText = $"Erreur matériaux : {ex.Message}";
             FinishCompute();
         }
+    }
+
+    private static List<ArcanumQuestDemand> BuildArcanumDemands(IReadOnlyList<CraftListRow> rows)
+    {
+        var demands = new List<ArcanumQuestDemand>();
+        foreach (var row in rows)
+        {
+            if (!row.ProfessionId.StartsWith(Tier3QuestCatalog.ProfessionIdPrefixArcanum, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (row.Item.ItemId <= 0) continue;
+
+            demands.Add(new ArcanumQuestDemand
+            {
+                ResultItemId = row.Item.ItemId,
+                Quantity = row.Quantity
+            });
+        }
+
+        return demands;
+    }
+
+    private static HashSet<int> CollectArcanumBoundItemIds(IReadOnlyList<ArcanumQuestDemand> demands)
+    {
+        var ids = new HashSet<int>();
+        foreach (var demand in demands)
+        {
+            if (!Tier3QuestCatalog.TryFindPieceByResultItemId(demand.ResultItemId, out var recipe, out _))
+                continue;
+
+            foreach (var mat in QuestBoundMaterialHelper.GetBoundMaterials(recipe!))
+                ids.Add(mat.ItemId);
+        }
+
+        return ids;
+    }
+
+    private void BuildArcanumCraftGroups(IReadOnlyList<ArcanumQuestDemand> demands, CraftStockSnapshot stock)
+    {
+        if (demands.Count == 0) return;
+
+        var characters = stock.Characters.Select(c => c.ToArcanumStock()).ToList();
+        var result = _arcanumPlanner.Plan(demands, characters);
+
+        foreach (var assignment in result.Assignments)
+        {
+            if (!assignment.HasBoundMaterials) continue;
+            if (!string.IsNullOrEmpty(assignment.ErrorMessage)) continue;
+
+            ArcanumCraftGroups.Add(new ArcanumCraftGroupViewModel(assignment));
+        }
+    }
+
+    private static Dictionary<(string Account, string Character, int ItemId), int> IndexPickupQuantities(
+        IReadOnlyList<CraftPickupLine> pickups)
+    {
+        var pickupTotals = new Dictionary<(string Account, string Character, int ItemId), int>(
+            new AccountCharacterItemComparer());
+
+        foreach (var line in pickups)
+        {
+            var itemKey = (line.AccountName, line.CharacterName, line.ItemId);
+            pickupTotals[itemKey] = pickupTotals.GetValueOrDefault(itemKey) + line.Quantity;
+        }
+
+        return pickupTotals;
     }
 
     private void CancelCompute()
@@ -922,7 +1090,7 @@ public partial class CraftCraftingViewModel : ObservableObject
         var total = ProfessionGroups.Sum(g => g.Items.Count);
         StatusText = total == 0
             ? $"« {SelectedList.Name} » — vide. ＋ métiers ou 📜 quêtes T3."
-            : $"« {SelectedList.Name} » — {total} objet(s), {CharacterPickupGroups.Count} perso(s), {ToFarmRows.Count} à farmer, {VendorBuyRows.Count} chez marchand.";
+            : $"« {SelectedList.Name} » — {total} objet(s), {ArcanumCraftGroups.Count} arcanum(s) lié(s), {CharacterPickupGroups.Count} perso(s), {ToFarmRows.Count} à farmer, {VendorBuyRows.Count} chez marchand.";
     }
 
     private async Task EnrichListDataAsync(bool includeCrafts, CancellationToken token)
@@ -932,9 +1100,15 @@ public partial class CraftCraftingViewModel : ObservableObject
             : [];
         var materialRows = MaterialRows.ToList();
         var pickupRows = CharacterPickupGroups.SelectMany(g => g.Items).ToList();
+        var arcanumGroups = ArcanumCraftGroups.ToList();
+        var arcanumBoundRows = arcanumGroups
+            .SelectMany(g => g.BoundMaterials)
+            .ToList();
         var classifyCandidates = materialRows.Where(r => r.ToFarm > 0).ToList();
 
-        var total = craftRows.Count + materialRows.Count + pickupRows.Count + classifyCandidates.Count;
+        var total = craftRows.Count + materialRows.Count + pickupRows.Count
+                    + arcanumGroups.Count + arcanumBoundRows.Count
+                    + classifyCandidates.Count;
         if (total == 0)
         {
             FinishCompute();
@@ -1006,6 +1180,50 @@ public partial class CraftCraftingViewModel : ObservableObject
                 ReportCompute(done, total, "Matériaux");
             }
 
+            foreach (var group in arcanumGroups)
+            {
+                if (token.IsCancellationRequested) return;
+
+                ReportCompute(done, total, "Composants liés");
+
+                group.DisplayName = _catalog.GetItemDisplayName(group.ResultItemId);
+                await LoadItemDetailsAsync(group.ResultItemId, (name, _) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(name))
+                        group.DisplayName = name;
+                }).ConfigureAwait(true);
+
+                done++;
+                ReportCompute(done, total, "Composants liés");
+
+                foreach (var bound in group.BoundMaterials)
+                {
+                    if (token.IsCancellationRequested) return;
+
+                    ReportCompute(done, total, "Composants liés");
+
+                    bound.DisplayName = _catalog.GetItemDisplayName(bound.ItemId);
+                    await LoadItemDetailsAsync(bound.ItemId, (name, quality) =>
+                    {
+                        if (!string.IsNullOrWhiteSpace(name))
+                            bound.DisplayName = name;
+                        if (!quality.HasValue) return;
+
+                        bound.HeaderWowItem.Quality = quality.Value;
+                        foreach (var line in bound.Characters)
+                        {
+                            if (line.WowItem == null) continue;
+                            line.WowItem.Quality = quality.Value;
+                            if (!string.IsNullOrWhiteSpace(name))
+                                line.WowItem.Name = name;
+                        }
+                    }).ConfigureAwait(true);
+
+                    done++;
+                    ReportCompute(done, total, "Composants liés");
+                }
+            }
+
             foreach (var row in pickupRows)
             {
                 if (token.IsCancellationRequested) return;
@@ -1075,33 +1293,34 @@ public partial class CraftCraftingViewModel : ObservableObject
         }
     }
 
-    private void BuildCharacterPickupGroups(IReadOnlyList<CraftPickupLine> pickups)
+    private void BuildCharacterPickupGroups(
+        IReadOnlyDictionary<(string Account, string Character, int ItemId), int> pickupTotals,
+        CraftStockSnapshot stock)
     {
-        var groups = new Dictionary<string, CraftCharacterPickupGroup>(StringComparer.OrdinalIgnoreCase);
+        var groups = new Dictionary<(string Account, string Character), CraftCharacterPickupGroup>(
+            new AccountCharacterComparer());
 
-        foreach (var line in pickups)
+        foreach (var ((accountName, characterName, itemId), pickupQty) in pickupTotals)
         {
-            var key = $"{line.AccountName}::{line.CharacterName}";
-            if (!groups.TryGetValue(key, out var group))
+            var groupKey = (accountName, characterName);
+            if (!groups.TryGetValue(groupKey, out var group))
             {
-                group = new CraftCharacterPickupGroup(line.CharacterName, line.AccountName);
-                groups[key] = group;
+                group = new CraftCharacterPickupGroup(characterName, accountName);
+                groups[groupKey] = group;
             }
 
-            var existing = group.Items.FirstOrDefault(r => r.ItemId == line.ItemId && r.Source == line.Source);
-            if (existing != null)
-                existing.Quantity += line.Quantity;
-            else
-                group.Items.Add(new CraftPickupRow(line.ItemId, line.Quantity, line.Source));
+            var charStock = stock.FindCharacter(accountName, characterName);
+            var totalOnChar = charStock?.GetTotalOnCharacter(itemId) ?? 0;
+            group.Items.Add(new CraftPickupRow(itemId, pickupQty, totalOnChar));
         }
 
         foreach (var group in groups.Values
+                     .Where(g => g.Items.Count > 0)
                      .OrderBy(g => g.CharacterName, StringComparer.OrdinalIgnoreCase)
                      .ThenBy(g => g.AccountName, StringComparer.OrdinalIgnoreCase))
         {
             var sorted = group.Items
-                .OrderBy(r => r.Source)
-                .ThenBy(r => r.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(r => r.DisplayName, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(r => r.ItemId)
                 .ToList();
             group.Items.Clear();
@@ -1110,6 +1329,34 @@ public partial class CraftCraftingViewModel : ObservableObject
 
             CharacterPickupGroups.Add(group);
         }
+    }
+
+    private sealed class AccountCharacterComparer : IEqualityComparer<(string Account, string Character)>
+    {
+        public bool Equals((string Account, string Character) x, (string Account, string Character) y) =>
+            x.Account.Equals(y.Account, StringComparison.OrdinalIgnoreCase)
+            && x.Character.Equals(y.Character, StringComparison.OrdinalIgnoreCase);
+
+        public int GetHashCode((string Account, string Character) obj) =>
+            HashCode.Combine(
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Account),
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Character));
+    }
+
+    private sealed class AccountCharacterItemComparer : IEqualityComparer<(string Account, string Character, int ItemId)>
+    {
+        public bool Equals(
+            (string Account, string Character, int ItemId) x,
+            (string Account, string Character, int ItemId) y) =>
+            x.ItemId == y.ItemId
+            && x.Account.Equals(y.Account, StringComparison.OrdinalIgnoreCase)
+            && x.Character.Equals(y.Character, StringComparison.OrdinalIgnoreCase);
+
+        public int GetHashCode((string Account, string Character, int ItemId) obj) =>
+            HashCode.Combine(
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Account),
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Character),
+                obj.ItemId);
     }
 
     private void OnRowQuantityChanged()
@@ -1143,6 +1390,8 @@ public partial class CraftCraftingViewModel : ObservableObject
         OnPropertyChanged(nameof(HasNoVendorBuyItems));
         OnPropertyChanged(nameof(HasCharacterPickupGroups));
         OnPropertyChanged(nameof(HasNoCharacterPickupGroups));
+        OnPropertyChanged(nameof(HasArcanumCraftGroups));
+        OnPropertyChanged(nameof(HasNoArcanumCraftGroups));
         RefreshVendorBuyTotals();
     }
 

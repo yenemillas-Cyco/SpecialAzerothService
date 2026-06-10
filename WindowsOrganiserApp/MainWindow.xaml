@@ -128,7 +128,9 @@
                         <RadioButton Content="💰 Primes" Style="{DynamicResource WowPill}" FontSize="13" Height="34" Padding="14,4"
                                      IsChecked="{Binding IsBountyMode}" Margin="0,0,6,0"/>
                         <RadioButton Content="⚗ Craft" Style="{DynamicResource WowPill}" FontSize="13" Height="34" Padding="14,4"
-                                     IsChecked="{Binding IsCraftMode}"/>
+                                     IsChecked="{Binding IsCraftMode}" Margin="0,0,6,0"/>
+                        <RadioButton Content="★ Réputation" Style="{DynamicResource WowPill}" FontSize="13" Height="34" Padding="14,4"
+                                     IsChecked="{Binding IsReputationMode}"/>
                     </StackPanel>
 
                     <!-- Unified Organiser content -->
@@ -463,6 +465,10 @@
                     <!-- Craft : métiers + crafting -->
                     <views:CraftView Grid.Row="3" DataContext="{Binding CraftVm}"
                                      Visibility="{Binding DataContext.IsCraftMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
+
+                    <!-- Réputation : calcul d'objets à farmer -->
+                    <views:ReputationView Grid.Row="3" DataContext="{Binding ReputationVm}"
+                                          Visibility="{Binding DataContext.IsReputationMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
 
                             <!-- Status bar -->
                             <Border Grid.Row="4" Background="{DynamicResource PanelBg}" CornerRadius="4"

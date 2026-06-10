@@ -6,6 +6,7 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/ClassicTheme.xaml"/>
+                <ResourceDictionary Source="Resources/CraftToolbarIcons.xaml"/>
                 <ResourceDictionary Source="Resources/CartoTheme.xaml"/>
                 <ResourceDictionary Source="Localization/Strings.fr.xaml"/>
             </ResourceDictionary.MergedDictionaries>

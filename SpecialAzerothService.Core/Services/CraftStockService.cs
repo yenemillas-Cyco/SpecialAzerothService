@@ -71,10 +71,30 @@ public sealed class CraftStockService : ICraftStockService
 
             foreach (var character in account.Characters)
             {
+                var charKey = (account.AccountName, character.Name);
+                if (!characters.TryGetValue(charKey, out var charStock))
+                {
+                    charStock = new CraftCharacterStock
+                    {
+                        CharacterName = character.Name,
+                        AccountName = account.AccountName,
+                        GoldCopper = character.Gold
+                    };
+                    characters[charKey] = charStock;
+                }
+                else if (character.Gold > charStock.GoldCopper)
+                    charStock.GoldCopper = character.Gold;
+
                 AddItems(character.Inventory, character.Name, account.AccountName,
-                    CraftPickupSource.Inventory, totals, breakdown, characters);
+                    CraftPickupSource.Inventory, totals, breakdown, characters, includeInMulePool: true);
                 AddItems(character.Bank, character.Name, account.AccountName,
-                    CraftPickupSource.Bank, totals, breakdown, characters);
+                    CraftPickupSource.Bank, totals, breakdown, characters, includeInMulePool: true);
+
+                foreach (var mail in character.Mail)
+                {
+                    AddItems(mail.Items, character.Name, account.AccountName,
+                        CraftPickupSource.Mail, totals, breakdown, characters, includeInMulePool: false);
+                }
             }
         }
 
@@ -96,7 +116,8 @@ public sealed class CraftStockService : ICraftStockService
         CraftPickupSource source,
         Dictionary<int, int> totals,
         Dictionary<int, List<CraftStockCharacterHold>> breakdown,
-        Dictionary<(string Account, string Character), CraftCharacterStock> characters)
+        Dictionary<(string Account, string Character), CraftCharacterStock> characters,
+        bool includeInMulePool)
     {
         var charKey = (accountName, characterName);
         if (!characters.TryGetValue(charKey, out var charStock))
@@ -109,44 +130,80 @@ public sealed class CraftStockService : ICraftStockService
             characters[charKey] = charStock;
         }
 
-        var store = source == CraftPickupSource.Inventory ? charStock.Inventory : charStock.Bank;
+        var transferableStore = source switch
+        {
+            CraftPickupSource.Inventory => charStock.Inventory,
+            CraftPickupSource.Bank => charStock.Bank,
+            _ => charStock.Mail
+        };
+        var boundStore = source switch
+        {
+            CraftPickupSource.Inventory => charStock.BoundInventory,
+            CraftPickupSource.Bank => charStock.BoundBank,
+            _ => charStock.BoundMail
+        };
 
         foreach (var item in items)
         {
             if (item.ItemId <= 0 || item.Count <= 0) continue;
 
-            totals[item.ItemId] = totals.GetValueOrDefault(item.ItemId) + item.Count;
-            store[item.ItemId] = store.GetValueOrDefault(item.ItemId) + item.Count;
+            var treatAsBound = item.IsBound
+                || QuestBoundMaterialHelper.IsNonTransferableQuestMaterial(item.ItemId);
 
-            if (!breakdown.TryGetValue(item.ItemId, out var list))
+            if (treatAsBound)
             {
-                list = [];
-                breakdown[item.ItemId] = list;
+                boundStore[item.ItemId] = boundStore.GetValueOrDefault(item.ItemId) + item.Count;
+                AddBreakdownHold(breakdown, item.ItemId, characterName, accountName, item.Count, isBound: true);
+                continue;
             }
 
-            var idx = list.FindIndex(h =>
-                h.CharacterName.Equals(characterName, StringComparison.OrdinalIgnoreCase)
-                && h.AccountName.Equals(accountName, StringComparison.OrdinalIgnoreCase));
+            if (includeInMulePool)
+                totals[item.ItemId] = totals.GetValueOrDefault(item.ItemId) + item.Count;
 
-            if (idx >= 0)
+            transferableStore[item.ItemId] = transferableStore.GetValueOrDefault(item.ItemId) + item.Count;
+            AddBreakdownHold(breakdown, item.ItemId, characterName, accountName, item.Count, isBound: false);
+        }
+    }
+
+    private static void AddBreakdownHold(
+        Dictionary<int, List<CraftStockCharacterHold>> breakdown,
+        int itemId,
+        string characterName,
+        string accountName,
+        int count,
+        bool isBound)
+    {
+        if (!breakdown.TryGetValue(itemId, out var list))
+        {
+            list = [];
+            breakdown[itemId] = list;
+        }
+
+        var idx = list.FindIndex(h =>
+            h.IsBound == isBound
+            && h.CharacterName.Equals(characterName, StringComparison.OrdinalIgnoreCase)
+            && h.AccountName.Equals(accountName, StringComparison.OrdinalIgnoreCase));
+
+        if (idx >= 0)
+        {
+            var prev = list[idx];
+            list[idx] = new CraftStockCharacterHold
             {
-                var prev = list[idx];
-                list[idx] = new CraftStockCharacterHold
-                {
-                    CharacterName = characterName,
-                    AccountName = accountName,
-                    Count = prev.Count + item.Count
-                };
-            }
-            else
+                CharacterName = characterName,
+                AccountName = accountName,
+                Count = prev.Count + count,
+                IsBound = isBound
+            };
+        }
+        else
+        {
+            list.Add(new CraftStockCharacterHold
             {
-                list.Add(new CraftStockCharacterHold
-                {
-                    CharacterName = characterName,
-                    AccountName = accountName,
-                    Count = item.Count
-                });
-            }
+                CharacterName = characterName,
+                AccountName = accountName,
+                Count = count,
+                IsBound = isBound
+            });
         }
     }
 }

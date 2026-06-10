@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:ctrl="clr-namespace:WindowsOrganiserApp.Controls"
+             xmlns:craftIcons="clr-namespace:WindowsOrganiserApp.Resources"
              xmlns:conv="clr-namespace:WindowsOrganiserApp.Converters"
              mc:Ignorable="d" d:DesignHeight="600" d:DesignWidth="1000"
              VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
@@ -166,10 +167,11 @@
                                                 CommandParameter="{Binding}"
                                                 ToolTip="Ajouter à la liste active"
                                                 VerticalAlignment="Top"
-                                                Padding="5" MinWidth="32" Height="34"
-                                                Content="＋" FontSize="16"
-                                                Style="{DynamicResource StoneButton}"
-                                                Visibility="{Binding CanAddToList, Converter={StaticResource BoolToVis}}"/>
+                                                Style="{DynamicResource CraftRecipeAddIconButton}"
+                                                Visibility="{Binding CanAddToList, Converter={StaticResource BoolToVis}}">
+                                            <Image Source="{x:Static craftIcons:CraftToolbarIcons.CraftAddIcon}"
+                                                   Style="{StaticResource CraftToolbarImage}"/>
+                                        </Button>
 
                                         <ItemsControl Grid.Column="0" Grid.ColumnSpan="4" Grid.Row="1"
                                                       ItemsSource="{Binding Reagents}" Margin="0,4,0,0">
