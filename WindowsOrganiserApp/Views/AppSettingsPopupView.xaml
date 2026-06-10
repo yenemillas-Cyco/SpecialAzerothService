@@ -51,7 +51,7 @@
                         <Button DockPanel.Dock="Right" Style="{StaticResource SettingsThinClose}"
                                 Click="CloseSettings_Click"/>
                         <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
-                            <TextBlock Text="⚙ Paramètres &amp; WowSync" FontSize="14" FontWeight="Bold"
+                            <TextBlock Text="⚙ Paramètres" FontSize="14" FontWeight="Bold"
                                        Foreground="{DynamicResource BrightGoldBrush}"/>
                             <TextBlock Text="Glisser ici pour déplacer"
                                        FontSize="9" Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,0"/>
@@ -71,6 +71,33 @@
                 </Border>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14,10,14,8">
                     <StackPanel>
+                        <TextBlock Text="Apparence" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
+                        <TextBlock Text="Thème visuel et langue de l'interface."
+                                   FontSize="10" Foreground="{DynamicResource SubtextBrush}"
+                                   TextWrapping="Wrap" Margin="0,0,0,8"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Thème" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,3"/>
+                                <ComboBox Height="28"
+                                          ItemsSource="{Binding AvailableThemes}"
+                                          SelectedItem="{Binding CurrentThemeLabel}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Langue" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,3"/>
+                                <ComboBox Height="28"
+                                          ItemsSource="{Binding AvailableLanguages}"
+                                          SelectedItem="{Binding CurrentLanguage}"/>
+                            </StackPanel>
+                        </Grid>
+                        <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,12"/>
                         <TextBlock Text="Addon WowSync" FontSize="12" FontWeight="SemiBold"
                                    Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,6"/>
                         <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
@@ -156,7 +183,7 @@
                                    Foreground="{DynamicResource BrightGoldBrush}" Margin="0,0,0,4"/>
                         <TextBlock TextWrapping="Wrap" FontSize="10" Foreground="{DynamicResource SubtextBrush}"
                                    Margin="0,0,0,8">
-                            Œil dans le roster : masque sur la carte uniquement. Tri auto : 60 → Personnages ; démo 20–22 → TP Boy ; 1–2 → Banque ou Clic Boys (sacs WowSync).
+                            Visibilité carte : bouton ⚙ du volet Personnages. Tri auto : 60 → Personnages ; démo 20–22 → TP Boy ; 1–2 → Banque ou Clic Boys (sacs WowSync).
                         </TextBlock>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                             <Button Content="Tri des personnages auto" Style="{DynamicResource WowButton}"

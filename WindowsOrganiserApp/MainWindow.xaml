@@ -91,18 +91,10 @@
                                          Style="{DynamicResource StoneToggle}" Padding="8,5" FontSize="10"
                                          Content="{DynamicResource Header_WowOnly}"
                                          ToolTip="Coché : uniquement WoW. Décoché : toutes les fenêtres"/>
-                            <ComboBox Width="110" Height="28" Margin="6,0,0,0"
-                                      ItemsSource="{Binding AvailableThemes}"
-                                      SelectedItem="{Binding CurrentThemeLabel}"
-                                      ToolTip="Changer de thème"/>
-                            <ComboBox Width="90" Height="28" Margin="6,0,0,0"
-                                      ItemsSource="{Binding AvailableLanguages}"
-                                      SelectedItem="{Binding CurrentLanguage}"
-                                      ToolTip="{DynamicResource Lang_Label}"/>
                             <Button Content="{DynamicResource Header_Help}" Style="{DynamicResource StoneButton}" FontSize="12" Padding="10,5"
                                     Click="Help_Click" ToolTip="{DynamicResource Help_Title}" Margin="6,0,0,0"/>
                             <Button Style="{DynamicResource StoneButton}" FontSize="11" Padding="10,5"
-                                    Click="CartoSettings_Click" ToolTip="Paramètres &amp; WowSync"
+                                    Click="CartoSettings_Click" ToolTip="Paramètres globaux"
                                     Margin="6,0,0,0">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="⚙" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>

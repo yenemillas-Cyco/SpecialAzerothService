@@ -116,10 +116,22 @@ public static class CartoCharacterPresentation
 
         var hasQuest = questContent != null;
         var hasActions = actionsContent != null;
+        var bankNoteText = IsBank(ch) && !string.IsNullOrWhiteSpace(ch.Note) ? ch.Note.Trim() : null;
+        var hasBankNote = bankNoteText != null;
 
         var grid = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition
+        {
+            Width = hasBankNote ? GridLength.Auto : new GridLength(1, GridUnitType.Star)
+        });
+        var bankNoteCol = -1;
+        if (hasBankNote)
+        {
+            bankNoteCol = grid.ColumnDefinitions.Count;
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        }
+
         var questCol = -1;
         var actionsCol = -1;
         if (hasQuest)
@@ -185,6 +197,27 @@ public static class CartoCharacterPresentation
         Grid.SetRow(nameLine, textRow);
         Grid.SetColumn(nameLine, 1);
         grid.Children.Add(nameLine);
+
+        if (hasBankNote)
+        {
+            var noteBlock = new TextBlock
+            {
+                Text = bankNoteText,
+                FontSize = 15,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = NoteBrush,
+                TextWrapping = TextWrapping.Wrap,
+                LineHeight = 18,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Margin = new Thickness(12, 0, 6, 0),
+                ToolTip = bankNoteText
+            };
+            Grid.SetRow(noteBlock, 0);
+            Grid.SetColumn(noteBlock, bankNoteCol);
+            Grid.SetRowSpan(noteBlock, textRowCount);
+            grid.Children.Add(noteBlock);
+        }
 
         if (pvpLine != null)
         {

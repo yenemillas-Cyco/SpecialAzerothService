@@ -424,10 +424,16 @@
                                     <TextBlock Text="Personnages" FontSize="12" FontWeight="SemiBold"
                                                Foreground="{DynamicResource BrightGoldBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <Button x:Name="BtnRosterCollapse" Grid.Column="1"
-                                        Style="{StaticResource CartoThinClose}"
-                                        Click="CloseRosterPanel_Click"
-                                        ToolTip="Fermer le volet personnages"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button x:Name="BtnRosterMapVisibility" Content="⚙" FontSize="13"
+                                            Style="{DynamicResource StoneButton}" Padding="6,2" Margin="0,0,4,0"
+                                            Click="RosterMapVisibility_Click"
+                                            ToolTip="Visibilité sur la carte"/>
+                                    <Button x:Name="BtnRosterCollapse"
+                                            Style="{StaticResource CartoThinClose}"
+                                            Click="CloseRosterPanel_Click"
+                                            ToolTip="Fermer le volet personnages"/>
+                                </StackPanel>
                             </Grid>
                         </Border>
                         <ScrollViewer x:Name="CharacterRosterScroller" VerticalScrollBarVisibility="Auto"
@@ -978,6 +984,42 @@
                                     Command="{Binding StartPlaceTimerCommand}" Click="PopupClose_Click"/>
                         </StackPanel>
                     </Border>
+        </Popup>
+
+        <Popup x:Name="PopupMapVisibility" Placement="Bottom" PlacementTarget="{Binding ElementName=BtnRosterMapVisibility}"
+               StaysOpen="False" AllowsTransparency="True" HorizontalOffset="-8" VerticalOffset="4">
+            <Border Background="#F0141008" CornerRadius="8" Padding="12"
+                    BorderThickness="1.5" MinWidth="280" MaxWidth="380" MaxHeight="520">
+                <Border.BorderBrush>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#CC996600" Offset="0"/>
+                        <GradientStop Color="#88664400" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.BorderBrush>
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.65" Color="Black"/>
+                </Border.Effect>
+                <DockPanel LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <TextBlock Text="Visibilité sur la carte" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource BrightGoldBrush}"/>
+                        <TextBlock Text="Œil : afficher ou masquer les marqueurs (le roster reste visible)."
+                                   FontSize="10" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SubtextBrush}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                    <WrapPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                        <Button Content="TP Boy seuls" Style="{DynamicResource StoneButton}" FontSize="10"
+                                Padding="8,4" Margin="0,0,6,0" Click="MapVisibilityTpBoyOnly_Click"/>
+                        <Button Content="Tout afficher" Style="{DynamicResource StoneButton}" FontSize="10"
+                                Padding="8,4" Click="MapVisibilityShowAll_Click"/>
+                    </WrapPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                        <TreeView x:Name="MapVisibilityTree" BorderThickness="0"
+                                  Background="Transparent"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
         </Popup>
 
         <Popup x:Name="PopupCooldownOwners" Placement="Bottom" PlacementTarget="{Binding ElementName=BtnCooldownOwnerSettings}"

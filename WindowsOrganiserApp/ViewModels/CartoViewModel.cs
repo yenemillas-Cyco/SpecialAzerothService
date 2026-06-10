@@ -22,6 +22,8 @@ public partial class CartoViewModel : ObservableObject
     private readonly ICartoService _cartoService;
     private readonly IWowSyncService _wowSyncService;
     private readonly ISettingsService _settingsService;
+    private readonly IThemeService _themeService;
+    private readonly ILocalizationService _localizationService;
     private readonly AppSettings _settings;
     private readonly DispatcherTimer _cooldownTimer;
     private CartoData _data;
@@ -64,11 +66,15 @@ public partial class CartoViewModel : ObservableObject
         ICartoService cartoService,
         IWowSyncService wowSyncService,
         ISettingsService settingsService,
+        IThemeService themeService,
+        ILocalizationService localizationService,
         AppSettings settings)
     {
         _cartoService = cartoService;
         _wowSyncService = wowSyncService;
         _settingsService = settingsService;
+        _themeService = themeService;
+        _localizationService = localizationService;
         _settings = settings;
         _data = _cartoService.Load();
 
@@ -97,6 +103,51 @@ public partial class CartoViewModel : ObservableObject
         EnsureDefaultCartoUserExists();
         RefreshCartoUserCollections();
         ApplyStoredWowGameRootFromSettings();
+        ApplyAppearanceFromSettings();
+    }
+
+    public string[] AvailableThemes => _themeService.AvailableThemes;
+
+    public string[] AvailableLanguages => _localizationService.AvailableLanguages;
+
+    [ObservableProperty]
+    private string _currentThemeLabel = "";
+
+    [ObservableProperty]
+    private string _currentLanguage = "";
+
+    partial void OnCurrentThemeLabelChanged(string value)
+    {
+        if (string.IsNullOrEmpty(value) || value == _themeService.CurrentTheme)
+            return;
+
+        _themeService.ApplyTheme(value);
+    }
+
+    partial void OnCurrentLanguageChanged(string value)
+    {
+        if (string.IsNullOrEmpty(value) || value == _localizationService.CurrentLanguage)
+            return;
+
+        _localizationService.ApplyLanguage(value);
+    }
+
+    private void ApplyAppearanceFromSettings()
+    {
+        if (!string.IsNullOrWhiteSpace(_settings.Theme))
+            _themeService.ApplyTheme(_settings.Theme);
+        if (!string.IsNullOrWhiteSpace(_settings.Language))
+            _localizationService.ApplyLanguage(_settings.Language);
+
+        CurrentThemeLabel = _themeService.CurrentTheme;
+        CurrentLanguage = _localizationService.CurrentLanguage;
+    }
+
+    private void PersistAppearanceSettings()
+    {
+        _settings.Theme = _themeService.CurrentTheme;
+        _settings.Language = _localizationService.CurrentLanguage;
+        _settingsService.Save(_settings);
     }
 
     private void EnsureDefaultCartoUserExists()
@@ -2770,6 +2821,7 @@ public partial class CartoViewModel : ObservableObject
     public void CloseSettingsPanelAfterSave()
     {
         SaveAccountSettingsFromRows();
+        PersistAppearanceSettings();
         _settingsPanelClosingAfterSave = true;
         IsSettingsPanelOpen = false;
         _settingsPanelClosingAfterSave = false;

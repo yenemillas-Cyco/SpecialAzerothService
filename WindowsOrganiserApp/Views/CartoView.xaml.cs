@@ -1186,16 +1186,7 @@ public partial class CartoView : UserControl
     {
         var accountBrush = new SolidColorBrush(Color.FromRgb(190, 175, 130));
         var gold = Vm.GetAccountGoldCopper(account.SourceFolder);
-        var accountMapToggle = CartoRosterIcons.CreateMapSubtreeVisibilityToggle(
-            () => Vm.IsAccountVisibleOnMap(account),
-            account.Name,
-            () =>
-            {
-                Vm.ToggleAccountMapVisibility(account);
-                RedrawMarkers();
-                CartoRosterIcons.RefreshMapVisibilityToggles(CharacterRosterRoot);
-            });
-        var header = CartoRosterPanelUi.BuildUserTitleRow(account.Name, accountBrush, null, gold, accountMapToggle);
+        var header = CartoRosterPanelUi.BuildUserTitleRow(account.Name, accountBrush, null, gold);
 
         var expandKey = RosterExpandKeys.Account(user.Id, account.Id);
         var expander = CartoRosterPanelUi.StretchExpander(new Expander
@@ -1235,24 +1226,11 @@ public partial class CartoView : UserControl
                 rightRail = CartoRosterPanelUi.BuildCooldownSummaryRail(inProgress, ready);
         }
 
-        UIElement? userMapToggle = cooldownPanel
-            ? null
-            : CartoRosterIcons.CreateMapSubtreeVisibilityToggle(
-                () => Vm.IsUserVisibleOnMap(user),
-                user.Name,
-                () =>
-                {
-                    Vm.ToggleUserMapVisibility(user);
-                    RedrawMarkers();
-                    CartoRosterIcons.RefreshMapVisibilityToggles(CharacterRosterRoot);
-                });
-
         var header = CartoRosterPanelUi.BuildUserTitleRow(
             user.Name,
             userBrush,
             rightRail,
-            cooldownPanel ? 0 : Vm.GetUserTotalGoldCopper(user.Id),
-            userMapToggle);
+            cooldownPanel ? 0 : Vm.GetUserTotalGoldCopper(user.Id));
 
         var userKey = RosterExpandKeys.User(user.Id);
         var expander = CartoRosterPanelUi.StretchExpander(new Expander
@@ -1307,16 +1285,6 @@ public partial class CartoView : UserControl
         string? accountId = null,
         int buildId = 0)
     {
-        var catMapToggle = CartoRosterIcons.CreateMapSubtreeVisibilityToggle(
-            () => Vm.IsCategoryVisibleOnMap(user, category),
-            title,
-            () =>
-            {
-                Vm.ToggleCategoryMapVisibility(user, category);
-                RedrawMarkers();
-                CartoRosterIcons.RefreshMapVisibilityToggles(CharacterRosterRoot);
-            });
-
         var headerPanel = CartoRosterPanelUi.StretchWidth(new StackPanel
         {
             Children =
@@ -1324,8 +1292,7 @@ public partial class CartoView : UserControl
                 CartoRosterPanelUi.BuildCategoryTitleRow(
                     category,
                     title,
-                    Vm.GetCategoryGoldCopper(Vm.GetLocalCharactersForUserCategory(user.Id, category)),
-                    catMapToggle)
+                    Vm.GetCategoryGoldCopper(Vm.GetLocalCharactersForUserCategory(user.Id, category)))
             }
         });
 
@@ -1381,14 +1348,6 @@ public partial class CartoView : UserControl
 
         var callbacks = new CartoDockCardCallbacks
         {
-            ToggleMapVisibility = cooldownRoster
-                ? null
-                : c =>
-                {
-                    Vm.ToggleCharacterMapVisibilityCommand.Execute(c);
-                    RedrawMarkers();
-                    CartoRosterIcons.RefreshMapVisibilityToggles(CharacterRosterRoot);
-                },
             OpenDetails = OpenDetail,
             DragStart = cooldownRoster ? null : (c, card, e) =>
             {
@@ -1423,16 +1382,11 @@ public partial class CartoView : UserControl
             }
         };
 
-        UIElement? mapEye = cooldownRoster || callbacks.ToggleMapVisibility == null
-            ? null
-            : CartoRosterIcons.CreateMapVisibilityToggle(ch, callbacks.ToggleMapVisibility);
-
         var card = CartoRosterPanelUi.StretchWidth(CartoCharacterDockCard.Build(
             ch,
             Vm,
             callbacks,
-            cooldownRoster ? new CartoDockCardOptions { CooldownRosterOnly = true } : null,
-            mapEye));
+            cooldownRoster ? new CartoDockCardOptions { CooldownRosterOnly = true } : null));
         card.Tag = ch;
 
         if (cooldownRoster)
@@ -2606,6 +2560,148 @@ public partial class CartoView : UserControl
 
         RebuildCooldownOwnerVisibilityList();
         PopupCooldownOwners.IsOpen = true;
+    }
+
+    private void RosterMapVisibility_Click(object sender, RoutedEventArgs e)
+    {
+        if (Vm == null)
+            return;
+
+        RebuildMapVisibilityTree();
+        PopupMapVisibility.IsOpen = true;
+    }
+
+    private void RebuildMapVisibilityTree()
+    {
+        if (Vm == null || MapVisibilityTree == null)
+            return;
+
+        MapVisibilityTree.Items.Clear();
+        var roots = new List<CartoRosterTreeNode>();
+        CartoMapVisibilityTreeBuilder.Rebuild(Vm, roots);
+
+        foreach (var root in roots)
+            MapVisibilityTree.Items.Add(BuildMapVisibilityTreeItem(root));
+    }
+
+    private TreeViewItem BuildMapVisibilityTreeItem(CartoRosterTreeNode node)
+    {
+        var item = new TreeViewItem
+        {
+            Header = BuildMapVisibilityHeader(node),
+            IsExpanded = node.IsExpanded,
+            Tag = node
+        };
+
+        foreach (var child in node.Children)
+            item.Items.Add(BuildMapVisibilityTreeItem(child));
+
+        return item;
+    }
+
+    private FrameworkElement BuildMapVisibilityHeader(CartoRosterTreeNode node)
+    {
+        var titleBrush = node.Kind switch
+        {
+            CartoRosterNodeKind.User when node.User != null =>
+                CartoCharacterPresentation.GetUserHeaderBrush(node.User, Vm!),
+            CartoRosterNodeKind.Category when node.Category is { } cat =>
+                CartoRosterPanelUi.GetCategoryAccent(cat),
+            CartoRosterNodeKind.Character when node.Character is { } ch =>
+                CartoCharacterPresentation.GetClassBrush(ch.Class),
+            _ => new SolidColorBrush(Color.FromRgb(190, 175, 130))
+        };
+
+        var toggle = node.Kind switch
+        {
+            CartoRosterNodeKind.User when node.User != null =>
+                CartoRosterIcons.CreateMapSubtreeVisibilityToggle(
+                    () => Vm!.IsUserVisibleOnMap(node.User),
+                    node.User.Name,
+                    () =>
+                    {
+                        Vm.ToggleUserMapVisibility(node.User);
+                        OnMapVisibilityChanged();
+                    }),
+            CartoRosterNodeKind.Account when node.Account != null =>
+                CartoRosterIcons.CreateMapSubtreeVisibilityToggle(
+                    () => Vm!.IsAccountVisibleOnMap(node.Account),
+                    node.Account.Name,
+                    () =>
+                    {
+                        Vm.ToggleAccountMapVisibility(node.Account);
+                        OnMapVisibilityChanged();
+                    }),
+            CartoRosterNodeKind.Category when node.User != null && node.Category is { } category =>
+                CartoRosterIcons.CreateMapSubtreeVisibilityToggle(
+                    () => Vm!.IsCategoryVisibleOnMap(node.User, category),
+                    node.Title,
+                    () =>
+                    {
+                        Vm.ToggleCategoryMapVisibility(node.User, category);
+                        OnMapVisibilityChanged();
+                    }),
+            CartoRosterNodeKind.Character when node.Character != null =>
+                CartoRosterIcons.CreateMapVisibilityToggle(node.Character, ch =>
+                {
+                    Vm!.ToggleCharacterMapVisibilityCommand.Execute(ch);
+                    OnMapVisibilityChanged();
+                }),
+            _ => null
+        };
+
+        var panel = new DockPanel { LastChildFill = true };
+        if (toggle != null)
+        {
+            toggle.SetValue(DockPanel.DockProperty, Dock.Right);
+            panel.Children.Add(toggle);
+        }
+
+        var title = new TextBlock
+        {
+            Text = node.Title,
+            FontSize = node.Kind == CartoRosterNodeKind.Character ? 11 : 12,
+            FontWeight = node.Kind == CartoRosterNodeKind.Character
+                ? FontWeights.Normal
+                : FontWeights.SemiBold,
+            Foreground = titleBrush,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+        panel.Children.Add(title);
+        return panel;
+    }
+
+    private void OnMapVisibilityChanged()
+    {
+        RedrawMarkers();
+        if (PopupMapVisibility?.IsOpen == true)
+            RefreshMapVisibilityTreeToggles(MapVisibilityTree);
+    }
+
+    private static void RefreshMapVisibilityTreeToggles(ItemsControl? root)
+    {
+        if (root == null)
+            return;
+
+        CartoRosterIcons.RefreshMapVisibilityToggles(root);
+        foreach (var item in root.Items)
+        {
+            if (item is TreeViewItem treeItem)
+                RefreshMapVisibilityTreeToggles(treeItem);
+        }
+    }
+
+    private void MapVisibilityTpBoyOnly_Click(object sender, RoutedEventArgs e)
+    {
+        Vm?.HideAllExceptTpBoyOnMapCommand.Execute(null);
+        OnMapVisibilityChanged();
+    }
+
+    private void MapVisibilityShowAll_Click(object sender, RoutedEventArgs e)
+    {
+        Vm?.ShowAllOnMapCommand.Execute(null);
+        OnMapVisibilityChanged();
     }
 
     private void RebuildCooldownOwnerVisibilityList()
