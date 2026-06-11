@@ -93,9 +93,27 @@
         </Style>
 
         <DataTemplate x:Key="ReputationStockIconTemplate">
-            <ctrl:WowItemSlot DataContext="{Binding WowItem}"
-                              Width="32" Height="32" Margin="0,0,6,6"
-                              ToolTip="{Binding NameFr}"/>
+            <StackPanel Margin="0,0,8,6" Width="52">
+                <ctrl:WowItemSlot DataContext="{Binding WowItem}"
+                                  Width="32" Height="32" HorizontalAlignment="Center"
+                                  ToolTip="{Binding NameFr}"/>
+                <TextBlock Text="{Binding QuantityLabel}" FontSize="9" TextAlignment="Center"
+                           Foreground="{DynamicResource SubtextBrush}" Margin="0,1,0,0"/>
+                <ctrl:WowCurrencyControl CopperTotal="{Binding GoldCopperEstimate}"
+                                         IconSize="10" AmountFontSize="9"
+                                         HorizontalAlignment="Center" Margin="0,1,0,0">
+                    <ctrl:WowCurrencyControl.Style>
+                        <Style TargetType="ctrl:WowCurrencyControl">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasGoldEstimate}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ctrl:WowCurrencyControl.Style>
+                </ctrl:WowCurrencyControl>
+            </StackPanel>
         </DataTemplate>
 
         <DataTemplate x:Key="ReputationItemNeedIconTemplate">
@@ -290,18 +308,12 @@
                     <StackPanel>
                         <TextBlock Text="Objectif" Style="{StaticResource SectionTitle}"
                                    Foreground="{DynamicResource BrightGoldBrush}"/>
-                        <DockPanel Margin="0,0,0,10">
-                            <TextBlock DockPanel.Dock="Left" Text="Réputation à gagner :"
-                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <TextBox Text="{Binding TargetReputationText, UpdateSourceTrigger=PropertyChanged}"
-                                     Width="120" Height="28" VerticalContentAlignment="Center"
-                                     FontFamily="Georgia" FontSize="14" Padding="6,2"/>
-                        </DockPanel>
 
-                        <StackPanel Visibility="{Binding ShowZandalarExchangeMode, Converter={StaticResource BoolToVis}}">
+                        <StackPanel Visibility="{Binding ShowZandalarExchangeMode, Converter={StaticResource BoolToVis}}"
+                                    Margin="0,0,0,10">
                             <TextBlock Text="Mode d'échange" Style="{StaticResource SectionTitle}"
                                        Foreground="{DynamicResource BrightGoldBrush}"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                 <RadioButton Content="Bijoux hakkari" Margin="0,0,8,0"
                                              IsChecked="{Binding UseBijoux}"
                                              Style="{DynamicResource StoneRadioToggle}"
@@ -312,6 +324,97 @@
                                              FontSize="12" Padding="10,4"/>
                             </StackPanel>
                         </StackPanel>
+
+                        <DockPanel Margin="0,0,0,10">
+                            <DockPanel.Style>
+                                <Style TargetType="DockPanel">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ShowZandalarExchangeMode}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DockPanel.Style>
+                            <TextBlock DockPanel.Dock="Left" Text="Réputation à gagner :"
+                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBox Text="{Binding TargetReputationText, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="120" Height="28" VerticalContentAlignment="Center"
+                                     FontFamily="Georgia" FontSize="14" Padding="6,2"/>
+                        </DockPanel>
+
+                        <Grid Margin="0,0,0,10"
+                              Visibility="{Binding ShowZandalarExchangeMode, Converter={StaticResource BoolToVis}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel x:Name="ZandalarRepPanel" Grid.Column="0" Margin="0,0,6,0">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding UseCoins}" Value="False">
+                                                <Setter Property="Grid.ColumnSpan" Value="2"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Text="Réputation à gagner" FontSize="11"
+                                           Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,4"/>
+                                <TextBox Text="{Binding TargetReputationText, UpdateSourceTrigger=PropertyChanged}"
+                                         Height="28" VerticalContentAlignment="Center"
+                                         FontFamily="Georgia" FontSize="14" Padding="6,2"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="6,0,0,0"
+                                        Visibility="{Binding UseCoins, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="Prix de vente / pièce (po)" FontSize="11"
+                                           Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,4"/>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="po" FontSize="12"
+                                               Foreground="#FFD700" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                    <TextBox Text="{Binding ZandalarCoinSellGoldText, UpdateSourceTrigger=PropertyChanged}"
+                                             Height="28" VerticalContentAlignment="Center"
+                                             FontFamily="Georgia" FontSize="14" Padding="6,2"
+                                             ToolTip="Or par pièce de tribu"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,10"
+                              Visibility="{Binding ShowZandalarGoldSummaryRow, Converter={StaticResource BoolToVis}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Margin="0,0,6,0" Padding="8,6" CornerRadius="4"
+                                    Background="#18FFFFFF" BorderBrush="#40806030" BorderThickness="1">
+                                <StackPanel>
+                                    <TextBlock Text="À payer (objectif)" FontSize="11"
+                                               Foreground="{DynamicResource SubtextBrush}"/>
+                                    <TextBlock FontSize="11" Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,4">
+                                        <Run Text="{Binding ItemsNeeded, Mode=OneWay}"/>
+                                        <Run Text=" pièce(s)"/>
+                                    </TextBlock>
+                                    <ctrl:WowCurrencyControl CopperTotal="{Binding ItemsNeededGoldCopper}"
+                                                             IconSize="14" AmountFontSize="16"
+                                                             HorizontalAlignment="Left"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Margin="6,0,0,0" Padding="8,6" CornerRadius="4"
+                                    Background="#18FFFFFF" BorderBrush="#40806030" BorderThickness="1">
+                                <StackPanel>
+                                    <TextBlock Text="Valeur du stock scanné" FontSize="11"
+                                               Foreground="{DynamicResource SubtextBrush}"/>
+                                    <TextBlock FontSize="11" Foreground="{DynamicResource SubtextBrush}" Margin="0,2,0,4">
+                                        <Run Text="{Binding TotalStockFound, Mode=OneWay}"/>
+                                        <Run Text=" pièce(s)"/>
+                                    </TextBlock>
+                                    <ctrl:WowCurrencyControl CopperTotal="{Binding TotalStockGoldCopper}"
+                                                             IconSize="14" AmountFontSize="16"
+                                                             HorizontalAlignment="Left"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
                         <StackPanel Visibility="{Binding ShowTierPicker, Converter={StaticResource BoolToVis}}"
                                     Margin="0,0,0,8">
                             <TextBlock Text="Palier de réputation" Style="{StaticResource SectionTitle}"
@@ -554,6 +657,7 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Margin="0,0,8,0">
                                     <TextBlock Style="{StaticResource StockTotalCaption}"
@@ -563,10 +667,17 @@
                                     <TextBlock Style="{StaticResource StockTotalCaption}"
                                                Text="{Binding StockItemUnitLabel, Mode=OneWay}"/>
                                 </StackPanel>
-                                <StackPanel Grid.Column="1">
+                                <StackPanel Grid.Column="1" Margin="0,0,8,0">
                                     <TextBlock Style="{StaticResource StockTotalCaption}" Text="Rép. (total)"/>
                                     <TextBlock Style="{StaticResource StockTotalValue}"
                                                Text="{Binding TotalStockReputation, Mode=OneWay}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2"
+                                            Visibility="{Binding ShowZandalarGoldEstimates, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Style="{StaticResource StockTotalCaption}" Text="Valeur (~)"/>
+                                    <ctrl:WowCurrencyControl CopperTotal="{Binding TotalStockGoldCopper}"
+                                                             IconSize="14" AmountFontSize="16"
+                                                             HorizontalAlignment="Center" Margin="0,2,0,0"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -580,15 +691,26 @@
                                    FontSize="11" Foreground="{DynamicResource SubtextBrush}" Margin="0,0,0,8"
                                    Visibility="{Binding HasNoCharacterStockGroups, Converter={StaticResource BoolToVis}}"/>
 
-                        <TextBlock DockPanel.Dock="Top" FontSize="11" Margin="0,0,0,8"
-                                   Foreground="#FF9070"
-                                   Visibility="{Binding HasStockShortfall, Converter={StaticResource BoolToVis}}">
-                            <Run Text="Il manque encore "/>
-                            <Run Text="{Binding StockShortfall, Mode=OneWay}" FontWeight="SemiBold"/>
-                            <Run Text=" "/>
-                            <Run Text="{Binding StockItemUnitLabel, Mode=OneWay}"/>
-                            <Run Text=" dans le stock scanné."/>
-                        </TextBlock>
+                        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8"
+                                    Visibility="{Binding HasStockShortfall, Converter={StaticResource BoolToVis}}">
+                            <TextBlock FontSize="11" Foreground="#FF9070">
+                                <Run Text="Il manque encore "/>
+                                <Run Text="{Binding StockShortfall, Mode=OneWay}" FontWeight="SemiBold"/>
+                                <Run Text=" "/>
+                                <Run Text="{Binding StockItemUnitLabel, Mode=OneWay}"/>
+                                <Run Text=" dans le stock scanné."/>
+                            </TextBlock>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                        Visibility="{Binding ShowZandalarGoldEstimates, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="Soit environ " FontSize="11" Foreground="#FF9070"
+                                           VerticalAlignment="Center"/>
+                                <ctrl:WowCurrencyControl CopperTotal="{Binding StockShortfallGoldCopper}"
+                                                         IconSize="11" AmountFontSize="11"
+                                                         VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                <TextBlock Text=" à prévoir." FontSize="11" Foreground="#FF9070"
+                                           VerticalAlignment="Center" Margin="4,0,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
 
                         <ItemsControl ItemsSource="{Binding CharacterStockGroups}">
                             <ItemsControl.ItemTemplate>
@@ -608,13 +730,22 @@
                                                                        HorizontalAlignment="Center"/>
                                                         </StackPanel>
                                                     </Border>
-                                                    <Border Style="{StaticResource StockCharTotalsBadge}">
+                                                    <Border Style="{StaticResource StockCharTotalsBadge}" Margin="0,0,6,0">
                                                         <StackPanel>
                                                             <TextBlock Text="Rép." Style="{StaticResource StockTotalCaption}"/>
                                                             <TextBlock Text="{Binding ReputationOnCharacter, Mode=OneWay}"
                                                                        FontFamily="Georgia" FontSize="16" FontWeight="Bold"
                                                                        Foreground="{DynamicResource BrightGoldBrush}"
                                                                        HorizontalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <Border Visibility="{Binding HasGoldEstimate, Converter={StaticResource BoolToVis}}"
+                                                            Style="{StaticResource StockCharTotalsBadge}">
+                                                        <StackPanel>
+                                                            <TextBlock Text="Valeur" Style="{StaticResource StockTotalCaption}"/>
+                                                            <ctrl:WowCurrencyControl CopperTotal="{Binding GoldCopperEstimate}"
+                                                                                     IconSize="11" AmountFontSize="13"
+                                                                                     HorizontalAlignment="Center"/>
                                                         </StackPanel>
                                                     </Border>
                                                 </StackPanel>

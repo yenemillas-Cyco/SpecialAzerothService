@@ -108,9 +108,37 @@ public sealed partial class ReputationViewModel : ObservableObject
     [ObservableProperty]
     private int _totalStockTurnIns;
 
+    [ObservableProperty]
+    private string _zandalarCoinSellGoldText = "0";
+
+    [ObservableProperty]
+    private string _zandalarCoinSellSilverText = "0";
+
+    [ObservableProperty]
+    private string _zandalarCoinSellCopperText = "0";
+
     public string StockItemUnitLabel => GetActiveRoute()?.ItemUnitLabelFr ?? "objets";
 
     public bool ShowZandalarExchangeMode => SelectedFarm?.Definition.Id == "ZandalarTribe";
+
+    public long ZandalarCoinSellPriceCopper =>
+        ParseWowCurrencyText(ZandalarCoinSellGoldText, ZandalarCoinSellSilverText, ZandalarCoinSellCopperText);
+
+    public bool ShowZandalarGoldEstimates =>
+        ShowZandalarExchangeMode && UseCoins && ZandalarCoinSellPriceCopper > 0;
+
+    public bool ShowZandalarItemsNeededGold => ShowZandalarGoldEstimates && HasResult && ItemsNeeded > 0;
+
+    public bool ShowZandalarGoldSummaryRow => ShowZandalarGoldEstimates;
+
+    public long TotalStockGoldCopper =>
+        ShowZandalarGoldEstimates ? TotalStockFound * ZandalarCoinSellPriceCopper : 0;
+
+    public long ItemsNeededGoldCopper =>
+        ShowZandalarGoldEstimates && HasResult ? (long)ItemsNeeded * ZandalarCoinSellPriceCopper : 0;
+
+    public long StockShortfallGoldCopper =>
+        ShowZandalarGoldEstimates && HasStockShortfall ? (long)StockShortfall * ZandalarCoinSellPriceCopper : 0;
 
     public bool UsesTierSelection => SelectedFarm?.Definition.UsesTierSelection == true;
 
@@ -205,9 +233,13 @@ public sealed partial class ReputationViewModel : ObservableObject
 
     partial void OnSelectedFarmChanged(ReputationFarmRow? value)
     {
+        if (value?.Definition.Id == "ZandalarTribe")
+            ApplyZandalarDefaults();
+
         OnPropertyChanged(nameof(IsFarmImplemented));
         OnPropertyChanged(nameof(IsFarmPending));
         OnPropertyChanged(nameof(ShowZandalarExchangeMode));
+        NotifyZandalarGoldEstimates();
         OnPropertyChanged(nameof(UsesTierSelection));
         OnPropertyChanged(nameof(ShowTierPicker));
         OnPropertyChanged(nameof(ShowRoutePicker));
@@ -249,6 +281,7 @@ public sealed partial class ReputationViewModel : ObservableObject
         else if (!value && !UseCoins)
             UseCoins = true;
 
+        NotifyZandalarGoldEstimates();
         NotifyRouteLabels();
         RefreshMethodDetail();
         Recalculate();
@@ -261,9 +294,55 @@ public sealed partial class ReputationViewModel : ObservableObject
         else if (!value && !UseBijoux)
             UseBijoux = true;
 
+        NotifyZandalarGoldEstimates();
         NotifyRouteLabels();
         RefreshMethodDetail();
         Recalculate();
+    }
+
+    partial void OnZandalarCoinSellGoldTextChanged(string value) => OnZandalarCoinPriceChanged();
+
+    partial void OnZandalarCoinSellSilverTextChanged(string value) => OnZandalarCoinPriceChanged();
+
+    partial void OnZandalarCoinSellCopperTextChanged(string value) => OnZandalarCoinPriceChanged();
+
+    private void OnZandalarCoinPriceChanged()
+    {
+        NotifyZandalarGoldEstimates();
+        RefreshStockFindings();
+    }
+
+    private void ApplyZandalarDefaults()
+    {
+        TargetReputationText = "12000";
+        ZandalarCoinSellGoldText = "5";
+        ZandalarCoinSellSilverText = "0";
+        ZandalarCoinSellCopperText = "0";
+        UseCoins = true;
+    }
+
+    private void NotifyZandalarGoldEstimates()
+    {
+        OnPropertyChanged(nameof(ZandalarCoinSellPriceCopper));
+        OnPropertyChanged(nameof(ShowZandalarGoldEstimates));
+        OnPropertyChanged(nameof(ShowZandalarItemsNeededGold));
+        OnPropertyChanged(nameof(ShowZandalarGoldSummaryRow));
+        OnPropertyChanged(nameof(TotalStockGoldCopper));
+        OnPropertyChanged(nameof(ItemsNeededGoldCopper));
+        OnPropertyChanged(nameof(StockShortfallGoldCopper));
+    }
+
+    private static long ParseWowCurrencyText(string goldText, string silverText, string copperText)
+    {
+        _ = int.TryParse(goldText.Trim(), out var gold);
+        _ = int.TryParse(silverText.Trim(), out var silver);
+        _ = int.TryParse(copperText.Trim(), out var copper);
+
+        gold = Math.Max(0, gold);
+        silver = Math.Clamp(silver, 0, 99);
+        copper = Math.Clamp(copper, 0, 99);
+
+        return gold * 10000L + silver * 100L + copper;
     }
 
     private void OnCartoPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -551,7 +630,10 @@ public sealed partial class ReputationViewModel : ObservableObject
             {
                 var count = character.GetTotalOnCharacter(itemId);
                 if (count <= 0) continue;
-                lines.Add(new ReputationStockLine(itemId, nameFr, count));
+                var lineGold = ShowZandalarGoldEstimates && ReputationTurnInCatalog.IsZandalarCoin(itemId)
+                    ? count * ZandalarCoinSellPriceCopper
+                    : 0L;
+                lines.Add(new ReputationStockLine(itemId, nameFr, count, lineGold));
                 charCounts[itemId] = count;
                 charTotal += count;
                 globalCounts[itemId] = globalCounts.GetValueOrDefault(itemId) + count;
@@ -575,11 +657,13 @@ public sealed partial class ReputationViewModel : ObservableObject
             }
 
             var usesTurnIns = UsesTierSelection || route!.UsesFixedRequirements;
+            var goldEstimate = ShowZandalarGoldEstimates ? charTotal * ZandalarCoinSellPriceCopper : 0L;
             CharacterStockGroups.Add(new ReputationCharacterStockGroup(
                 character.CharacterName,
                 character.AccountName,
                 usesTurnIns ? charTurnIns : charTotal,
                 charReputation,
+                goldEstimate,
                 itemUnitLabel,
                 usesTurnIns,
                 lines.OrderBy(l => l.NameFr, StringComparer.OrdinalIgnoreCase).ToList()));
@@ -608,6 +692,7 @@ public sealed partial class ReputationViewModel : ObservableObject
             StockShortfall = 0;
 
         OnPropertyChanged(nameof(HasStockShortfall));
+        NotifyZandalarGoldEstimates();
     }
 
     private void UpdateStockSummary(int total, int characterCount)
@@ -730,6 +815,7 @@ public sealed partial class ReputationViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowItemsNeededBreakdown));
         OnPropertyChanged(nameof(UsesFixedRequirements));
 
+        NotifyZandalarGoldEstimates();
         RefreshStockFindings();
     }
 
@@ -744,6 +830,7 @@ public sealed partial class ReputationViewModel : ObservableObject
         StatusText = status;
         ItemsNeededBreakdown.Clear();
         TierMaterialGroups.Clear();
+        NotifyZandalarGoldEstimates();
         OnPropertyChanged(nameof(ShowSingleItemsNeeded));
         OnPropertyChanged(nameof(ShowItemsNeededBreakdown));
         OnPropertyChanged(nameof(ShowTierMaterials));
@@ -866,6 +953,7 @@ public sealed class ReputationCharacterStockGroup
         string accountName,
         int totalOnCharacter,
         int reputationOnCharacter,
+        long goldCopperEstimate,
         string itemUnitLabel,
         bool usesTurnInCount,
         IReadOnlyList<ReputationStockLine> lines)
@@ -874,6 +962,7 @@ public sealed class ReputationCharacterStockGroup
         AccountName = accountName;
         TotalOnCharacter = totalOnCharacter;
         ReputationOnCharacter = reputationOnCharacter;
+        GoldCopperEstimate = goldCopperEstimate;
         ItemUnitLabel = itemUnitLabel;
         UsesTurnInCount = usesTurnInCount;
         foreach (var line in lines)
@@ -884,6 +973,8 @@ public sealed class ReputationCharacterStockGroup
     public string AccountName { get; }
     public int TotalOnCharacter { get; }
     public int ReputationOnCharacter { get; }
+    public long GoldCopperEstimate { get; }
+    public bool HasGoldEstimate => GoldCopperEstimate > 0;
     public string ItemUnitLabel { get; }
     public bool UsesTurnInCount { get; }
     public ObservableCollection<ReputationStockLine> Lines { get; } = [];
@@ -905,17 +996,20 @@ public sealed class ReputationCharacterStockGroup
 
 public sealed class ReputationStockLine
 {
-    public ReputationStockLine(int itemId, string nameFr, int count)
+    public ReputationStockLine(int itemId, string nameFr, int count, long goldCopperEstimate = 0)
     {
         ItemId = itemId;
         NameFr = nameFr;
         Count = count;
+        GoldCopperEstimate = goldCopperEstimate;
         WowItem = new WowItem { ItemId = itemId, Name = nameFr, Count = count };
     }
 
     public int ItemId { get; }
     public string NameFr { get; }
     public int Count { get; }
+    public long GoldCopperEstimate { get; }
+    public bool HasGoldEstimate => GoldCopperEstimate > 0;
     public WowItem WowItem { get; }
 
     public string QuantityLabel => $"×{Count}";

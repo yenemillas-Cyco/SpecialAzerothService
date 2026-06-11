@@ -7,6 +7,9 @@ public static partial class ReputationTurnInCatalog
 {
   public const int ZandalarHonorTokenItemId = 19858;
 
+  public static bool IsZandalarCoin(int itemId) =>
+      ZandalarCoins.Any(c => c.ItemId == itemId);
+
   // Classic Era 1.13 — bijoux hakkari (IDs 19707–19713, pas 19937–19943 qui sont des butins ZG)
   private static readonly ReputationTurnInItem[] ZandalarBijoux =
   [

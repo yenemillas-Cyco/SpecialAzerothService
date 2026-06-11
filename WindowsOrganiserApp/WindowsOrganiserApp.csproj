@@ -12,7 +12,7 @@
     <AssemblyName>SpecialAzerothService</AssemblyName>
     <Product>Special Azeroth Service — Multibox Organiser</Product>
     <Description>WoW Multibox Window Organiser pour Polux</Description>
-    <Version>4.0.0.5</Version>
+    <Version>4.0.0.6</Version>
 
     <!-- Publication self-contained -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -61,6 +61,7 @@
     <Resource Include="Assets\Classes\class_mage.jpg" />
     <Resource Include="Assets\Classes\class_warlock.jpg" />
     <Resource Include="Assets\Classes\class_druid.jpg" />
+    <Resource Include="Assets\elite_portrait_frame.png" />
   </ItemGroup>
 
 </Project>

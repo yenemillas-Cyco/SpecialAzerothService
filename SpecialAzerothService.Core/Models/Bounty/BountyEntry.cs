@@ -20,6 +20,16 @@ public sealed class BountyEntry
 
     public string DisplayTotal => $"{TotalGold}po";
 
+    [JsonIgnore] public BountyValueTier ValueTier => BountyTierHelper.GetTier(TotalGold);
+
+    [JsonIgnore] public string TierLabel => BountyTierHelper.GetLabel(TotalGold);
+
+    [JsonIgnore] public string TierForegroundHex => BountyTierHelper.GetForegroundHex(TotalGold);
+
+    [JsonIgnore] public string TierBorderHex => BountyTierHelper.GetBorderHex(TotalGold);
+
+    [JsonIgnore] public string TierGlowHex => BountyTierHelper.GetGlowHex(TotalGold);
+
     public string ContributorNames => string.Join(", ", Contributors.Select(c => c.Name).Distinct());
 
     public string ContributorDetails => string.Join(", ", Contributors.Select(c => $"{c.Name} ({c.GoldAmount}po)"));
